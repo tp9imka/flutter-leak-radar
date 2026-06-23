@@ -1,13 +1,15 @@
 // lib/src/util/dispose_analysis.dart
 import 'package:analyzer/dart/ast/ast.dart';
+import 'package:analyzer/dart/ast/visitor.dart';
 
 /// Returns true when [teardownMethod] contains a call to [teardownCall]
 /// on a receiver named [receiverName].
 ///
-/// Recognises both direct-method and cascade call forms:
+/// Recognises both direct-method and cascade call forms anywhere in the method
+/// body, including inside nested blocks such as `if`, `try`, `for`, etc.:
 /// ```dart
-/// _sub.cancel();        // direct
-/// _sub?..cancel();      // cascade (null-aware)
+/// _sub?.cancel();       // direct (null-aware)
+/// _sub..cancel();       // cascade
 /// ```
 bool disposedInTeardown({
   required MethodDeclaration teardownMethod,
@@ -16,45 +18,53 @@ bool disposedInTeardown({
 }) {
   final body = teardownMethod.body;
   if (body is! BlockFunctionBody) return false;
-  return _bodyContainsCall(body.block, receiverName, teardownCall);
+
+  final visitor = _TeardownCallVisitor(receiverName, teardownCall);
+  body.block.accept(visitor);
+  return visitor.found;
 }
 
-bool _bodyContainsCall(
-  Block block,
-  String receiverName,
-  String teardownCall,
-) {
-  for (final statement in block.statements) {
-    if (statement is ExpressionStatement) {
-      final expr = statement.expression;
-      if (_isMatchingCall(expr, receiverName, teardownCall)) return true;
-    }
-  }
-  return false;
-}
+/// Walks the entire AST subtree of a dispose/close/cancel method body and
+/// reports whether a matching [MethodInvocation] or [CascadeExpression]
+/// section is found anywhere, regardless of nesting depth.
+class _TeardownCallVisitor extends RecursiveAstVisitor<void> {
+  _TeardownCallVisitor(this._receiverName, this._teardownCall);
 
-bool _isMatchingCall(
-  Expression expr,
-  String receiverName,
-  String teardownCall,
-) {
-  if (expr is MethodInvocation) {
-    if (expr.methodName.name != teardownCall) return false;
-    final target = expr.target;
-    if (target is SimpleIdentifier && target.name == receiverName) return true;
-  }
-  if (expr is CascadeExpression) {
-    final target = expr.target;
-    if (target is SimpleIdentifier && target.name == receiverName) {
-      for (final section in expr.cascadeSections) {
-        if (section is MethodInvocation &&
-            section.methodName.name == teardownCall) {
-          return true;
+  final String _receiverName;
+  final String _teardownCall;
+
+  bool found = false;
+
+  @override
+  void visitMethodInvocation(MethodInvocation node) {
+    if (!found) {
+      if (node.methodName.name == _teardownCall) {
+        final target = node.target;
+        if (target is SimpleIdentifier && target.name == _receiverName) {
+          found = true;
+          return; // no need to descend further
         }
       }
     }
+    super.visitMethodInvocation(node);
   }
-  return false;
+
+  @override
+  void visitCascadeExpression(CascadeExpression node) {
+    if (!found) {
+      final target = node.target;
+      if (target is SimpleIdentifier && target.name == _receiverName) {
+        for (final section in node.cascadeSections) {
+          if (section is MethodInvocation &&
+              section.methodName.name == _teardownCall) {
+            found = true;
+            return;
+          }
+        }
+      }
+    }
+    super.visitCascadeExpression(node);
+  }
 }
 
 /// Finds the method named [methodName] declared directly on [cls], or `null`.
