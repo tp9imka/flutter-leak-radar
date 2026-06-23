@@ -1,0 +1,18 @@
+name: flutter_leak_radar_example
+description: Demo app for flutter_leak_radar.
+publish_to: none
+version: 0.0.1
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+  flutter: ">=3.38.0"
+resolution: workspace
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_leak_radar:
+    path: ../packages/flutter_leak_radar
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+flutter:
+  uses-material-design: true

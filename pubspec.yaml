@@ -4,5 +4,6 @@ environment:
   sdk: ">=3.10.0 <4.0.0"
 workspace:
   - packages/flutter_leak_radar
+  - example
 dev_dependencies:
   melos: ^6.0.0
