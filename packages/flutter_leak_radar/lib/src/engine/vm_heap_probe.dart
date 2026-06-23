@@ -2,6 +2,7 @@
 import 'dart:developer' as developer;
 import 'dart:isolate' as dart_isolate;
 
+import 'package:meta/meta.dart';
 import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
 
@@ -22,6 +23,10 @@ class VmHeapProbe implements HeapProbe {
   VmService? _service;
   String? _isolateId;
   bool _connectFailed = false;
+
+  /// Cache of class name → [ClassRef] populated during [capture].
+  /// Used by [retainingPath] to avoid a redundant [getAllocationProfile] call.
+  final Map<String, ClassRef> _classRefCache = <String, ClassRef>{};
 
   Future<Uri?> _serviceUri() async {
     var uri = (await developer.Service.getInfo()).serverWebSocketUri;
@@ -90,6 +95,7 @@ class VmHeapProbe implements HeapProbe {
       for (final m in profile.members ?? const <ClassHeapStats>[]) {
         final name = m.classRef?.name;
         if (name == null || name.isEmpty) continue;
+        if (m.classRef != null) _classRefCache[name] = m.classRef!;
         samples.add(
           ClassSample(
             className: name,
@@ -129,15 +135,20 @@ class VmHeapProbe implements HeapProbe {
     final isolateId = _isolateId;
     if (service == null || isolateId == null) return null;
     try {
-      final profile = await service.getAllocationProfile(isolateId);
-      final classId =
-          profile.members
-              ?.firstWhere(
-                (m) => m.classRef?.name == className,
-                orElse: () => ClassHeapStats(),
-              )
-              .classRef
-              ?.id;
+      // Cache lookup first — avoids a full getAllocationProfile per expand.
+      String? classId = _classRefCache[className]?.id;
+      if (classId == null) {
+        // Cold path: fall back to a fresh profile (e.g. first retainingPath
+        // before any capture has run).
+        final profile = await service.getAllocationProfile(isolateId);
+        for (final m in profile.members ?? const <ClassHeapStats>[]) {
+          final name = m.classRef?.name;
+          if (name != null && m.classRef != null) {
+            _classRefCache[name] = m.classRef!;
+          }
+        }
+        classId = _classRefCache[className]?.id;
+      }
       if (classId == null) return null;
 
       final instanceSet = await service.getInstances(
@@ -183,5 +194,19 @@ class VmHeapProbe implements HeapProbe {
       await _service?.dispose();
     } catch (_) {}
     _service = null;
+    _classRefCache.clear();
+  }
+
+  /// Test seam: inject a pre-wired [VmService] and optional cache entries
+  /// without going through the real VM service discovery path.
+  @visibleForTesting
+  void debugInjectServiceAndCache(
+    VmService service, {
+    required String isolateId,
+    Map<String, ClassRef>? classRefCache,
+  }) {
+    _service = service;
+    _isolateId = isolateId;
+    if (classRefCache != null) _classRefCache.addAll(classRefCache);
   }
 }
