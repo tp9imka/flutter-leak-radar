@@ -175,7 +175,9 @@ class VmHeapProbe implements HeapProbe {
             objectType: type,
             field: el.parentField?.toString(),
             index: el.parentListIndex,
-            mapKey: (el.parentMapKey as InstanceRef?)?.valueAsString,
+            mapKey: el.parentMapKey is InstanceRef
+                ? (el.parentMapKey as InstanceRef).valueAsString
+                : null,
           ),
         );
       }
