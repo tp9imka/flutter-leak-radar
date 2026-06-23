@@ -62,11 +62,12 @@ final class LeakRadarConfig {
       other is LeakRadarConfig &&
       other.enabled == enabled &&
       other.suspects == suspects &&
+      listEquals(other.rules, rules) &&
       other.maxSnapshots == maxSnapshots &&
       other.gcCyclesForPreciseLeak == gcCyclesForPreciseLeak &&
       other.disposalGrace == disposalGrace &&
       other.logLevel == logLevel;
 
   @override
-  int get hashCode => Object.hash(enabled, suspects, maxSnapshots, gcCyclesForPreciseLeak, disposalGrace, logLevel);
+  int get hashCode => Object.hash(enabled, suspects, Object.hashAll(rules), maxSnapshots, gcCyclesForPreciseLeak, disposalGrace, logLevel);
 }

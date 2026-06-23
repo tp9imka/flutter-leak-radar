@@ -55,11 +55,12 @@ abstract final class LeakRadar {
   }
 
   static Future<LeakReport> scan({String trigger = 'manual'}) {
+    final capturedAt = DateTime.now();
     final engine = _engine;
     if (engine == null) {
       return Future.value(LeakReport(
         findings: const [],
-        capturedAt: DateTime.now(),
+        capturedAt: capturedAt,
         trigger: trigger,
         status: LeakRadarStatus.disabled,
       ));
@@ -68,7 +69,7 @@ abstract final class LeakRadar {
       () => engine.scan(trigger: trigger),
       fallback: LeakReport(
         findings: const [],
-        capturedAt: DateTime.now(),
+        capturedAt: capturedAt,
         trigger: trigger,
         status: LeakRadarStatus.serviceUnavailable,
       ),
@@ -82,11 +83,14 @@ abstract final class LeakRadar {
   static void markDisposed(Object object) =>
       runSafely<void>(() => _engine?.markDisposed(object), fallback: null, logger: _logger);
 
-  static Stream<LeakReport> get reports => _engine?.reports ?? const Stream<LeakReport>.empty();
+  static Stream<LeakReport> get reports =>
+      runSafely(() => _engine?.reports ?? const Stream<LeakReport>.empty(), fallback: const Stream<LeakReport>.empty(), logger: _logger);
 
-  static LeakReport? get latest => _engine?.latest;
+  static LeakReport? get latest =>
+      runSafely(() => _engine?.latest, fallback: null, logger: _logger);
 
-  static LeakRadarStatus get status => _engine?.status ?? LeakRadarStatus.disabled;
+  static LeakRadarStatus get status =>
+      runSafely(() => _engine?.status ?? LeakRadarStatus.disabled, fallback: LeakRadarStatus.disabled, logger: _logger);
 
   static Future<void> dispose() async {
     final engine = _engine;
