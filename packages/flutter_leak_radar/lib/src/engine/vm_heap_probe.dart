@@ -71,6 +71,13 @@ class VmHeapProbe implements HeapProbe {
       } else {
         final uri = await _serviceUri();
         if (uri == null) {
+          // No VM service URI available (e.g. running in release mode or the
+          // service hasn't started yet). Apply the full 30 s back-off to avoid
+          // hammering Service.getInfo on every capture tick.
+          // Contrast: a mid-capture socket drop (the catch block in [capture])
+          // resets _nextRetryAllowedAt to null, allowing an immediate retry on
+          // the next capture cycle — because the service was reachable moments
+          // ago and a transient disconnect is expected to resolve quickly.
           _nextRetryAllowedAt = DateTime.now().add(_reconnectBackoff);
           return null;
         }
