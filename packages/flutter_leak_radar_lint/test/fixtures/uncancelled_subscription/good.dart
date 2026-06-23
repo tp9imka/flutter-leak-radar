@@ -55,3 +55,23 @@ class _LocalSubState extends State<StatefulWidget> {
   @override
   Widget build(BuildContext context) => const SizedBox();
 }
+
+// Constructor-injected subscription via field-formal (this._sub) — externally
+// owned; the State must NOT cancel it, so it must NOT be flagged.
+class _GoodFieldFormalSubState extends State<StatefulWidget> {
+  _GoodFieldFormalSubState(this._sub);
+  final StreamSubscription<int> _sub;
+
+  @override
+  Widget build(BuildContext context) => const SizedBox();
+}
+
+// Constructor-injected subscription via named simple parameter — also externally
+// owned; must NOT be flagged.
+class _GoodParamSubState extends State<StatefulWidget> {
+  _GoodParamSubState(StreamSubscription<String> _sub) : _sub = _sub;
+  final StreamSubscription<String> _sub;
+
+  @override
+  Widget build(BuildContext context) => const SizedBox();
+}

@@ -29,3 +29,25 @@ String? teardownMethodName(ClassDeclaration cls) {
   if (isBlocBaseSubclass(cls)) return 'close';
   return null;
 }
+
+/// Returns `true` when [fieldName] is initialised from a constructor parameter,
+/// meaning the field is externally owned and should NOT be flagged for
+/// missing teardown calls.
+///
+/// Covers both field-formal parameters (`this._field`) and simple formal
+/// parameters whose name matches [fieldName].
+bool isConstructorParam(ClassDeclaration cls, String fieldName) {
+  for (final member in cls.members) {
+    if (member is! ConstructorDeclaration) continue;
+    for (final param in member.parameters.parameters) {
+      if (param is FieldFormalParameter && param.name.lexeme == fieldName) {
+        return true;
+      }
+      if (param is SimpleFormalParameter &&
+          param.name?.lexeme == fieldName) {
+        return true;
+      }
+    }
+  }
+  return false;
+}

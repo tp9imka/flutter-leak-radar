@@ -45,12 +45,17 @@ class UncancelledSubscription extends DartLintRule {
       for (final member in cls.members) {
         if (member is! FieldDeclaration || member.isStatic) continue;
 
-        final fieldType = member.fields.type?.type ??
-            member.fields.variables.firstOrNull?.declaredFragment?.element.type;
-        if (!_isStreamSubscription(fieldType)) continue;
-
         for (final variable in member.fields.variables) {
           final fieldName = variable.name.lexeme;
+
+          // Resolve type per-variable: prefer the explicit annotation, fall back
+          // to the inferred type from the variable's declared element.
+          final fieldType = member.fields.type?.type ??
+              variable.declaredFragment?.element.type;
+          if (!_isStreamSubscription(fieldType)) continue;
+
+          // Skip fields that are externally owned (passed in via constructor).
+          if (isConstructorParam(cls, fieldName)) continue;
 
           if (teardown == null ||
               !disposedInTeardown(

@@ -65,7 +65,7 @@ class UndisposedController extends DartLintRule {
           }
 
           // Heuristic: skip fields assigned from a constructor parameter.
-          if (_isConstructorParam(cls, fieldName)) continue;
+          if (isConstructorParam(cls, fieldName)) continue;
 
           if (teardown == null ||
               !disposedInTeardown(
@@ -111,24 +111,6 @@ bool _isAssignedInInitState(ClassDeclaration cls, String fieldName) {
             return true;
           }
         }
-      }
-    }
-  }
-  return false;
-}
-
-/// Checks whether [fieldName] is initialized from a constructor parameter
-/// (i.e. owned by the caller, not created here).
-bool _isConstructorParam(ClassDeclaration cls, String fieldName) {
-  for (final member in cls.members) {
-    if (member is! ConstructorDeclaration) continue;
-    for (final param in member.parameters.parameters) {
-      if (param is FieldFormalParameter && param.name.lexeme == fieldName) {
-        return true;
-      }
-      if (param is SimpleFormalParameter &&
-          param.name?.lexeme == fieldName) {
-        return true;
       }
     }
   }
