@@ -6,6 +6,7 @@ environment:
 resolution: workspace
 
 dependencies:
+  bloc: ^9.2.1
   flutter:
     sdk: flutter
 
