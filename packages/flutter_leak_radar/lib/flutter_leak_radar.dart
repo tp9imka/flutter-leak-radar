@@ -12,4 +12,5 @@ export 'src/model/retaining_path.dart' show RetainingPathView, RetainingHop;
 export 'src/model/leak_kind.dart' show LeakKind, LeakSeverity, LeakRadarStatus;
 export 'src/util/rate_limited_logger.dart' show LeakLogLevel;
 export 'src/ui/leak_radar_screen.dart' show LeakRadarScreen;
+export 'src/ui/leak_radar_overlay.dart' show LeakRadarOverlay;
 export 'src/triggers/navigator_observer.dart' show LeakRadarNavigatorObserver;
