@@ -1,0 +1,11 @@
+name: flutter_leak_radar
+packages:
+  - packages/**
+  - example
+scripts:
+  analyze:
+    run: dart analyze --fatal-infos
+    exec: { concurrency: 1 }
+  test:
+    run: flutter test
+    exec: { concurrency: 1 }
