@@ -32,4 +32,20 @@ void main() {
       reason: 'no lint expected when Timer is cancelled in dispose()',
     );
   });
+
+  test(
+    'flags a Timer field not cancelled in close() (BlocBase)',
+    () async {
+      final errors = await rule.testAnalyzeAndRun(fixture('bad_close.dart'));
+      expect(
+        errors,
+        isNotEmpty,
+        reason: 'expected uncancelled_timer lint for BlocBase.close()',
+      );
+      expect(
+        errors.every((e) => e.diagnosticCode.name == 'uncancelled_timer'),
+        isTrue,
+      );
+    },
+  );
 }

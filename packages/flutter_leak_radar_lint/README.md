@@ -17,7 +17,7 @@ Add the plugin as a `dev_dependency` in your `pubspec.yaml`:
 
 ```yaml
 dev_dependencies:
-  custom_lint: ^0.7.0
+  custom_lint: ^0.8.1
   flutter_leak_radar_lint:
     path: ../flutter_leak_radar_lint   # or pub.dev version once published
 ```
@@ -54,3 +54,24 @@ Or suppress for a whole file:
 ## Quick Fixes
 
 `undisposed_controller`, `uncancelled_subscription`, and `uncancelled_timer` all ship with IDE quick-fixes that insert the missing teardown call (or synthesise a `dispose()` override) automatically.
+
+## Known limitations / suppression
+
+Rules scan the teardown method body **directly**. If your teardown delegates to a helper method, the lint cannot follow the call and may false-positive:
+
+```dart
+@override
+void dispose() {
+  _disposeAll(); // helper — lint cannot see inside
+  super.dispose();
+}
+```
+
+In that case, suppress the lint on the field declaration:
+
+```dart
+// ignore: uncancelled_subscription
+StreamSubscription<int>? _sub;
+```
+
+Auto-fix synthesis is intentionally limited to `dispose()` (and other synchronous teardowns). When the detected teardown is `close()` — which returns `Future<void>` — no new method is synthesised because a naive sync body would be incorrect. If your class has no `close()` yet, add it manually and re-run the quick-fix to insert the cancel call into the existing method.

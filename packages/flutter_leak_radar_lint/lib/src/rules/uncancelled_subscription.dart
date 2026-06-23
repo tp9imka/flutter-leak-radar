@@ -132,18 +132,19 @@ class _InsertCancelCall extends DartFix {
           }
           builder.addSimpleInsertion(insertOffset, '    $fieldName?.cancel();\n');
         });
-      } else {
+      } else if (teardownName != 'close') {
+        // Do NOT synthesise a close() override: the async return type makes a
+        // trivial synthesis incorrect (needs `await super.close()`). Only
+        // synthesise dispose() and other sync teardowns.
         changeBuilder.addDartFileEdit((builder) {
           final insertAt = cls.rightBracket.offset;
-          final superCall = teardownName == 'close'
-              ? '    return super.close();\n'
-              : '    super.$teardownName();\n';
           builder.addSimpleInsertion(insertAt, '''
 
   @override
-  ${teardownName == 'close' ? 'Future<void>' : 'void'} $teardownName() {
+  void $teardownName() {
     $fieldName?.cancel();
-    $superCall}
+    super.$teardownName();
+  }
 ''');
         });
       }

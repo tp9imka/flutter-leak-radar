@@ -80,20 +80,3 @@ MethodDeclaration? findTeardownMethod(
   return null;
 }
 
-/// Returns the names of non-static fields in [cls] that satisfy [typeTest].
-List<String> ownedFieldNames({
-  required ClassDeclaration cls,
-  required bool Function(FieldDeclaration) typeTest,
-}) {
-  final names = <String>[];
-  for (final member in cls.members) {
-    if (member is FieldDeclaration && !member.isStatic) {
-      if (typeTest(member)) {
-        for (final variable in member.fields.variables) {
-          names.add(variable.name.lexeme);
-        }
-      }
-    }
-  }
-  return names;
-}

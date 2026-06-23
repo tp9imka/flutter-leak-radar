@@ -32,4 +32,20 @@ void main() {
       reason: 'no lint expected when subscription is cancelled in dispose()',
     );
   });
+
+  test(
+    'flags a StreamSubscription field not cancelled in close() (BlocBase)',
+    () async {
+      final errors = await rule.testAnalyzeAndRun(fixture('bad_close.dart'));
+      expect(
+        errors,
+        isNotEmpty,
+        reason: 'expected uncancelled_subscription lint for BlocBase.close()',
+      );
+      expect(
+        errors.every((e) => e.diagnosticCode.name == 'uncancelled_subscription'),
+        isTrue,
+      );
+    },
+  );
 }
