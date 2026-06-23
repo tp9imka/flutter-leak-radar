@@ -11,8 +11,10 @@ T runSafely<T>(
     return body();
   } catch (e, st) {
     logger?.log(
-      'leak_radar suppressed error: $e\n$st',
+      'leak_radar suppressed error: $e',
       level: LeakLogLevel.error,
+      error: e,
+      stackTrace: st,
     );
     return fallback;
   }
@@ -28,8 +30,10 @@ Future<T> runSafelyAsync<T>(
     return await body();
   } catch (e, st) {
     logger?.log(
-      'leak_radar suppressed async error: $e\n$st',
+      'leak_radar suppressed async error: $e',
       level: LeakLogLevel.error,
+      error: e,
+      stackTrace: st,
     );
     return fallback;
   }

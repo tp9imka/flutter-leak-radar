@@ -20,13 +20,22 @@ class RateLimitedLogger {
     String message, {
     LeakLogLevel level = LeakLogLevel.warning,
     DateTime? now,
+    Object? error,
+    StackTrace? stackTrace,
   }) {
     if (this.level == LeakLogLevel.none) return;
     if (level.index > this.level.index) return;
     final DateTime at = now ?? DateTime.now();
     final DateTime? last = _lastLogged[message];
-    if (last != null && at.difference(last) < window) return;
+    if (last != null && !at.isBefore(last) && at.difference(last) < window) {
+      return;
+    }
     _lastLogged[message] = at;
-    developer.log(message, name: 'flutter_leak_radar');
+    developer.log(
+      message,
+      name: 'flutter_leak_radar',
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 }
