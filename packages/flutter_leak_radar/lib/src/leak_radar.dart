@@ -21,7 +21,13 @@ import 'util/rate_limited_logger.dart';
 import 'util/safe.dart';
 
 /// Output format for [LeakRadar.exportToFile].
-enum LeakExportFormat { json, markdown }
+enum LeakExportFormat {
+  /// Structured JSON — suitable for programmatic processing.
+  json,
+
+  /// Human-readable Markdown table — suitable for sharing in issues or Slack.
+  markdown,
+}
 
 /// An inert [NavigatorObserver] used when the engine is disabled or in release.
 ///
@@ -37,6 +43,11 @@ abstract final class LeakRadar {
   static final NavigatorObserver _inertObserver = _InertNavigatorObserver();
   static bool _showOverlay = true;
 
+  /// Initialises the leak detector with the given [config].
+  ///
+  /// Call once from `main()` after `WidgetsFlutterBinding.ensureInitialized()`.
+  /// Calling again disposes the previous engine before starting a new one.
+  /// A no-op when [LeakRadarConfig.enabled] is false or in release builds.
   static Future<void> init(LeakRadarConfig config) async {
     await dispose();
     if (!kEngineEnabled || !config.enabled) {
@@ -76,6 +87,11 @@ abstract final class LeakRadar {
     _engine = engine;
   }
 
+  /// Triggers a heap scan and returns the resulting [LeakReport].
+  ///
+  /// [trigger] is a free-form label stored in the report (e.g. `'manual'`,
+  /// `'navigation'`). Returns a report with empty findings and
+  /// [LeakRadarStatus.disabled] when the engine is not running. Never throws.
   static Future<LeakReport> scan({String trigger = 'manual'}) {
     final capturedAt = DateTime.now();
     final engine = _engine;
@@ -99,18 +115,38 @@ abstract final class LeakRadar {
     );
   }
 
+  /// Registers [object] for precise lifecycle tracking using a `WeakReference`
+  /// and `Finalizer`.
+  ///
+  /// [tag] is a label used in [LeakFinding.tag] to identify the tracked type.
+  /// The object will be reported as leaked if it is not GCed within
+  /// [LeakRadarConfig.gcCyclesForPreciseLeak] GC cycles after
+  /// [markDisposed] is called (or if [markDisposed] is never called).
+  /// A no-op when the engine is not running.
   static void track(Object object, {required String tag}) =>
       runSafely<void>(() => _engine?.track(object, tag: tag), fallback: null, logger: _logger);
 
+  /// Notifies the engine that [object] has been intentionally disposed.
+  ///
+  /// After this call the engine expects the object to be GCed within
+  /// [LeakRadarConfig.disposalGrace] + a few GC cycles. A no-op when the
+  /// engine is not running or the object was never [track]ed.
   static void markDisposed(Object object) =>
       runSafely<void>(() => _engine?.markDisposed(object), fallback: null, logger: _logger);
 
+  /// Stream of [LeakReport]s emitted after each scan completes.
+  ///
+  /// Emits an empty stream when the engine is not running.
   static Stream<LeakReport> get reports =>
       runSafely(() => _engine?.reports ?? const Stream<LeakReport>.empty(), fallback: const Stream<LeakReport>.empty(), logger: _logger);
 
+  /// The most recent [LeakReport], or null if no scan has run yet.
   static LeakReport? get latest =>
       runSafely(() => _engine?.latest, fallback: null, logger: _logger);
 
+  /// Current runtime status of the detector.
+  ///
+  /// Returns [LeakRadarStatus.disabled] when the engine is not running.
   static LeakRadarStatus get status =>
       runSafely(() => _engine?.status ?? LeakRadarStatus.disabled, fallback: LeakRadarStatus.disabled, logger: _logger);
 
@@ -128,7 +164,7 @@ abstract final class LeakRadar {
 
   /// Wraps [child] with a [LeakRadarOverlay] when the engine is active and
   /// [LeakRadarConfig.showOverlay] is true. Returns [child] unchanged when the
-  /// engine is disabled, in release, or [showOverlay] is false.
+  /// engine is disabled, in release, or `showOverlay` is false.
   ///
   /// Any internal error is swallowed — [child] is returned as the fallback so
   /// the host app is never affected.
@@ -188,6 +224,10 @@ abstract final class LeakRadar {
         return file.path;
       }, fallback: null, logger: _logger);
 
+  /// Stops the engine and releases all resources.
+  ///
+  /// Safe to call multiple times. [init] can be called again after [dispose]
+  /// to re-start with a different [LeakRadarConfig].
   static Future<void> dispose() async {
     final engine = _engine;
     _engine = null;

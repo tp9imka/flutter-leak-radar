@@ -3,14 +3,28 @@ import 'package:meta/meta.dart';
 
 import 'leak_rule.dart';
 
+/// An ordered collection of [LeakRule]s that determines which classes the
+/// engine monitors for heap growth.
+///
+/// Use [SuspectSet.defaults] for out-of-the-box coverage of common
+/// Flutter/Dart leak-prone types. Layer additional [LeakRule]s via
+/// [LeakRadarConfig.rules]; they are merged with higher precedence than the
+/// defaults by [merge].
 @immutable
 final class SuspectSet {
+  /// Creates a set from an explicit list of rules.
   const SuspectSet(this.rules);
+
+  /// Creates an empty set — no classes are monitored until rules are added.
   const SuspectSet.empty() : rules = const <LeakRule>[];
 
-  /// Curated defaults for common Flutter/Dart leak-prone types. (`*State`
-  /// rather than `State` so concrete State subclasses like `_HomeScreenState`
-  /// match — refines the spec's `State` entry.)
+  /// Curated defaults for common Flutter/Dart leak-prone types.
+  ///
+  /// Covers `*State`, `*Screen`, `*Bloc`, `*Cubit`, `*Controller`,
+  /// `*Notifier`, `*StreamSubscription`, `*StreamController`, and `Timer`.
+  ///
+  /// (`*State` rather than `State` so concrete subclasses like
+  /// `_HomeScreenState` match — refines the spec's `State` entry.)
   factory SuspectSet.defaults() => const SuspectSet(<LeakRule>[
         LeakRule.growth('*State'),
         LeakRule.growth('*Screen'),
@@ -23,6 +37,7 @@ final class SuspectSet {
         LeakRule.growth('Timer'),
       ]);
 
+  /// The ordered list of rules in this set.
   final List<LeakRule> rules;
 
   /// Returns a new set with [extra] layered after the existing rules.

@@ -3,8 +3,18 @@ import 'package:meta/meta.dart';
 
 import '../model/leak_kind.dart';
 
+/// Internal detection strategy for a [LeakRule].
 enum LeakDetectionMode { growth, maxLive, ignore }
 
+/// A rule that tells the engine how to handle classes whose names match [pattern].
+///
+/// Create rules with the named constructors:
+/// - [LeakRule.growth] — flag if the instance count grows across snapshots.
+/// - [LeakRule.maxLive] — flag if the live count exceeds a fixed ceiling.
+/// - [LeakRule.ignore] — never flag matching classes (suppresses defaults).
+///
+/// Patterns use simple glob matching: `*X` ends-with, `X*` starts-with,
+/// `*X*` contains, bare `X` is an exact match.
 @immutable
 final class LeakRule {
   const LeakRule._({
@@ -15,24 +25,41 @@ final class LeakRule {
     this.severityHint,
   });
 
+  /// Flag classes whose names match [pattern] when their instance count grows
+  /// by at least [minGrowth] across the rolling snapshot window.
   const factory LeakRule.growth(
     String pattern, {
     int minGrowth,
     LeakSeverity? severityHint,
   }) = _GrowthRule;
 
+  /// Flag classes whose names match [pattern] when more than [max] instances
+  /// are live at scan time.
   const factory LeakRule.maxLive(
     String pattern,
     int max, {
     LeakSeverity? severityHint,
   }) = _MaxLiveRule;
 
+  /// Suppress all findings for classes whose names match [pattern].
+  ///
+  /// Ignore rules take the highest precedence regardless of position in the
+  /// list — they override both [growth] and [maxLive] rules for the same class.
   const factory LeakRule.ignore(String pattern) = _IgnoreRule;
 
+  /// Glob pattern matched against the simple (unqualified) class name.
   final String pattern;
+
+  /// Detection mode selected by the factory constructor used.
   final LeakDetectionMode mode;
+
+  /// Live-count ceiling for [LeakDetectionMode.maxLive] rules.
   final int? maxLive;
+
+  /// Minimum growth threshold for [LeakDetectionMode.growth] rules.
   final int minGrowth;
+
+  /// Optional severity override; defaults to engine heuristics when null.
   final LeakSeverity? severityHint;
 
   /// Glob match against the simple class name.

@@ -5,6 +5,10 @@ import '../util/rate_limited_logger.dart';
 import 'leak_rule.dart';
 import 'suspect_set.dart';
 
+/// Controls when the engine triggers automatic scans.
+///
+/// Pass to [LeakRadarConfig] or [LeakRadarConfig.standard]. Both [onNavigation]
+/// and [period] can be active simultaneously.
 @immutable
 final class AutoScan {
   const AutoScan({
@@ -13,8 +17,18 @@ final class AutoScan {
     this.navigationDebounce = const Duration(milliseconds: 500),
   });
 
+  /// Trigger a scan after each navigation pop, debounced by [navigationDebounce].
+  ///
+  /// Requires [LeakRadar.navigatorObserver] to be added to
+  /// [MaterialApp.navigatorObservers].
   final bool onNavigation;
+
+  /// Trigger periodic scans at this interval. Null disables periodic scanning.
   final Duration? period;
+
+  /// How long to wait after the last `didPop` before firing the navigation scan.
+  ///
+  /// Coalesces rapid back-navigations. Defaults to 500 ms.
   final Duration navigationDebounce;
 
   bool get hasPeriodic => period != null;
@@ -41,6 +55,11 @@ final class AutoScan {
   int get hashCode => Object.hash(onNavigation, period, navigationDebounce);
 }
 
+/// Configuration for [LeakRadar.init].
+///
+/// Use [LeakRadarConfig.standard] for typical wiring — it enables the detector
+/// only in debug and profile builds (`kDebugMode || kProfileMode`) and applies
+/// [SuspectSet.defaults] out of the box.
 @immutable
 final class LeakRadarConfig {
   const LeakRadarConfig({
@@ -56,7 +75,10 @@ final class LeakRadarConfig {
     this.showOverlay = true,
   });
 
-  /// Typical wiring: enabled only in debug/profile, defaults suspects.
+  /// Recommended constructor for production apps.
+  ///
+  /// Sets [enabled] to `kDebugMode || kProfileMode`, uses
+  /// [SuspectSet.defaults], and applies [rules] on top.
   factory LeakRadarConfig.standard({
     AutoScan autoScan = const AutoScan(),
     List<LeakRule> rules = const <LeakRule>[],
@@ -71,18 +93,42 @@ final class LeakRadarConfig {
         maxSnapshots: maxSnapshots,
       );
 
+  /// Master on/off switch. When false the engine is never started and every
+  /// [LeakRadar] call is a no-op.
   final bool enabled;
+
+  /// Automatic scan scheduling settings.
   final AutoScan autoScan;
+
+  /// Which class-name patterns the engine monitors for heap growth.
   final SuspectSet suspects;
+
+  /// Extra rules layered on top of [suspects].
+  ///
+  /// Rules appended here take precedence over [suspects] because they are
+  /// evaluated later by [SuspectSet.merge].
   final List<LeakRule> rules;
+
+  /// Rolling history depth for growth analysis. Higher values give more
+  /// accurate trend detection at the cost of memory.
   final int maxSnapshots;
+
+  /// Number of GC cycles a tracked object must survive after disposal before
+  /// it is reported as a precise leak.
   final int gcCyclesForPreciseLeak;
+
+  /// Time after [LeakRadar.markDisposed] before the object must be GCed.
   final Duration disposalGrace;
+
+  /// Maximum number of retaining-path fetches per scan. Capped to limit VM
+  /// service overhead on large heaps.
   final int maxRetainingPathRequests;
+
+  /// Verbosity of internal engine log output.
   final LeakLogLevel logLevel;
 
   /// Whether [LeakRadar.overlay] should wrap the child in a [LeakRadarOverlay].
-  /// Defaults to [true]. Has no effect when the engine is disabled or in release.
+  /// Defaults to `true`. Has no effect when the engine is disabled or in release.
   final bool showOverlay;
 
   LeakRadarConfig copyWith({
