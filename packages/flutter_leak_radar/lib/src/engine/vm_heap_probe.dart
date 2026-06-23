@@ -24,10 +24,22 @@ class VmHeapProbe implements HeapProbe {
 
   VmService? _service;
   String? _isolateId;
-  bool _connectFailed = false;
+
+  /// Replaces the old permanent `_connectFailed` bool.
+  /// Null means "no failure recorded"; non-null means "don't retry before this
+  /// instant". A successful connect resets this to null.
+  DateTime? _nextRetryAllowedAt;
+
+  static const Duration _reconnectBackoff = Duration(seconds: 30);
+
+  /// Optional test seam: when set, [_ensureConnected] calls this instead of
+  /// the real [vmServiceConnectUri] path.
+  Future<VmService> Function()? _connectionFactory;
 
   /// Cache of class name → [ClassRef] populated during [capture].
   /// Used by [retainingPath] to avoid a redundant [getAllocationProfile] call.
+  /// MUST be cleared whenever the VM-service connection is dropped, because
+  /// [ClassRef.id] values become stale after a reconnect.
   final Map<String, ClassRef> _classRefCache = <String, ClassRef>{};
 
   Future<Uri?> _serviceUri() async {
@@ -41,26 +53,42 @@ class VmHeapProbe implements HeapProbe {
 
   Future<VmService?> _ensureConnected() async {
     if (_service != null) return _service;
-    if (_connectFailed) return null;
+
+    // Back-off guard: don't hammer the VM service after a recent failure.
+    final retryAt = _nextRetryAllowedAt;
+    if (retryAt != null && DateTime.now().isBefore(retryAt)) return null;
+
     try {
-      final uri = await _serviceUri();
-      if (uri == null) {
-        _connectFailed = true;
-        return null;
+      VmService service;
+      if (_connectionFactory != null) {
+        // Test-injected factory: skip URI discovery and socket validation.
+        service = await _connectionFactory!();
+        // Resolve isolate id via developer.Service only (avoids a getVM() RPC
+        // that test fakes don't need to implement).
+        _isolateId =
+            developer.Service.getIsolateId(dart_isolate.Isolate.current) ??
+            'isolates/test';
+      } else {
+        final uri = await _serviceUri();
+        if (uri == null) {
+          _nextRetryAllowedAt = DateTime.now().add(_reconnectBackoff);
+          return null;
+        }
+        service = await vmServiceConnectUri(uri.toString());
+        await service.getVersion(); // validate socket
+        _isolateId =
+            developer.Service.getIsolateId(dart_isolate.Isolate.current) ??
+            (await service.getVM()).isolates?.first.id;
       }
-      final service = await vmServiceConnectUri(uri.toString());
-      await service.getVersion(); // validate socket
-      _isolateId =
-          developer.Service.getIsolateId(dart_isolate.Isolate.current) ??
-          (await service.getVM()).isolates?.first.id;
       _service = service;
+      _nextRetryAllowedAt = null; // clear on success
       return service;
     } catch (e) {
       _logger.log(
         'VmHeapProbe connect failed: $e',
         level: LeakLogLevel.error,
       );
-      _connectFailed = true;
+      _nextRetryAllowedAt = DateTime.now().add(_reconnectBackoff);
       return null;
     }
   }
@@ -121,7 +149,9 @@ class VmHeapProbe implements HeapProbe {
       );
     } catch (e) {
       _logger.log('capture failed: $e', level: LeakLogLevel.error);
-      _service = null; // force reconnect next time
+      _service = null; // drop connection; force reconnect next time
+      _classRefCache.clear(); // ids are stale after reconnect
+      _nextRetryAllowedAt = null; // allow immediate retry on next capture
       return HeapSnapshot(
         samples: const <ClassSample>[],
         capturedAt: DateTime.now(),
@@ -220,6 +250,33 @@ class VmHeapProbe implements HeapProbe {
   }) {
     _service = service;
     _isolateId = isolateId;
-    if (classRefCache != null) _classRefCache.addAll(classRefCache);
+    _nextRetryAllowedAt = null; // clear any backoff when injecting directly
+    if (classRefCache != null) {
+      _classRefCache
+        ..clear()
+        ..addAll(classRefCache);
+    }
   }
+
+  /// Test seam: replace the real [vmServiceConnectUri] code path with a
+  /// custom factory. Set to null to restore default behaviour.
+  @visibleForTesting
+  void debugInjectConnectionFactory(Future<VmService> Function()? factory) {
+    _connectionFactory = factory;
+    _service = null; // ensure _ensureConnected will call the factory
+    _isolateId = null;
+    _nextRetryAllowedAt = null;
+  }
+
+  /// Test seam: override [_nextRetryAllowedAt] so tests can bypass the 30 s
+  /// backoff without sleeping.
+  @visibleForTesting
+  void debugOverrideNextRetryAllowedAt(DateTime? value) {
+    _nextRetryAllowedAt = value;
+  }
+
+  /// Test seam: read-only view of the internal class-ref cache.
+  @visibleForTesting
+  Map<String, ClassRef> get debugClassRefCache =>
+      Map<String, ClassRef>.unmodifiable(_classRefCache);
 }
