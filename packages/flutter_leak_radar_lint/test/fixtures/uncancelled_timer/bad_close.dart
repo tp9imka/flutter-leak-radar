@@ -13,5 +13,6 @@ class _BadTimerBloc extends Cubit<int> {
   void start() {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {});
   }
+
   // Missing close() override with _timer?.cancel().
 }

@@ -1,4 +1,4 @@
-// lib/src/rules/uncancelled_timer.dart
+// lib/src/rules/unclosed_stream_controller.dart
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:analyzer/error/error.dart' hide LintCode;
@@ -9,28 +9,34 @@ import '../util/dispose_analysis.dart';
 import '../util/state_class.dart';
 import '../util/type_checkers.dart';
 
-/// Flags a [Timer] stored in a class FIELD that is never cancelled in
-/// `dispose()` / `close()`.
+/// Flags a [StreamController] stored in a class FIELD that is never closed in
+/// the teardown method (`dispose()` for [State] subclasses, `close()` for
+/// `bloc` [BlocBase] subclasses).
 ///
-/// Only FIELD declarations are reported. Local-variable timers (fire-and-forget
-/// or stored in a local) are intentionally out of scope — those are not heap-
-/// pinned by the widget tree and are not a widget-lifecycle leak.
+/// Only FIELD declarations are reported. Local-variable controllers are out of
+/// scope — they are not pinned by the widget tree and are not a lifecycle leak.
 ///
-/// Constructor-injected fields are excluded: the Timer is externally owned and
-/// the State must not cancel it.
+/// Mirrors [UncancelledSubscription] exactly, with `teardownCall: 'close'`.
 ///
 /// Severity: WARNING.
-/// Tier-B fix: auto-inserts `<field>?.cancel();` into the teardown.
-class UncancelledTimer extends DartLintRule {
-  const UncancelledTimer() : super(code: _code);
+/// Tier-A fix (sync teardown only): auto-inserts `<field>.close();` into the
+/// teardown, synthesising a `dispose()` override if absent. A `close()`
+/// override is never synthesised (its async return type makes a trivial
+/// synthesis incorrect — see [UncancelledSubscription]).
+///
+/// False-positive suppressions:
+/// - Field assigned from a constructor parameter (externally owned).
+/// - Controller closed inside any nested block (if/try/for) of teardown.
+/// - Class with no recognised teardown method (plain Dart classes).
+class UnclosedStreamController extends DartLintRule {
+  const UnclosedStreamController() : super(code: _code);
 
   static const _code = LintCode(
-    name: 'uncancelled_timer',
+    name: 'unclosed_stream_controller',
     problemMessage:
-        "The Timer '{0}' is stored in a field but is never cancelled in dispose().",
+        "The StreamController '{0}' is created in this class but is never closed in the teardown method.",
     correctionMessage:
-        "Call '{0}?.cancel()' inside dispose() to prevent the timer from "
-        "running after the widget is disposed.",
+        "Call '{0}.close()' inside dispose()/close() to release the controller and its buffer.",
     errorSeverity: ErrorSeverity.WARNING,
   );
 
@@ -57,7 +63,7 @@ class UncancelledTimer extends DartLintRule {
           final fieldType =
               member.fields.type?.type ??
               variable.declaredFragment?.element.type;
-          if (!_isTimer(fieldType)) continue;
+          if (!_isStreamController(fieldType)) continue;
 
           // Skip fields that are externally owned (passed in via constructor).
           if (isConstructorParam(cls, fieldName)) continue;
@@ -66,7 +72,7 @@ class UncancelledTimer extends DartLintRule {
               !disposedInTeardown(
                 teardownMethod: teardown,
                 receiverName: fieldName,
-                teardownCall: 'cancel',
+                teardownCall: 'close',
               )) {
             reporter.atToken(variable.name, _code, arguments: [fieldName]);
           }
@@ -76,15 +82,15 @@ class UncancelledTimer extends DartLintRule {
   }
 
   @override
-  List<Fix> getFixes() => [_InsertTimerCancelCall()];
+  List<Fix> getFixes() => [_InsertCloseCall()];
 }
 
-bool _isTimer(DartType? type) {
+bool _isStreamController(DartType? type) {
   if (type == null) return false;
-  return kTimerChecker.isAssignableFromType(type);
+  return kStreamControllerChecker.isAssignableFromType(type);
 }
 
-class _InsertTimerCancelCall extends DartFix {
+class _InsertCloseCall extends DartFix {
   @override
   void run(
     CustomLintResolver resolver,
@@ -114,8 +120,8 @@ class _InsertTimerCancelCall extends DartFix {
 
       final existingTeardown = findTeardownMethod(cls, teardownName);
       final changeBuilder = reporter.createChangeBuilder(
-        message: "Add '$fieldName?.cancel()' to $teardownName()",
-        priority: 75,
+        message: "Add '$fieldName.close()' to $teardownName()",
+        priority: 80,
       );
 
       if (existingTeardown != null) {
@@ -135,10 +141,7 @@ class _InsertTimerCancelCall extends DartFix {
               }
             }
           }
-          builder.addSimpleInsertion(
-            insertOffset,
-            '    $fieldName?.cancel();\n',
-          );
+          builder.addSimpleInsertion(insertOffset, '    $fieldName.close();\n');
         });
       } else if (teardownName != 'close') {
         // Do NOT synthesise a close() override: the async return type makes a
@@ -150,7 +153,7 @@ class _InsertTimerCancelCall extends DartFix {
 
   @override
   void $teardownName() {
-    $fieldName?.cancel();
+    $fieldName.close();
     super.$teardownName();
   }
 ''');

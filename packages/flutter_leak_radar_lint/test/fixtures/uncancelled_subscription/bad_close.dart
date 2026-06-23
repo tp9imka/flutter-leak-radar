@@ -14,5 +14,6 @@ class _BadBloc extends Cubit<int> {
   void start() {
     _sub = Stream.periodic(const Duration(seconds: 1)).listen((_) {});
   }
+
   // Missing close() override with _sub?.cancel().
 }

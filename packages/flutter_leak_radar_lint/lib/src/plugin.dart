@@ -1,6 +1,9 @@
 import 'package:custom_lint_builder/custom_lint_builder.dart';
 
+import 'rules/bloc_uncancelled_subscription.dart';
 import 'rules/discarded_listen_result.dart';
+import 'rules/missing_remove_listener.dart';
+import 'rules/unclosed_stream_controller.dart';
 import 'rules/uncancelled_subscription.dart';
 import 'rules/uncancelled_timer.dart';
 import 'rules/undisposed_controller.dart';
@@ -13,9 +16,12 @@ import 'rules/undisposed_controller.dart';
 class FlutterLeakRadarPlugin extends PluginBase {
   @override
   List<LintRule> getLintRules(CustomLintConfigs configs) => const [
-        UndisposedController(),
-        UncancelledSubscription(),
-        UncancelledTimer(),
-        DiscardedListenResult(),
-      ];
+    UndisposedController(),
+    UncancelledSubscription(),
+    UncancelledTimer(),
+    UnclosedStreamController(),
+    MissingRemoveListener(),
+    BlocUncancelledSubscription(),
+    DiscardedListenResult(),
+  ];
 }
