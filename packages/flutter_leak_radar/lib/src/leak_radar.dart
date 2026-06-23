@@ -1,4 +1,7 @@
 // lib/src/leak_radar.dart
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 import 'package:meta/meta.dart';
 
@@ -16,6 +19,9 @@ import 'ui/leak_radar_overlay.dart';
 import 'util/build_mode.dart';
 import 'util/rate_limited_logger.dart';
 import 'util/safe.dart';
+
+/// Output format for [LeakRadar.exportToFile].
+enum LeakExportFormat { json, markdown }
 
 /// An inert [NavigatorObserver] used when the engine is disabled or in release.
 ///
@@ -151,6 +157,36 @@ abstract final class LeakRadar {
         fallback: null,
         logger: _logger,
       );
+
+  /// Writes the latest scan report to a file and returns the absolute path.
+  ///
+  /// Returns `null` when:
+  /// - the engine is disabled / not initialised (no report available),
+  /// - no scan has been performed yet,
+  /// - any I/O error occurs (always swallowed — never throws into the host).
+  ///
+  /// [format] selects between JSON (`leak_report_<ts>.json`) and Markdown
+  /// (`leak_report_<ts>.md`). [directory] overrides the destination directory;
+  /// it defaults to [Directory.systemTemp] when omitted.
+  static Future<String?> exportToFile({
+    LeakExportFormat format = LeakExportFormat.markdown,
+    Directory? directory,
+  }) =>
+      runSafelyAsync<String?>(() async {
+        final report = _engine?.latest;
+        if (report == null) return null;
+
+        final dir = directory ?? Directory.systemTemp;
+        final stamp = report.capturedAt.millisecondsSinceEpoch;
+        final ext = format == LeakExportFormat.json ? 'json' : 'md';
+        final file = File('${dir.path}/leak_report_$stamp.$ext');
+
+        final content = format == LeakExportFormat.json
+            ? jsonEncode(report.toJson())
+            : report.toMarkdown();
+        await file.writeAsString(content);
+        return file.path;
+      }, fallback: null, logger: _logger);
 
   static Future<void> dispose() async {
     final engine = _engine;

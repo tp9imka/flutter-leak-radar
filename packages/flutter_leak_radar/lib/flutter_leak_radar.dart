@@ -2,7 +2,7 @@
 /// On-device, zero-config memory-leak detector for Flutter.
 library;
 
-export 'src/leak_radar.dart' show LeakRadar;
+export 'src/leak_radar.dart' show LeakRadar, LeakExportFormat;
 export 'src/config/leak_radar_config.dart' show LeakRadarConfig, AutoScan;
 export 'src/config/leak_rule.dart' show LeakRule, LeakDetectionMode;
 export 'src/config/suspect_set.dart' show SuspectSet;
