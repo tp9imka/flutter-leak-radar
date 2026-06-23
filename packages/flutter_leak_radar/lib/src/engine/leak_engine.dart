@@ -5,10 +5,12 @@ import 'package:meta/meta.dart';
 
 import '../analysis/leak_analyzer.dart';
 import '../analysis/sample_history.dart';
+import '../config/leak_radar_config.dart';
 import '../model/leak_finding.dart';
 import '../model/leak_kind.dart';
 import '../model/leak_report.dart';
 import '../precise/leak_object_registry.dart';
+import '../triggers/scan_scheduler.dart';
 import '../util/rate_limited_logger.dart';
 import '../util/safe.dart';
 import 'class_sample.dart';
@@ -25,12 +27,14 @@ class LeakEngine {
     LeakObjectRegistry? registry,
     int gcCyclesForPreciseLeak = 3,
     RateLimitedLogger? logger,
+    AutoScan? autoScan,
   })  : _probe = probe,
         _analyzer = analyzer,
         _history = history ?? SampleHistory(),
         _registry = registry ?? LeakObjectRegistry(),
         _gcCyclesForPreciseLeak = gcCyclesForPreciseLeak,
-        _logger = logger ?? RateLimitedLogger();
+        _logger = logger ?? RateLimitedLogger(),
+        _autoScan = autoScan ?? const AutoScan();
 
   final HeapProbe _probe;
   final LeakAnalyzer _analyzer;
@@ -38,6 +42,8 @@ class LeakEngine {
   final LeakObjectRegistry _registry;
   final int _gcCyclesForPreciseLeak;
   final RateLimitedLogger _logger;
+  final AutoScan _autoScan;
+  ScanScheduler? _scheduler;
 
   final StreamController<LeakReport> _reports =
       StreamController<LeakReport>.broadcast();
@@ -63,6 +69,18 @@ class LeakEngine {
     );
     _status =
         available ? LeakRadarStatus.active : LeakRadarStatus.preciseOnly;
+
+    if (_autoScan.hasPeriodic) {
+      _scheduler = ScanScheduler(
+        period: _autoScan.period,
+        onTick: () => runSafelyAsync<LeakReport?>(
+          () => scan(trigger: 'periodic'),
+          fallback: null,
+          logger: _logger,
+        ),
+      );
+      _scheduler!.start();
+    }
   }
 
   /// Registers [o] for precise leak tracking under the given [tag].
@@ -118,6 +136,8 @@ class LeakEngine {
 
   /// Disposes the probe, clears tracking state, and closes the reports stream.
   Future<void> stop() async {
+    _scheduler?.stop();
+    _scheduler = null;
     await runSafelyAsync<void>(
       () => _probe.dispose(),
       fallback: null,

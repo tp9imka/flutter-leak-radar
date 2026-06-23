@@ -3,7 +3,7 @@
 library;
 
 export 'src/leak_radar.dart' show LeakRadar;
-export 'src/config/leak_radar_config.dart' show LeakRadarConfig;
+export 'src/config/leak_radar_config.dart' show LeakRadarConfig, AutoScan;
 export 'src/config/leak_rule.dart' show LeakRule, LeakDetectionMode;
 export 'src/config/suspect_set.dart' show SuspectSet;
 export 'src/model/leak_report.dart' show LeakReport;

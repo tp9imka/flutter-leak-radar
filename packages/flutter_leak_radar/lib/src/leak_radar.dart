@@ -28,7 +28,10 @@ abstract final class LeakRadar {
     }
     await runSafelyAsync<void>(() async {
       _logger = RateLimitedLogger(level: config.logLevel);
-      HeapProbe probe = VmHeapProbe(logger: _logger);
+      HeapProbe probe = VmHeapProbe(
+        logger: _logger,
+        maxRetainingPathRequests: config.maxRetainingPathRequests,
+      );
       if (!await probe.isAvailable) {
         await probe.dispose();
         probe = const NoopHeapProbe();
@@ -40,6 +43,7 @@ abstract final class LeakRadar {
         registry: LeakObjectRegistry(disposalGrace: config.disposalGrace),
         gcCyclesForPreciseLeak: config.gcCyclesForPreciseLeak,
         logger: _logger,
+        autoScan: config.autoScan,
       );
       await engine.start();
       _engine = engine;
