@@ -20,6 +20,8 @@ class VmHeapProbe implements HeapProbe {
   final RateLimitedLogger _logger;
   final int maxRetainingPathRequests;
 
+  int _pathRequestsThisCycle = 0;
+
   VmService? _service;
   String? _isolateId;
   bool _connectFailed = false;
@@ -77,6 +79,7 @@ class VmHeapProbe implements HeapProbe {
 
   @override
   Future<HeapSnapshot> capture({required bool forceGc}) async {
+    _pathRequestsThisCycle = 0; // reset throttle budget each cycle
     final service = await _ensureConnected();
     final isolateId = _isolateId;
     if (service == null || isolateId == null) {
@@ -131,6 +134,14 @@ class VmHeapProbe implements HeapProbe {
     String className, {
     int maxInstances = 10,
   }) async {
+    if (_pathRequestsThisCycle >= maxRetainingPathRequests) {
+      _logger.log(
+        'retainingPath throttled: $maxRetainingPathRequests per-cycle limit reached',
+        level: LeakLogLevel.verbose,
+      );
+      return null;
+    }
+    _pathRequestsThisCycle++;
     final service = await _ensureConnected();
     final isolateId = _isolateId;
     if (service == null || isolateId == null) return null;
