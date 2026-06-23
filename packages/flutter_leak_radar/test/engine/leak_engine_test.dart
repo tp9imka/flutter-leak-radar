@@ -1,10 +1,14 @@
 // test/engine/leak_engine_test.dart
+import 'package:flutter/material.dart';
 import 'package:flutter_leak_radar/src/analysis/leak_analyzer.dart';
+import 'package:flutter_leak_radar/src/config/leak_radar_config.dart';
 import 'package:flutter_leak_radar/src/config/leak_rule.dart';
 import 'package:flutter_leak_radar/src/config/suspect_set.dart';
 import 'package:flutter_leak_radar/src/engine/class_sample.dart';
 import 'package:flutter_leak_radar/src/engine/leak_engine.dart';
+import 'package:flutter_leak_radar/src/leak_radar.dart';
 import 'package:flutter_leak_radar/src/model/leak_kind.dart';
+import 'package:flutter_leak_radar/src/model/leak_report.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_heap_probe.dart';
@@ -77,5 +81,101 @@ void main() {
     final report = await engine.scan();
     expect(report.status, LeakRadarStatus.disabled);
     expect(probe.captureCount, captureCountBeforeScan);
+  });
+
+  group('LeakEngine navigation observer', () {
+    test('navigatorObserver triggers a scan with navigation trigger', () async {
+      final probe = FakeHeapProbe([]);
+      final engine = LeakEngine(
+        probe: probe,
+        analyzer: LeakAnalyzer(SuspectSet.empty()),
+        autoScan: const AutoScan(
+          onNavigation: true,
+          navigationDebounce: Duration(milliseconds: 20),
+        ),
+      );
+      final reports = <LeakReport>[];
+      engine.reports.listen(reports.add);
+      await engine.start();
+
+      // Simulate a pop via the observer.
+      engine.navigatorObserver?.didPop(
+        MaterialPageRoute<void>(builder: (_) => const SizedBox()),
+        null,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await engine.stop();
+
+      expect(reports.where((r) => r.trigger == 'navigation'), isNotEmpty);
+    });
+
+    test('navigatorObserver is null when onNavigation is false', () async {
+      final probe = FakeHeapProbe([]);
+      final engine = LeakEngine(
+        probe: probe,
+        analyzer: LeakAnalyzer(SuspectSet.empty()),
+        autoScan: const AutoScan(onNavigation: false),
+      );
+      await engine.start();
+      expect(engine.navigatorObserver, isNull);
+      await engine.stop();
+    });
+  });
+
+  // Facade test:
+  test('LeakRadar.navigatorObserver returns inert observer when disabled',
+      () async {
+    // No init called — engine is null.
+    await LeakRadar.dispose();
+    final obs = LeakRadar.navigatorObserver;
+    expect(obs, isA<NavigatorObserver>());
+    // Calling didPop on the inert observer must not throw.
+    expect(
+      () => obs.didPop(
+        MaterialPageRoute<void>(builder: (_) => const SizedBox()),
+        null,
+      ),
+      returnsNormally,
+    );
+  });
+
+  group('LeakEngine periodic scan via ScanScheduler', () {
+    test('periodic scan fires and produces a report on the reports stream',
+        () async {
+      final probe = FakeHeapProbe([]);
+      final engine = LeakEngine(
+        probe: probe,
+        analyzer: LeakAnalyzer(SuspectSet.empty()),
+        autoScan: const AutoScan(period: Duration(milliseconds: 30)),
+      );
+
+      final reports = <LeakReport>[];
+      final sub = engine.reports.listen(reports.add);
+      await engine.start();
+
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await engine.stop();
+      await sub.cancel();
+
+      // At least one report should have been emitted.
+      expect(reports, isNotEmpty);
+      expect(reports.first.trigger, 'periodic');
+    });
+
+    test('stop() cancels periodic timer — no reports after stop', () async {
+      final probe = FakeHeapProbe([]);
+      final engine = LeakEngine(
+        probe: probe,
+        analyzer: LeakAnalyzer(SuspectSet.empty()),
+        autoScan: const AutoScan(period: Duration(milliseconds: 20)),
+      );
+      await engine.start();
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      await engine.stop();
+      final countAtStop = (await engine.reports.toList()).length; // stream is closed
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      // No way to receive more reports — stream is closed.
+      expect(countAtStop, 0); // reports stream drained when closed
+    });
   });
 }

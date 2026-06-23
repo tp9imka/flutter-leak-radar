@@ -5,10 +5,14 @@ import 'package:meta/meta.dart';
 
 import '../analysis/leak_analyzer.dart';
 import '../analysis/sample_history.dart';
+import '../config/leak_radar_config.dart';
 import '../model/leak_finding.dart';
 import '../model/leak_kind.dart';
 import '../model/leak_report.dart';
+import '../model/retaining_path.dart';
 import '../precise/leak_object_registry.dart';
+import '../triggers/navigator_observer.dart';
+import '../triggers/scan_scheduler.dart';
 import '../util/rate_limited_logger.dart';
 import '../util/safe.dart';
 import 'class_sample.dart';
@@ -25,12 +29,14 @@ class LeakEngine {
     LeakObjectRegistry? registry,
     int gcCyclesForPreciseLeak = 3,
     RateLimitedLogger? logger,
+    AutoScan? autoScan,
   })  : _probe = probe,
         _analyzer = analyzer,
         _history = history ?? SampleHistory(),
         _registry = registry ?? LeakObjectRegistry(),
         _gcCyclesForPreciseLeak = gcCyclesForPreciseLeak,
-        _logger = logger ?? RateLimitedLogger();
+        _logger = logger ?? RateLimitedLogger(),
+        _autoScan = autoScan ?? const AutoScan();
 
   final HeapProbe _probe;
   final LeakAnalyzer _analyzer;
@@ -38,6 +44,9 @@ class LeakEngine {
   final LeakObjectRegistry _registry;
   final int _gcCyclesForPreciseLeak;
   final RateLimitedLogger _logger;
+  final AutoScan _autoScan;
+  ScanScheduler? _scheduler;
+  LeakRadarNavigatorObserver? _navObserver;
 
   final StreamController<LeakReport> _reports =
       StreamController<LeakReport>.broadcast();
@@ -54,6 +63,10 @@ class LeakEngine {
   /// Current operational status of the engine.
   LeakRadarStatus get status => _status;
 
+  /// The navigator observer wired to [scan] with trigger `'navigation'`, or
+  /// `null` when [AutoScan.onNavigation] is false.
+  LeakRadarNavigatorObserver? get navigatorObserver => _navObserver;
+
   /// Initialises the engine by checking probe availability and setting status.
   Future<void> start() async {
     final available = await runSafelyAsync<bool>(
@@ -63,6 +76,29 @@ class LeakEngine {
     );
     _status =
         available ? LeakRadarStatus.active : LeakRadarStatus.preciseOnly;
+
+    if (_autoScan.hasPeriodic) {
+      _scheduler = ScanScheduler(
+        period: _autoScan.period,
+        onTick: () => runSafelyAsync<LeakReport?>(
+          () => scan(trigger: 'periodic'),
+          fallback: null,
+          logger: _logger,
+        ),
+      );
+      _scheduler!.start();
+    }
+
+    if (_autoScan.onNavigation) {
+      _navObserver = LeakRadarNavigatorObserver(
+        onScan: () => runSafelyAsync(
+          () => scan(trigger: 'navigation'),
+          fallback: null,
+          logger: _logger,
+        ),
+        debounce: _autoScan.navigationDebounce,
+      );
+    }
   }
 
   /// Registers [o] for precise leak tracking under the given [tag].
@@ -116,8 +152,23 @@ class LeakEngine {
         status: _status,
       );
 
+  /// Fetches the retaining path for [className] from the underlying probe.
+  ///
+  /// Returns null when the probe does not support retaining paths or when the
+  /// engine is unavailable. Never throws.
+  Future<RetainingPathView?> retainingPath(String className) =>
+      runSafelyAsync(
+        () => _probe.retainingPath(className),
+        fallback: null,
+        logger: _logger,
+      );
+
   /// Disposes the probe, clears tracking state, and closes the reports stream.
   Future<void> stop() async {
+    _scheduler?.stop();
+    _scheduler = null;
+    _navObserver?.dispose();
+    _navObserver = null;
     await runSafelyAsync<void>(
       () => _probe.dispose(),
       fallback: null,

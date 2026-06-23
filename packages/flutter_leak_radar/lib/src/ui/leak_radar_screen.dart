@@ -1,10 +1,13 @@
 // lib/src/ui/leak_radar_screen.dart
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../model/leak_finding.dart';
 import '../model/leak_kind.dart';
 import '../model/leak_report.dart';
 import '../leak_radar.dart';
+import 'growth_sparkline.dart';
+import 'retaining_path_tile.dart';
 
 /// Minimal results screen: findings list + "Scan now". Push it from anywhere:
 /// `Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LeakRadarScreen()));`
@@ -35,6 +38,28 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
     });
   }
 
+  Future<void> _export() async {
+    final path = await LeakRadar.exportToFile(format: LeakExportFormat.markdown);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(path != null ? 'Exported: $path' : 'Export failed'),
+      ),
+    );
+  }
+
+  Future<void> _share() async {
+    try {
+      final path = await LeakRadar.exportToFile(format: LeakExportFormat.markdown);
+      if (!mounted || path == null) return;
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(path)], text: 'Leak Radar report'),
+      );
+    } catch (_) {
+      // Never throw into host — swallow share errors silently.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final report = _report;
@@ -42,6 +67,16 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
       appBar: AppBar(
         title: const Text('Leak Radar'),
         actions: [
+          IconButton(
+            tooltip: 'Export',
+            icon: const Icon(Icons.download),
+            onPressed: _scanning ? null : _export,
+          ),
+          IconButton(
+            tooltip: 'Share',
+            icon: const Icon(Icons.share),
+            onPressed: _scanning ? null : _share,
+          ),
           IconButton(
             tooltip: 'Scan now',
             icon: _scanning
@@ -81,6 +116,7 @@ class _EmptyState extends StatelessWidget {
 
 class _FindingTile extends StatelessWidget {
   const _FindingTile({required this.finding});
+
   final LeakFinding finding;
 
   Color _color(LeakSeverity s) => switch (s) {
@@ -90,11 +126,41 @@ class _FindingTile extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) => ListTile(
-        leading: CircleAvatar(backgroundColor: _color(finding.severity), radius: 6),
-        title: Text(finding.className),
-        subtitle: Text(
-            '${finding.kind.name} · live ${finding.liveCount} · +${finding.growth}${finding.tag != null ? ' · ${finding.tag}' : ''}'),
-        trailing: Text(finding.severity.name),
-      );
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: CircleAvatar(
+              backgroundColor: _color(finding.severity),
+              radius: 8,
+            ),
+            title: Text(finding.className),
+            subtitle: Text(
+              '${finding.kind.name} · live ${finding.liveCount} · '
+              '+${finding.growth}'
+              '${finding.tag != null ? ' · ${finding.tag}' : ''}',
+            ),
+            trailing: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(finding.severity.name),
+                const SizedBox(height: 4),
+                GrowthSparkline(series: finding.series),
+              ],
+            ),
+          ),
+          if (finding.series.isNotEmpty)
+            RetainingPathTile(
+              className: finding.className,
+              onFetch: () => LeakRadar.fetchRetainingPath(
+                finding.className,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
