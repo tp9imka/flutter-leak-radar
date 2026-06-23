@@ -28,15 +28,26 @@ class LeakAnalyzer {
       final series = history.seriesFor(className);
       if (series.isEmpty) continue;
       final liveCount = series.last;
-      final baseline = series.reduce((a, b) => a < b ? a : b);
-      final growth = liveCount - baseline;
       final monotonic = _isMonotonic(series);
 
-      final tripped = switch (rule.mode) {
-        LeakDetectionMode.growth => growth >= rule.minGrowth && liveCount > 0,
-        LeakDetectionMode.maxLive => rule.maxLive != null && liveCount > rule.maxLive!,
-        LeakDetectionMode.ignore => false,
-      };
+      bool tripped;
+      int growth;
+      if (rule.mode == LeakDetectionMode.growth) {
+        // Warm-up guard: class must have been live in at least 2 snapshots.
+        final nonZero = series.where((v) => v > 0).toList();
+        if (nonZero.length < 2) continue;
+        final baseline = nonZero.reduce((a, b) => a < b ? a : b);
+        growth = liveCount - baseline;
+        tripped = growth >= rule.minGrowth;
+      } else {
+        final baseline = series.reduce((a, b) => a < b ? a : b);
+        growth = liveCount - baseline;
+        tripped = switch (rule.mode) {
+          LeakDetectionMode.maxLive => rule.maxLive != null && liveCount > rule.maxLive!,
+          LeakDetectionMode.ignore => false,
+          LeakDetectionMode.growth => false, // handled above
+        };
+      }
       if (!tripped) continue;
 
       findings.add(LeakFinding(

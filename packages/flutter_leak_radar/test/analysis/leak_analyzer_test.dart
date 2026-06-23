@@ -47,6 +47,31 @@ void main() {
     expect(analyzer.analyze(over, trigger: 'm', status: LeakRadarStatus.active).findings.single.kind, LeakKind.growth);
   });
 
+  test('growth rule: no finding when class appears only in latest snapshot', () {
+    // NewBloc series = [0, 0, 5] — only 1 non-zero sample → warm-up guard skips it.
+    final h = SampleHistory()
+      ..add(snap({'Other': 1}, 1))
+      ..add(snap({'Other': 1}, 2))
+      ..add(snap({'Other': 1, 'NewBloc': 5}, 3));
+    final report = const LeakAnalyzer(SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]))
+        .analyze(h, trigger: 'manual', status: LeakRadarStatus.active);
+    expect(report.findings.where((f) => f.className == 'NewBloc'), isEmpty);
+  });
+
+  test('growth rule: finding when class is live in ≥2 snapshots and growing', () {
+    // NewBloc series = [0, 3, 5] — 2 non-zero samples; baseline=3, growth=2.
+    final h = SampleHistory()
+      ..add(snap({}, 1))
+      ..add(snap({'NewBloc': 3}, 2))
+      ..add(snap({'NewBloc': 5}, 3));
+    final report = const LeakAnalyzer(SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]))
+        .analyze(h, trigger: 'manual', status: LeakRadarStatus.active);
+    expect(report.findings.length, 1);
+    final f = report.findings.single;
+    expect(f.className, 'NewBloc');
+    expect(f.growth, 2); // 5 − 3
+  });
+
   test('precise findings are folded into the report', () {
     final h = SampleHistory()..add(snap({'X': 1}, 1));
     final precise = [

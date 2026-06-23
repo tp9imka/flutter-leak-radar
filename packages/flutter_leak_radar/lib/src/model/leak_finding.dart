@@ -44,6 +44,7 @@ final class LeakFinding {
         if (retainingPath != null) 'retainingPath': retainingPath!.toJson(),
       };
 
+  // series and retainingPath are intentionally excluded from identity
   @override
   bool operator ==(Object other) =>
       other is LeakFinding &&
