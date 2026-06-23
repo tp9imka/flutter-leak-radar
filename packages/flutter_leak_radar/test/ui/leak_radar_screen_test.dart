@@ -17,6 +17,46 @@ HeapSnapshot snap(Map<String, int> c) => HeapSnapshot(
 void main() {
   tearDown(() => LeakRadar.dispose());
 
+  group('_FindingTile — narrow-width overflow regression', () {
+    testWidgets(
+      'no RenderFlex overflow at 320 px screen width with sparkline series',
+      (tester) async {
+        // A finding with a non-empty series triggers both the sparkline and the
+        // retaining-path tile. Previously the trailing Column (severity text +
+        // 80-wide sparkline) overflowed ListTile's tight trailing constraint at
+        // 320 px. The sparkline was moved to subtitle; trailing is now a fixed
+        // 56-wide SizedBox.
+        final probe = FakeHeapProbe([
+          snap({'HomeBloc': 1}),
+          snap({'HomeBloc': 2}),
+          snap({'HomeBloc': 3}),
+        ]);
+        final engine = LeakEngine(
+          probe: probe,
+          analyzer: const LeakAnalyzer(SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')])),
+        );
+        await LeakRadar.debugInstall(engine);
+        // Run enough scans to produce a growth finding with a non-empty series.
+        await LeakRadar.scan();
+        await LeakRadar.scan();
+        await LeakRadar.scan();
+
+        // Force a 320 × 568 logical-pixel surface — typical narrow phone.
+        tester.view.physicalSize = const Size(320, 568);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
+        await tester.pumpAndSettle();
+
+        // No RenderFlex or other layout errors.
+        expect(tester.takeException(), isNull);
+        // The finding tile should be visible.
+        expect(find.text('HomeBloc'), findsOneWidget);
+      },
+    );
+  });
+
   testWidgets('shows empty state then findings after Scan now', (tester) async {
     final probe = FakeHeapProbe([snap({'HomeBloc': 1}), snap({'HomeBloc': 2}), snap({'HomeBloc': 3})]);
     final engine = LeakEngine(probe: probe, analyzer: const LeakAnalyzer(SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')])));
