@@ -25,6 +25,16 @@ class _AlsoBadState extends State<StatefulWidget> {
   Widget build(BuildContext context) => const SizedBox();
 }
 
+// Inferred-type field: `final _c = TextEditingController()` has no explicit type
+// annotation. The rule must resolve the type from the initializer's static type.
+class _InferredTypeBadState extends State<StatefulWidget> {
+  // expect_lint: undisposed_controller
+  final _c = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) => const SizedBox();
+}
+
 class _NeverTick implements TickerProvider {
   const _NeverTick();
   @override

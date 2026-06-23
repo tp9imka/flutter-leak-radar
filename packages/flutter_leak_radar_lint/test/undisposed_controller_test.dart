@@ -27,12 +27,42 @@ void main() {
     );
   });
 
+  test('flags an inferred-type controller field (no explicit type annotation)', () async {
+    final errors = await rule.testAnalyzeAndRun(fixture('bad.dart'));
+    final inferredTypeErrors = errors
+        .where((e) => e.diagnosticCode.name == 'undisposed_controller')
+        .toList();
+    // _InferredTypeBadState uses `final _c = TextEditingController()` with no
+    // explicit type annotation — the rule must resolve the type from the
+    // initializer's static type (via declaredFragment?.element.type).
+    expect(
+      inferredTypeErrors.any((e) => e.message.contains("'_c'")),
+      isTrue,
+      reason: 'inferred-type field _c should be flagged',
+    );
+  });
+
   test('does not flag a controller that is disposed in dispose()', () async {
     final errors = await rule.testAnalyzeAndRun(fixture('good.dart'));
     expect(
       errors,
       isEmpty,
       reason: 'no lint expected for a properly disposed controller',
+    );
+  });
+
+  test(
+      'does not flag a controller injected via field formal parameter (this._controller)',
+      () async {
+    // _GoodFieldFormalParamState takes `this._controller` in its constructor.
+    // The controller is externally owned — the State must NOT flag it even
+    // though there is no dispose() override.
+    final errors = await rule.testAnalyzeAndRun(fixture('good.dart'));
+    expect(
+      errors,
+      isEmpty,
+      reason:
+          'constructor-injected controller via FieldFormalParameter must not be flagged',
     );
   });
 }

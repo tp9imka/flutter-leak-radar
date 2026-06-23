@@ -48,3 +48,13 @@ class _GoodIfBlockState extends State<StatefulWidget> {
   @override
   Widget build(BuildContext context) => const SizedBox();
 }
+
+// Good: field formal parameter (this._controller) — externally owned, should NOT be flagged
+// even though there is no dispose() override.
+class _GoodFieldFormalParamState extends State<StatefulWidget> {
+  _GoodFieldFormalParamState(this._controller);
+  final TextEditingController _controller;
+
+  @override
+  Widget build(BuildContext context) => const SizedBox();
+}
