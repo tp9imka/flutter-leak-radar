@@ -1,5 +1,6 @@
 // lib/src/ui/leak_radar_screen.dart
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../model/leak_finding.dart';
 import '../model/leak_kind.dart';
@@ -37,6 +38,28 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
     });
   }
 
+  Future<void> _export() async {
+    final path = await LeakRadar.exportToFile(format: LeakExportFormat.markdown);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(path != null ? 'Exported: $path' : 'Export failed'),
+      ),
+    );
+  }
+
+  Future<void> _share() async {
+    try {
+      final path = await LeakRadar.exportToFile(format: LeakExportFormat.markdown);
+      if (!mounted || path == null) return;
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(path)], text: 'Leak Radar report'),
+      );
+    } catch (_) {
+      // Never throw into host — swallow share errors silently.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final report = _report;
@@ -44,6 +67,16 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
       appBar: AppBar(
         title: const Text('Leak Radar'),
         actions: [
+          IconButton(
+            tooltip: 'Export',
+            icon: const Icon(Icons.download),
+            onPressed: _scanning ? null : _export,
+          ),
+          IconButton(
+            tooltip: 'Share',
+            icon: const Icon(Icons.share),
+            onPressed: _scanning ? null : _share,
+          ),
           IconButton(
             tooltip: 'Scan now',
             icon: _scanning
