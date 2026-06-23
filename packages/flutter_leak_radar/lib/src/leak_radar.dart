@@ -10,6 +10,7 @@ import 'engine/vm_heap_probe.dart';
 import 'model/leak_kind.dart';
 import 'model/leak_report.dart';
 import 'precise/leak_object_registry.dart';
+import 'ui/leak_radar_overlay.dart';
 import 'util/build_mode.dart';
 import 'util/rate_limited_logger.dart';
 import 'util/safe.dart';
@@ -26,6 +27,7 @@ abstract final class LeakRadar {
   static LeakEngine? _engine;
   static RateLimitedLogger _logger = RateLimitedLogger();
   static final NavigatorObserver _inertObserver = _InertNavigatorObserver();
+  static bool _showOverlay = true;
 
   static Future<void> init(LeakRadarConfig config) async {
     await dispose();
@@ -53,6 +55,7 @@ abstract final class LeakRadar {
         autoScan: config.autoScan,
       );
       await engine.start();
+      _showOverlay = config.showOverlay;
       _engine = engine;
     }, fallback: null, logger: _logger);
   }
@@ -114,6 +117,21 @@ abstract final class LeakRadar {
         fallback: _inertObserver,
         logger: _logger,
       );
+
+  /// Wraps [child] with a [LeakRadarOverlay] when the engine is active and
+  /// [LeakRadarConfig.showOverlay] is true. Returns [child] unchanged when the
+  /// engine is disabled, in release, or [showOverlay] is false.
+  ///
+  /// Any internal error is swallowed — [child] is returned as the fallback so
+  /// the host app is never affected.
+  static Widget overlay({required Widget child}) {
+    if (!kEngineEnabled || _engine == null || !_showOverlay) return child;
+    return runSafely(
+      () => LeakRadarOverlay(show: true, child: child),
+      fallback: child,
+      logger: _logger,
+    );
+  }
 
   static Future<void> dispose() async {
     final engine = _engine;

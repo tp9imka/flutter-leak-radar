@@ -53,6 +53,7 @@ final class LeakRadarConfig {
     this.disposalGrace = const Duration(seconds: 2),
     this.maxRetainingPathRequests = 5,
     this.logLevel = LeakLogLevel.warning,
+    this.showOverlay = true,
   });
 
   /// Typical wiring: enabled only in debug/profile, defaults suspects.
@@ -80,6 +81,10 @@ final class LeakRadarConfig {
   final int maxRetainingPathRequests;
   final LeakLogLevel logLevel;
 
+  /// Whether [LeakRadar.overlay] should wrap the child in a [LeakRadarOverlay].
+  /// Defaults to [true]. Has no effect when the engine is disabled or in release.
+  final bool showOverlay;
+
   LeakRadarConfig copyWith({
     bool? enabled,
     AutoScan? autoScan,
@@ -90,6 +95,7 @@ final class LeakRadarConfig {
     Duration? disposalGrace,
     int? maxRetainingPathRequests,
     LeakLogLevel? logLevel,
+    bool? showOverlay,
   }) =>
       LeakRadarConfig(
         enabled: enabled ?? this.enabled,
@@ -101,6 +107,7 @@ final class LeakRadarConfig {
         disposalGrace: disposalGrace ?? this.disposalGrace,
         maxRetainingPathRequests: maxRetainingPathRequests ?? this.maxRetainingPathRequests,
         logLevel: logLevel ?? this.logLevel,
+        showOverlay: showOverlay ?? this.showOverlay,
       );
 
   @override
@@ -114,7 +121,8 @@ final class LeakRadarConfig {
       other.gcCyclesForPreciseLeak == gcCyclesForPreciseLeak &&
       other.disposalGrace == disposalGrace &&
       other.maxRetainingPathRequests == maxRetainingPathRequests &&
-      other.logLevel == logLevel;
+      other.logLevel == logLevel &&
+      other.showOverlay == showOverlay;
 
   @override
   int get hashCode => Object.hash(
@@ -127,5 +135,6 @@ final class LeakRadarConfig {
         disposalGrace,
         maxRetainingPathRequests,
         logLevel,
+        showOverlay,
       );
 }
