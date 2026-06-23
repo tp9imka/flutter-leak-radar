@@ -55,3 +55,32 @@ const kStreamSubscriptionChecker = TypeChecker.fromUrl(
 );
 const kStreamChecker = TypeChecker.fromUrl('dart:async#Stream');
 const kTimerChecker = TypeChecker.fromUrl('dart:async#Timer');
+const kStreamControllerChecker = TypeChecker.fromUrl(
+  'dart:async#StreamController',
+);
+
+// Listenable family (package:flutter/foundation + animation).
+// Used by missing_remove_listener to confirm the addListener receiver is a
+// Flutter listenable, not some unrelated user-defined addListener.
+const kListenableChecker = TypeChecker.fromName(
+  'Listenable',
+  packageName: 'flutter',
+);
+const kChangeNotifierChecker = TypeChecker.fromName(
+  'ChangeNotifier',
+  packageName: 'flutter',
+);
+const kAnimationChecker = TypeChecker.fromName(
+  'Animation',
+  packageName: 'flutter',
+);
+
+const kListenableTypes = [
+  kListenableChecker,
+  kChangeNotifierChecker,
+  kAnimationChecker,
+];
+
+// package:bloc base type. Reused by bloc_uncancelled_subscription to gate the
+// rule on the consumer actually depending on package:bloc.
+const kBlocBaseChecker = TypeChecker.fromName('BlocBase', packageName: 'bloc');
