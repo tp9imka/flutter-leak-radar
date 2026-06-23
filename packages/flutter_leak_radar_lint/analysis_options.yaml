@@ -1,0 +1,12 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - example/**
+    - test/fixtures/**
+  errors:
+    # custom_lint_builder 0.8.x uses deprecated analyzer APIs (ErrorSeverity,
+    # ErrorReporter, AnalysisError) that we cannot change from downstream.
+    # Scope the suppression here rather than broadly silencing analysis.
+    deprecated_member_use: ignore
+    deprecated_member_use_from_same_package: ignore

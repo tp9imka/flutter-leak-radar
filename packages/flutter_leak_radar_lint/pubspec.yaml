@@ -1,0 +1,22 @@
+name: flutter_leak_radar_lint
+description: >-
+  Lint rules that catch common Flutter/Dart memory-leak patterns at edit time.
+  Undisposed controllers, uncancelled subscriptions, discarded listen results.
+version: 0.1.0
+publish_to: none
+repository: https://github.com/<owner>/flutter-leak-radar
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+
+resolution: workspace
+
+dependencies:
+  analyzer: ^8.0.0
+  custom_lint_builder: ^0.8.1
+
+dev_dependencies:
+  bloc: ^9.2.1
+  custom_lint: ^0.8.1
+  flutter_lints: ^5.0.0
+  test: ^1.25.0
