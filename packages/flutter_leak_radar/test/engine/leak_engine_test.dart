@@ -67,4 +67,15 @@ void main() {
     expect((await future).trigger, 'manual');
     await engine.stop();
   });
+
+  test('scan after stop returns disabled report without capturing', () async {
+    final probe = FakeHeapProbe([snap({'A': 1}, 1)]);
+    final engine = engineWith(probe);
+    await engine.start();
+    await engine.stop();
+    final captureCountBeforeScan = probe.captureCount;
+    final report = await engine.scan();
+    expect(report.status, LeakRadarStatus.disabled);
+    expect(probe.captureCount, captureCountBeforeScan);
+  });
 }

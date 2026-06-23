@@ -23,19 +23,20 @@ class LeakEngine {
     required LeakAnalyzer analyzer,
     SampleHistory? history,
     LeakObjectRegistry? registry,
-    this.gcCyclesForPreciseLeak = 3,
+    int gcCyclesForPreciseLeak = 3,
     RateLimitedLogger? logger,
   })  : _probe = probe,
         _analyzer = analyzer,
         _history = history ?? SampleHistory(),
         _registry = registry ?? LeakObjectRegistry(),
+        _gcCyclesForPreciseLeak = gcCyclesForPreciseLeak,
         _logger = logger ?? RateLimitedLogger();
 
   final HeapProbe _probe;
   final LeakAnalyzer _analyzer;
   final SampleHistory _history;
   final LeakObjectRegistry _registry;
-  final int gcCyclesForPreciseLeak;
+  final int _gcCyclesForPreciseLeak;
   final RateLimitedLogger _logger;
 
   final StreamController<LeakReport> _reports =
@@ -75,6 +76,7 @@ class LeakEngine {
   /// [LeakReport]. Overlapping calls are dropped — the in-flight scan's result
   /// is returned instead of queuing a second capture.
   Future<LeakReport> scan({String trigger = 'manual'}) async {
+    if (_status == LeakRadarStatus.disabled) return _degraded(trigger);
     if (_scanning) return _latest ?? _degraded(trigger);
     _scanning = true;
     try {
@@ -91,7 +93,7 @@ class LeakEngine {
         }
       }
       final precise = _registry.collectLeaks(
-        gcCycles: gcCyclesForPreciseLeak,
+        gcCycles: _gcCyclesForPreciseLeak,
       );
       final report = _analyzer.analyze(
         _history,
