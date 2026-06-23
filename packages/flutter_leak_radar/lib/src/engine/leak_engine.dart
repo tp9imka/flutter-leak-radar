@@ -10,6 +10,7 @@ import '../model/leak_finding.dart';
 import '../model/leak_kind.dart';
 import '../model/leak_report.dart';
 import '../precise/leak_object_registry.dart';
+import '../triggers/navigator_observer.dart';
 import '../triggers/scan_scheduler.dart';
 import '../util/rate_limited_logger.dart';
 import '../util/safe.dart';
@@ -44,6 +45,7 @@ class LeakEngine {
   final RateLimitedLogger _logger;
   final AutoScan _autoScan;
   ScanScheduler? _scheduler;
+  LeakRadarNavigatorObserver? _navObserver;
 
   final StreamController<LeakReport> _reports =
       StreamController<LeakReport>.broadcast();
@@ -59,6 +61,10 @@ class LeakEngine {
 
   /// Current operational status of the engine.
   LeakRadarStatus get status => _status;
+
+  /// The navigator observer wired to [scan] with trigger `'navigation'`, or
+  /// `null` when [AutoScan.onNavigation] is false.
+  LeakRadarNavigatorObserver? get navigatorObserver => _navObserver;
 
   /// Initialises the engine by checking probe availability and setting status.
   Future<void> start() async {
@@ -80,6 +86,17 @@ class LeakEngine {
         ),
       );
       _scheduler!.start();
+    }
+
+    if (_autoScan.onNavigation) {
+      _navObserver = LeakRadarNavigatorObserver(
+        onScan: () => runSafelyAsync(
+          () => scan(trigger: 'navigation'),
+          fallback: null,
+          logger: _logger,
+        ),
+        debounce: _autoScan.navigationDebounce,
+      );
     }
   }
 
@@ -138,6 +155,8 @@ class LeakEngine {
   Future<void> stop() async {
     _scheduler?.stop();
     _scheduler = null;
+    _navObserver?.dispose();
+    _navObserver = null;
     await runSafelyAsync<void>(
       () => _probe.dispose(),
       fallback: null,
