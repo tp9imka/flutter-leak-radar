@@ -43,8 +43,7 @@ bool isConstructorParam(ClassDeclaration cls, String fieldName) {
       if (param is FieldFormalParameter && param.name.lexeme == fieldName) {
         return true;
       }
-      if (param is SimpleFormalParameter &&
-          param.name?.lexeme == fieldName) {
+      if (param is SimpleFormalParameter && param.name?.lexeme == fieldName) {
         return true;
       }
     }
