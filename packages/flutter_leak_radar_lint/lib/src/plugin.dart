@@ -1,5 +1,6 @@
 import 'package:custom_lint_builder/custom_lint_builder.dart';
 
+import 'rules/uncancelled_subscription.dart';
 import 'rules/undisposed_controller.dart';
 
 /// The custom_lint plugin for flutter_leak_radar.
@@ -11,5 +12,6 @@ class FlutterLeakRadarPlugin extends PluginBase {
   @override
   List<LintRule> getLintRules(CustomLintConfigs configs) => const [
         UndisposedController(),
+        UncancelledSubscription(),
       ];
 }
