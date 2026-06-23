@@ -1,5 +1,6 @@
 import 'package:custom_lint_builder/custom_lint_builder.dart';
 
+import 'rules/discarded_listen_result.dart';
 import 'rules/uncancelled_subscription.dart';
 import 'rules/uncancelled_timer.dart';
 import 'rules/undisposed_controller.dart';
@@ -15,5 +16,6 @@ class FlutterLeakRadarPlugin extends PluginBase {
         UndisposedController(),
         UncancelledSubscription(),
         UncancelledTimer(),
+        DiscardedListenResult(),
       ];
 }
