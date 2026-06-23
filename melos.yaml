@@ -5,7 +5,21 @@ packages:
 scripts:
   analyze:
     run: dart analyze --fatal-infos
-    exec: { concurrency: 1 }
+    exec:
+      concurrency: 1
   test:
     run: flutter test
-    exec: { concurrency: 1 }
+    exec:
+      concurrency: 1
+  custom_lint:
+    description: Run the custom_lint analyzer plugin over the repo (dogfood).
+    run: dart run custom_lint
+    exec:
+      concurrency: 1
+  format-check:
+    run: dart format --set-exit-if-changed .
+    exec:
+      concurrency: 1
+  ci:
+    run: melos run format-check && melos run analyze && melos run test && melos run custom_lint
+    description: Full local gate — matches CI.
