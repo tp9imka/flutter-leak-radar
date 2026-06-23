@@ -1,5 +1,6 @@
 // lib/src/leak_radar.dart
 import 'package:flutter/widgets.dart';
+import 'package:meta/meta.dart';
 
 import 'analysis/leak_analyzer.dart';
 import 'analysis/sample_history.dart';
@@ -9,6 +10,7 @@ import 'engine/leak_engine.dart';
 import 'engine/vm_heap_probe.dart';
 import 'model/leak_kind.dart';
 import 'model/leak_report.dart';
+import 'model/retaining_path.dart';
 import 'precise/leak_object_registry.dart';
 import 'ui/leak_radar_overlay.dart';
 import 'util/build_mode.dart';
@@ -132,6 +134,23 @@ abstract final class LeakRadar {
       logger: _logger,
     );
   }
+
+  /// Lazily fetches the retaining path for [className] from the active engine.
+  ///
+  /// Returns null when the engine is absent, the probe does not support
+  /// retaining paths, or any error occurs — never throws into the host.
+  /// Called by the UI layer only on explicit user expand; never during a scan.
+  @internal
+  static Future<RetainingPathView?> fetchRetainingPath(
+    String className,
+  ) =>
+      runSafelyAsync(
+        () =>
+            _engine?.retainingPath(className) ??
+            Future<RetainingPathView?>.value(null),
+        fallback: null,
+        logger: _logger,
+      );
 
   static Future<void> dispose() async {
     final engine = _engine;

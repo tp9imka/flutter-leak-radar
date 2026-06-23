@@ -5,6 +5,8 @@ import '../model/leak_finding.dart';
 import '../model/leak_kind.dart';
 import '../model/leak_report.dart';
 import '../leak_radar.dart';
+import 'growth_sparkline.dart';
+import 'retaining_path_tile.dart';
 
 /// Minimal results screen: findings list + "Scan now". Push it from anywhere:
 /// `Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LeakRadarScreen()));`
@@ -81,6 +83,7 @@ class _EmptyState extends StatelessWidget {
 
 class _FindingTile extends StatelessWidget {
   const _FindingTile({required this.finding});
+
   final LeakFinding finding;
 
   Color _color(LeakSeverity s) => switch (s) {
@@ -90,11 +93,41 @@ class _FindingTile extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) => ListTile(
-        leading: CircleAvatar(backgroundColor: _color(finding.severity), radius: 6),
-        title: Text(finding.className),
-        subtitle: Text(
-            '${finding.kind.name} · live ${finding.liveCount} · +${finding.growth}${finding.tag != null ? ' · ${finding.tag}' : ''}'),
-        trailing: Text(finding.severity.name),
-      );
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: CircleAvatar(
+              backgroundColor: _color(finding.severity),
+              radius: 8,
+            ),
+            title: Text(finding.className),
+            subtitle: Text(
+              '${finding.kind.name} · live ${finding.liveCount} · '
+              '+${finding.growth}'
+              '${finding.tag != null ? ' · ${finding.tag}' : ''}',
+            ),
+            trailing: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(finding.severity.name),
+                const SizedBox(height: 4),
+                GrowthSparkline(series: finding.series),
+              ],
+            ),
+          ),
+          if (finding.series.isNotEmpty)
+            RetainingPathTile(
+              className: finding.className,
+              onFetch: () => LeakRadar.fetchRetainingPath(
+                finding.className,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

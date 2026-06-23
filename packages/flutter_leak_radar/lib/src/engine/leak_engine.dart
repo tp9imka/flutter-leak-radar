@@ -9,6 +9,7 @@ import '../config/leak_radar_config.dart';
 import '../model/leak_finding.dart';
 import '../model/leak_kind.dart';
 import '../model/leak_report.dart';
+import '../model/retaining_path.dart';
 import '../precise/leak_object_registry.dart';
 import '../triggers/navigator_observer.dart';
 import '../triggers/scan_scheduler.dart';
@@ -149,6 +150,17 @@ class LeakEngine {
         capturedAt: DateTime.now(),
         trigger: trigger,
         status: _status,
+      );
+
+  /// Fetches the retaining path for [className] from the underlying probe.
+  ///
+  /// Returns null when the probe does not support retaining paths or when the
+  /// engine is unavailable. Never throws.
+  Future<RetainingPathView?> retainingPath(String className) =>
+      runSafelyAsync(
+        () => _probe.retainingPath(className),
+        fallback: null,
+        logger: _logger,
       );
 
   /// Disposes the probe, clears tracking state, and closes the reports stream.
