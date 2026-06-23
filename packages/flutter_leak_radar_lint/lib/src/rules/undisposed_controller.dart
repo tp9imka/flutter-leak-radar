@@ -52,7 +52,8 @@ class UndisposedController extends DartLintRule {
           // Prefer the explicit type annotation; fall back to the inferred
           // type from the variable's declared element (handles `final _c = Foo()`
           // where there is no explicit type node).
-          final fieldType = member.fields.type?.type ??
+          final fieldType =
+              member.fields.type?.type ??
               variable.declaredFragment?.element.type;
           if (!_isDisposableController(fieldType)) continue;
 
@@ -73,11 +74,7 @@ class UndisposedController extends DartLintRule {
                 receiverName: fieldName,
                 teardownCall: 'dispose',
               )) {
-            reporter.atToken(
-              variable.name,
-              _code,
-              arguments: [fieldName],
-            );
+            reporter.atToken(variable.name, _code, arguments: [fieldName]);
           }
         }
       }
@@ -106,8 +103,7 @@ bool _isAssignedInInitState(ClassDeclaration cls, String fieldName) {
         if (expr is AssignmentExpression) {
           final lhs = expr.leftHandSide;
           if (lhs is SimpleIdentifier && lhs.name == fieldName) return true;
-          if (lhs is PrefixedIdentifier &&
-              lhs.identifier.name == fieldName) {
+          if (lhs is PrefixedIdentifier && lhs.identifier.name == fieldName) {
             return true;
           }
         }
@@ -174,7 +170,10 @@ class _AddDisposeCall extends DartFix {
               }
             }
           }
-          builder.addSimpleInsertion(insertOffset, '    $fieldName.dispose();\n');
+          builder.addSimpleInsertion(
+            insertOffset,
+            '    $fieldName.dispose();\n',
+          );
         });
       } else {
         // Synthesize the entire dispose() override.

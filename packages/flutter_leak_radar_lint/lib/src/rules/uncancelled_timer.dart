@@ -54,7 +54,8 @@ class UncancelledTimer extends DartLintRule {
 
           // Resolve type per-variable: prefer the explicit annotation, fall back
           // to the inferred type from the variable's declared element.
-          final fieldType = member.fields.type?.type ??
+          final fieldType =
+              member.fields.type?.type ??
               variable.declaredFragment?.element.type;
           if (!_isTimer(fieldType)) continue;
 
@@ -134,7 +135,10 @@ class _InsertTimerCancelCall extends DartFix {
               }
             }
           }
-          builder.addSimpleInsertion(insertOffset, '    $fieldName?.cancel();\n');
+          builder.addSimpleInsertion(
+            insertOffset,
+            '    $fieldName?.cancel();\n',
+          );
         });
       } else if (teardownName != 'close') {
         // Do NOT synthesise a close() override: the async return type makes a

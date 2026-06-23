@@ -8,8 +8,8 @@ void main() {
   const rule = DiscardedListenResult();
 
   File fixture(String name) => File(
-        '${Directory.current.path}/test/fixtures/discarded_listen_result/$name',
-      );
+    '${Directory.current.path}/test/fixtures/discarded_listen_result/$name',
+  );
 
   test('flags a discarded .listen() result', () async {
     final errors = await rule.testAnalyzeAndRun(fixture('bad.dart'));

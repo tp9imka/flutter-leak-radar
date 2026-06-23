@@ -7,9 +7,8 @@ import 'package:test/test.dart';
 void main() {
   const rule = UncancelledTimer();
 
-  File fixture(String name) => File(
-        '${Directory.current.path}/test/fixtures/uncancelled_timer/$name',
-      );
+  File fixture(String name) =>
+      File('${Directory.current.path}/test/fixtures/uncancelled_timer/$name');
 
   test('flags a Timer field not cancelled in dispose()', () async {
     final errors = await rule.testAnalyzeAndRun(fixture('bad.dart'));
@@ -33,19 +32,16 @@ void main() {
     );
   });
 
-  test(
-    'flags a Timer field not cancelled in close() (BlocBase)',
-    () async {
-      final errors = await rule.testAnalyzeAndRun(fixture('bad_close.dart'));
-      expect(
-        errors,
-        isNotEmpty,
-        reason: 'expected uncancelled_timer lint for BlocBase.close()',
-      );
-      expect(
-        errors.every((e) => e.diagnosticCode.name == 'uncancelled_timer'),
-        isTrue,
-      );
-    },
-  );
+  test('flags a Timer field not cancelled in close() (BlocBase)', () async {
+    final errors = await rule.testAnalyzeAndRun(fixture('bad_close.dart'));
+    expect(
+      errors,
+      isNotEmpty,
+      reason: 'expected uncancelled_timer lint for BlocBase.close()',
+    );
+    expect(
+      errors.every((e) => e.diagnosticCode.name == 'uncancelled_timer'),
+      isTrue,
+    );
+  });
 }

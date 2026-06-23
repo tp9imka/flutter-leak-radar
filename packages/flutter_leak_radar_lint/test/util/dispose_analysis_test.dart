@@ -22,16 +22,13 @@ MethodDeclaration _findMethod(
   for (final decl in unit.declarations) {
     if (decl is ClassDeclaration && decl.name.lexeme == className) {
       for (final member in decl.members) {
-        if (member is MethodDeclaration &&
-            member.name.lexeme == methodName) {
+        if (member is MethodDeclaration && member.name.lexeme == methodName) {
           return member;
         }
       }
     }
   }
-  throw StateError(
-    'Method $className.$methodName not found in parsed source',
-  );
+  throw StateError('Method $className.$methodName not found in parsed source');
 }
 
 void main() {
@@ -120,9 +117,11 @@ class _S {
     });
   });
 
-  group('disposedInTeardown — nested blocks (regression for flat-walk bug)', () {
-    test('returns true when cancel is inside an if-block', () {
-      const src = '''
+  group(
+    'disposedInTeardown — nested blocks (regression for flat-walk bug)',
+    () {
+      test('returns true when cancel is inside an if-block', () {
+        const src = '''
 class _S {
   dynamic _sub;
   bool _active = true;
@@ -133,20 +132,20 @@ class _S {
   }
 }
 ''';
-      final method = _findMethod(src, className: '_S', methodName: 'dispose');
-      expect(
-        disposedInTeardown(
-          teardownMethod: method,
-          receiverName: '_sub',
-          teardownCall: 'cancel',
-        ),
-        isTrue,
-        reason: 'cancel inside an if-block must not produce a false positive',
-      );
-    });
+        final method = _findMethod(src, className: '_S', methodName: 'dispose');
+        expect(
+          disposedInTeardown(
+            teardownMethod: method,
+            receiverName: '_sub',
+            teardownCall: 'cancel',
+          ),
+          isTrue,
+          reason: 'cancel inside an if-block must not produce a false positive',
+        );
+      });
 
-    test('returns true when cancel is inside a try-block', () {
-      const src = '''
+      test('returns true when cancel is inside a try-block', () {
+        const src = '''
 class _S {
   dynamic _sub;
   void dispose() {
@@ -156,20 +155,20 @@ class _S {
   }
 }
 ''';
-      final method = _findMethod(src, className: '_S', methodName: 'dispose');
-      expect(
-        disposedInTeardown(
-          teardownMethod: method,
-          receiverName: '_sub',
-          teardownCall: 'cancel',
-        ),
-        isTrue,
-        reason: 'cancel inside a try-block must not produce a false positive',
-      );
-    });
+        final method = _findMethod(src, className: '_S', methodName: 'dispose');
+        expect(
+          disposedInTeardown(
+            teardownMethod: method,
+            receiverName: '_sub',
+            teardownCall: 'cancel',
+          ),
+          isTrue,
+          reason: 'cancel inside a try-block must not produce a false positive',
+        );
+      });
 
-    test('returns true when cancel is inside a for-loop', () {
-      const src = '''
+      test('returns true when cancel is inside a for-loop', () {
+        const src = '''
 class _S {
   dynamic _sub;
   void dispose() {
@@ -179,20 +178,20 @@ class _S {
   }
 }
 ''';
-      final method = _findMethod(src, className: '_S', methodName: 'dispose');
-      expect(
-        disposedInTeardown(
-          teardownMethod: method,
-          receiverName: '_sub',
-          teardownCall: 'cancel',
-        ),
-        isTrue,
-        reason: 'cancel inside a for-loop must not produce a false positive',
-      );
-    });
+        final method = _findMethod(src, className: '_S', methodName: 'dispose');
+        expect(
+          disposedInTeardown(
+            teardownMethod: method,
+            receiverName: '_sub',
+            teardownCall: 'cancel',
+          ),
+          isTrue,
+          reason: 'cancel inside a for-loop must not produce a false positive',
+        );
+      });
 
-    test('returns false when no cancel anywhere in deeply nested body', () {
-      const src = '''
+      test('returns false when no cancel anywhere in deeply nested body', () {
+        const src = '''
 class _S {
   dynamic _sub;
   void dispose() {
@@ -204,17 +203,18 @@ class _S {
   }
 }
 ''';
-      final method = _findMethod(src, className: '_S', methodName: 'dispose');
-      expect(
-        disposedInTeardown(
-          teardownMethod: method,
-          receiverName: '_sub',
-          teardownCall: 'cancel',
-        ),
-        isFalse,
-      );
-    });
-  });
+        final method = _findMethod(src, className: '_S', methodName: 'dispose');
+        expect(
+          disposedInTeardown(
+            teardownMethod: method,
+            receiverName: '_sub',
+            teardownCall: 'cancel',
+          ),
+          isFalse,
+        );
+      });
+    },
+  );
 
   group('disposedInTeardown — dispose (not cancel)', () {
     test('works with teardownCall=dispose for AnimationController', () {

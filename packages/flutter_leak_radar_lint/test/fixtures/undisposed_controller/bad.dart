@@ -18,7 +18,10 @@ class _AlsoBadState extends State<StatefulWidget> {
   @override
   void initState() {
     super.initState();
-    _anim = AnimationController(vsync: const _NeverTick(), duration: Duration.zero);
+    _anim = AnimationController(
+      vsync: const _NeverTick(),
+      duration: Duration.zero,
+    );
   }
 
   @override

@@ -8,8 +8,8 @@ void main() {
   const rule = UncancelledSubscription();
 
   File fixture(String name) => File(
-        '${Directory.current.path}/test/fixtures/uncancelled_subscription/$name',
-      );
+    '${Directory.current.path}/test/fixtures/uncancelled_subscription/$name',
+  );
 
   test('flags a StreamSubscription field not cancelled in dispose()', () async {
     final errors = await rule.testAnalyzeAndRun(fixture('bad.dart'));
@@ -43,7 +43,9 @@ void main() {
         reason: 'expected uncancelled_subscription lint for BlocBase.close()',
       );
       expect(
-        errors.every((e) => e.diagnosticCode.name == 'uncancelled_subscription'),
+        errors.every(
+          (e) => e.diagnosticCode.name == 'uncancelled_subscription',
+        ),
         isTrue,
       );
     },
