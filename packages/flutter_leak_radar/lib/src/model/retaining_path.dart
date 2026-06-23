@@ -1,13 +1,23 @@
 import 'package:flutter/foundation.dart';
 
-/// One hop in a retaining path (UI-facing copy, decoupled from vm_service types).
+/// One hop in a retaining path.
+///
+/// A UI-facing value type, decoupled from `vm_service` internals. Each hop
+/// describes one object in the chain from the GC root to the leaked object.
 @immutable
 final class RetainingHop {
   const RetainingHop({required this.objectType, this.field, this.index, this.mapKey});
 
+  /// Runtime type name of the retaining object at this hop.
   final String objectType;
+
+  /// Field name on [objectType] that holds the reference, if applicable.
   final String? field;
+
+  /// List or array index at this hop, if applicable.
   final int? index;
+
+  /// Map key at this hop, if applicable.
   final String? mapKey;
 
   Map<String, Object?> toJson() => {
@@ -30,11 +40,18 @@ final class RetainingHop {
   int get hashCode => Object.hash(objectType, field, index, mapKey);
 }
 
+/// The full retaining path from a GC root to a leaked object.
+///
+/// Fetched on demand via [LeakRadar.fetchRetainingPath] and displayed in the
+/// [LeakRadarScreen] when the user expands a finding tile.
 @immutable
 final class RetainingPathView {
   const RetainingPathView({required this.elements, this.gcRootType});
 
+  /// GC root type description (e.g. `'class table'`), if reported by the VM.
   final String? gcRootType;
+
+  /// Ordered list of hops from GC root (index 0) to the leaked object.
   final List<RetainingHop> elements;
 
   Map<String, Object?> toJson() => {

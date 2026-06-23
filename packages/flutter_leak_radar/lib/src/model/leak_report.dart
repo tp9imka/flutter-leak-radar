@@ -3,6 +3,10 @@ import 'package:meta/meta.dart';
 import 'leak_finding.dart';
 import 'leak_kind.dart';
 
+/// The output of a single [LeakRadar.scan] call.
+///
+/// Contains all [findings] detected at [capturedAt], the [trigger] label that
+/// initiated the scan, the detector [status], and an optional heap-size sample.
 @immutable
 final class LeakReport {
   const LeakReport({
@@ -13,14 +17,27 @@ final class LeakReport {
     this.heapBytes,
   });
 
+  /// All leak findings produced by this scan. Empty when the app is clean.
   final List<LeakFinding> findings;
+
+  /// When the scan completed.
   final DateTime capturedAt;
+
+  /// Human-readable label for what triggered the scan (e.g. `'manual'`,
+  /// `'navigation'`, `'periodic'`).
   final String trigger;
+
+  /// Detector status at the time of the scan.
   final LeakRadarStatus status;
+
+  /// Total live heap in bytes at scan time, if available from the VM.
   final int? heapBytes;
 
+  /// Whether any findings were detected.
   bool get hasLeaks => findings.isNotEmpty;
 
+  /// The highest [LeakSeverity] across all findings; [LeakSeverity.info] when
+  /// [findings] is empty.
   LeakSeverity get worstSeverity {
     var worst = LeakSeverity.info;
     for (final f in findings) {

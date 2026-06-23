@@ -1,7 +1,15 @@
 name: flutter_leak_radar
-description: On-device, zero-config memory-leak detector for Flutter (debug/profile). Tracks per-class heap growth and precise object retention; complete no-op in release.
+description: On-device memory-leak detector for Flutter. Tracks per-class heap growth and precise object retention in debug/profile; complete no-op in release.
 version: 0.0.1
-repository: https://github.com/<owner>/flutter-leak-radar
+repository: https://github.com/tp9imka/flutter-leak-radar
+issue_tracker: https://github.com/tp9imka/flutter-leak-radar/issues
+homepage: https://github.com/tp9imka/flutter-leak-radar
+topics:
+  - memory
+  - leak-detection
+  - debugging
+  - devtools
+  - performance
 environment:
   sdk: ">=3.10.0 <4.0.0"
   flutter: ">=3.38.0"

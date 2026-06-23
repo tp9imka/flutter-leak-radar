@@ -45,9 +45,8 @@ class LeakRadarNavigatorObserver extends NavigatorObserver {
 
   /// Cancels any pending debounce timer.
   ///
-  /// Call this when the observer is removed from
-  /// [NavigatorState.widget.observers] to avoid firing scans after the
-  /// navigator has been disposed.
+  /// Call this when the observer is removed from the navigator's observer list
+  /// to avoid firing scans after the navigator has been disposed.
   void dispose() {
     _debounceTimer?.cancel();
     _debounceTimer = null;
