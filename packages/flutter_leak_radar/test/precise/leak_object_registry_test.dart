@@ -1,5 +1,6 @@
 // test/precise/leak_object_registry_test.dart
 import 'package:flutter_leak_radar/src/model/leak_kind.dart';
+import 'package:flutter_leak_radar/src/precise/force_gc.dart';
 import 'package:flutter_leak_radar/src/precise/gc_support.dart';
 import 'package:flutter_leak_radar/src/precise/leak_object_registry.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -108,6 +109,116 @@ void main() {
     final byTag = {for (final l in leaks) l.tag: l.liveCount};
     expect(byTag['A'], 2);
     expect(byTag['B'], 1);
+  });
+
+  group('notDisposed — Finalizer-based detection', () {
+    test(
+      'GCed without markDisposed -> notDisposed finding',
+      () async {
+        final reg = LeakObjectRegistry(disposalGrace: Duration.zero);
+        // Track and immediately release — do not hold a strong reference.
+        reg.track(Object(), tag: 'LeakyWidget');
+        await forceGc(fullGcCycles: 3);
+        final leaks = reg.collectLeaks();
+        final notDisposed = leaks
+            .where((l) => l.kind == LeakKind.notDisposed)
+            .toList();
+        expect(notDisposed, hasLength(1));
+        expect(notDisposed.single.tag, 'LeakyWidget');
+      },
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
+
+    test(
+      'properly disposed object not reported as notDisposed',
+      () async {
+        final reg = LeakObjectRegistry(disposalGrace: Duration.zero);
+        final obj = Object();
+        reg.track(obj, tag: 'GoodWidget');
+        reg.markDisposed(obj);
+        // obj still in scope — but even if GCed, disposedGc is set.
+        await forceGc(fullGcCycles: 3);
+        final leaks = reg.collectLeaks();
+        final notDisposed = leaks
+            .where((l) => l.kind == LeakKind.notDisposed)
+            .toList();
+        expect(notDisposed, isEmpty);
+      },
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
+
+    test(
+      'notDisposed findings accumulate before collectLeaks drains them',
+      () async {
+        final reg = LeakObjectRegistry(disposalGrace: Duration.zero);
+        // Track two objects with same tag, never dispose — let them GC.
+        reg.track(Object(), tag: 'LeakyScreen');
+        reg.track(Object(), tag: 'LeakyScreen');
+        await forceGc(fullGcCycles: 3);
+        final leaks = reg.collectLeaks();
+        final notDisposed = leaks
+            .where((l) => l.kind == LeakKind.notDisposed)
+            .toList();
+        expect(notDisposed, hasLength(1));
+        expect(notDisposed.single.liveCount, 2);
+        expect(notDisposed.single.tag, 'LeakyScreen');
+      },
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
+
+    test('clear also resets pending notDisposed list', () async {
+      final reg = LeakObjectRegistry(disposalGrace: Duration.zero);
+      reg.track(Object(), tag: 'Forgotten');
+      await forceGc(fullGcCycles: 3);
+      // Drain any pending findings, then clear.
+      reg.collectLeaks();
+      reg.clear();
+      // A second collectLeaks after clear should return nothing.
+      expect(reg.collectLeaks(), isEmpty);
+    });
+  });
+
+  group('captureAllocationStack', () {
+    test('captureAllocationStack=false -> no stack on finding', () {
+      final gc = FakeGc();
+      final reg = LeakObjectRegistry(
+        gcCounter: gc,
+        disposalGrace: Duration.zero,
+        clock: () => DateTime(2026),
+      );
+      final obj = Object();
+      reg.track(obj, tag: 'Widget');
+      reg.markDisposed(obj);
+      gc.value += 3;
+      final leaks = reg.collectLeaks(
+        gcCycles: 3,
+        now: DateTime(2026).add(const Duration(seconds: 10)),
+      );
+      expect(leaks.single.allocationStack, isNull);
+    });
+
+    test('captureAllocationStack=true includes stack in notGced finding', () {
+      final gc = FakeGc();
+      final reg = LeakObjectRegistry(
+        gcCounter: gc,
+        disposalGrace: Duration.zero,
+        clock: () => DateTime(2026),
+        captureAllocationStack: true,
+      );
+      final obj = Object();
+      reg.track(obj, tag: 'Widget');
+      reg.markDisposed(obj);
+      gc.value += 3;
+      final leaks = reg.collectLeaks(
+        gcCycles: 3,
+        now: DateTime(2026).add(const Duration(seconds: 10)),
+      );
+      expect(leaks.single.allocationStack, isNotNull);
+      expect(
+        leaks.single.allocationStack.toString(),
+        contains('leak_object_registry_test'),
+      );
+    });
   });
 
   group('disposalGrace — wall-clock enforcement', () {

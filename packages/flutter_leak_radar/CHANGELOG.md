@@ -1,3 +1,16 @@
+## 0.0.2
+
+- `forceGc({int fullGcCycles, Duration? timeout})` test utility: drives GC by
+  allocating until `reachabilityBarrier` advances, ported from `leak_tracker`
+  (`lib/src/precise/force_gc.dart`).
+- `Finalizer`-based `notDisposed` detection: `LeakObjectRegistry` now attaches
+  a `Finalizer<_Entry>` to each tracked object; objects GC'd without
+  `markDisposed()` are reported as `LeakKind.notDisposed` findings.
+- `LeakFinding.allocationStack` (`StackTrace?`): optionally captures the
+  `StackTrace.current` at `track()` call sites when
+  `LeakObjectRegistry(captureAllocationStack: true)` is used; surfaced in
+  the `FindingDetailScreen` "Allocation Site" card.
+
 ## 0.0.1
 
 Initial release.
