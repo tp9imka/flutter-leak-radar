@@ -21,6 +21,7 @@ class LeakRadarScreen extends StatefulWidget {
 class _LeakRadarScreenState extends State<LeakRadarScreen> {
   LeakReport? _report;
   bool _scanning = false;
+  bool _collectingHeap = false;
 
   /// Cached path from the most recent [_export] call, reused by [_share]
   /// so we never write a second temp file for the same report.
@@ -73,6 +74,36 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
     }
   }
 
+  Future<void> _collectHeapSnapshot() async {
+    setState(() => _collectingHeap = true);
+    final path = await LeakRadar.captureHeapSnapshotToFile();
+    if (!mounted) return;
+    setState(() => _collectingHeap = false);
+    if (path != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Heap snapshot: $path'),
+          action: SnackBarAction(
+            label: 'Share',
+            onPressed: () async {
+              try {
+                await SharePlus.instance.share(
+                  ShareParams(files: [XFile(path)], text: 'Leak Radar heap snapshot'),
+                );
+              } catch (_) {
+                // Never throw into host — swallow share errors silently.
+              }
+            },
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Heap snapshot unavailable')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final report = _report;
@@ -80,6 +111,13 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
       appBar: AppBar(
         title: const Text('Leak Radar'),
         actions: [
+          IconButton(
+            tooltip: 'Collect heap snapshot',
+            icon: _collectingHeap
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.memory),
+            onPressed: (_scanning || _collectingHeap) ? null : _collectHeapSnapshot,
+          ),
           IconButton(
             tooltip: 'Export',
             icon: const Icon(Icons.download),
