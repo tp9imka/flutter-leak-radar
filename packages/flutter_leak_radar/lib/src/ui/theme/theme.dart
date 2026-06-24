@@ -3,6 +3,6 @@
 
 export 'colors.dart';
 export 'severity_tokens.dart';
-export 'typography.dart';
+export 'typography.dart' show LeakRadarText, monoFont, displayFont, bodyFont;
 export 'radar_glyph.dart';
 export 'leak_radar_theme.dart';

@@ -2,7 +2,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../leak_radar.dart';
@@ -153,7 +152,7 @@ class _Header extends StatelessWidget {
         Text(
           'Share straight from the device — '
           'into a bug, a PR, a thread.',
-          style: GoogleFonts.jetBrainsMono(
+          style: monoFont(
             fontSize: 13,
             color: LeakRadarColors.text40,
           ),
@@ -222,7 +221,7 @@ class _Segment extends StatelessWidget {
         child: Text(
           label,
           textAlign: TextAlign.center,
-          style: GoogleFonts.jetBrainsMono(
+          style: monoFont(
             fontSize: 13,
             fontWeight: FontWeight.w500,
             color: active ? LeakRadarColors.pageBg : LeakRadarColors.text40,
@@ -252,7 +251,7 @@ class _PreviewBox extends StatelessWidget {
       child: SingleChildScrollView(
         child: Text(
           text,
-          style: GoogleFonts.jetBrainsMono(
+          style: monoFont(
             fontSize: 11.5,
             color: text == 'Nothing to export yet'
                 ? LeakRadarColors.text25
@@ -315,7 +314,7 @@ class _ShareButton extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 _label,
-                style: GoogleFonts.jetBrainsMono(
+                style: monoFont(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: LeakRadarColors.pageBg,

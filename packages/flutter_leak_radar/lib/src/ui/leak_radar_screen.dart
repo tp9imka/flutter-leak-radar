@@ -1,6 +1,5 @@
 // lib/src/ui/leak_radar_screen.dart
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../model/leak_finding.dart';
@@ -199,7 +198,7 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
             SnackBar(
               content: Text(
                 'Heap captured · $count findings',
-                style: GoogleFonts.jetBrainsMono(
+                style: monoFont(
                   fontSize: 13,
                   color: LeakRadarColors.pageBg,
                 ),
@@ -384,7 +383,7 @@ class _SummaryRow extends StatelessWidget {
           if (criticalCount > 0) ...[
             Text(
               '● $criticalCount critical',
-              style: GoogleFonts.jetBrainsMono(
+              style: monoFont(
                 fontSize: 11.5,
                 color: severityTokens(LeakSeverity.critical).text,
               ),
@@ -394,7 +393,7 @@ class _SummaryRow extends StatelessWidget {
           if (warningCount > 0) ...[
             Text(
               '● $warningCount warning',
-              style: GoogleFonts.jetBrainsMono(
+              style: monoFont(
                 fontSize: 11.5,
                 color: severityTokens(LeakSeverity.warning).text,
               ),
@@ -404,7 +403,7 @@ class _SummaryRow extends StatelessWidget {
           if (infoCount > 0)
             Text(
               '● $infoCount info',
-              style: GoogleFonts.jetBrainsMono(
+              style: monoFont(
                 fontSize: 11.5,
                 color: severityTokens(LeakSeverity.info).text,
               ),
@@ -415,7 +414,7 @@ class _SummaryRow extends StatelessWidget {
           if (report != null)
             Text(
               'scan ${formatTime(report!.capturedAt)}',
-              style: GoogleFonts.jetBrainsMono(
+              style: monoFont(
                 fontSize: 11,
                 color: LeakRadarColors.text40,
               ),
@@ -499,7 +498,7 @@ class _Chip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: GoogleFonts.jetBrainsMono(
+          style: monoFont(
             fontSize: 11.5,
             fontWeight: FontWeight.w500,
             color: active ? LeakRadarColors.text100 : LeakRadarColors.text40,
@@ -579,7 +578,7 @@ class _FindingRow extends StatelessWidget {
                                 child: Text(
                                   finding.className,
                                   overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.jetBrainsMono(
+                                  style: monoFont(
                                     fontSize: 13,
                                     color: LeakRadarColors.text100,
                                   ),
@@ -588,7 +587,7 @@ class _FindingRow extends StatelessWidget {
                               if (finding.growth > 0)
                                 Text(
                                   '+${finding.growth}',
-                                  style: GoogleFonts.jetBrainsMono(
+                                  style: monoFont(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: tokens.text,
@@ -606,7 +605,7 @@ class _FindingRow extends StatelessWidget {
                                 child: Text(
                                   '${finding.liveCount} live',
                                   overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.jetBrainsMono(
+                                  style: monoFont(
                                     fontSize: 11,
                                     color: LeakRadarColors.text25,
                                   ),
@@ -745,7 +744,7 @@ class _BottomBar extends StatelessWidget {
                 child: Text(
                   '${filteredFindings.length} classes · $instanceTotal instances',
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.jetBrainsMono(
+                  style: monoFont(
                     fontSize: 11,
                     color: LeakRadarColors.text25,
                   ),
@@ -784,7 +783,7 @@ class _BottomBar extends StatelessWidget {
                       const SizedBox(width: 6),
                       Text(
                         'Scan now',
-                        style: GoogleFonts.jetBrainsMono(
+                        style: monoFont(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: LeakRadarColors.pageBg,
