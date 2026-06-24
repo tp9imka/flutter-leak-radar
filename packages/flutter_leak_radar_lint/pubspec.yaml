@@ -3,6 +3,7 @@ description: >-
   Custom lint rules for Flutter/Dart: undisposed controllers, uncancelled
   subscriptions, discarded listen results, and more memory-leak patterns.
 version: 0.1.0
+publish_to: https://pub.dev
 repository: https://github.com/tp9imka/flutter-leak-radar
 issue_tracker: https://github.com/tp9imka/flutter-leak-radar/issues
 homepage: https://tp9imka.github.io/flutter-leak-radar/
