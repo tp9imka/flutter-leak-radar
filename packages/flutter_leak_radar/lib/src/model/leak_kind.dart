@@ -13,6 +13,10 @@ enum LeakKind {
 
   /// Per-class instance count grew across heap snapshots.
   growth,
+
+  /// Object is reachable from a non-live GC root — confirmed live leak
+  /// detected via retaining-path graph analysis.
+  retainedByNonLiveRoot,
 }
 
 /// Indicates how severe a [LeakFinding] is.
