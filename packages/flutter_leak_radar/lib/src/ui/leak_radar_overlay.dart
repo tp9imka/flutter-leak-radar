@@ -67,12 +67,14 @@ class _LeakRadarOverlayState extends State<LeakRadarOverlay>
       vsync: this,
       duration: const Duration(milliseconds: 2600),
     );
-    _scaleAnim = Tween<double>(begin: 1.0, end: 1.18).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
-    );
-    _opacityAnim = Tween<double>(begin: 0.6, end: 0.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
-    );
+    _scaleAnim = Tween<double>(
+      begin: 1.0,
+      end: 1.18,
+    ).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeOut));
+    _opacityAnim = Tween<double>(
+      begin: 0.6,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeOut));
   }
 
   @override
@@ -89,36 +91,36 @@ class _LeakRadarOverlayState extends State<LeakRadarOverlay>
   ({Color bg, Color border}) _badgeColors(LeakSeverity? severity) =>
       switch (severity) {
         LeakSeverity.critical => (
-            bg: const Color.fromRGBO(255, 93, 108, 0.18),
-            border: const Color.fromRGBO(255, 93, 108, 0.55),
-          ),
+          bg: const Color.fromRGBO(255, 93, 108, 0.18),
+          border: const Color.fromRGBO(255, 93, 108, 0.55),
+        ),
         LeakSeverity.warning => (
-            bg: const Color.fromRGBO(255, 189, 89, 0.18),
-            border: const Color.fromRGBO(255, 189, 89, 0.55),
-          ),
+          bg: const Color.fromRGBO(255, 189, 89, 0.18),
+          border: const Color.fromRGBO(255, 189, 89, 0.55),
+        ),
         LeakSeverity.info => (
-            bg: const Color.fromRGBO(80, 200, 120, 0.18),
-            border: const Color.fromRGBO(80, 200, 120, 0.55),
-          ),
+          bg: const Color.fromRGBO(80, 200, 120, 0.18),
+          border: const Color.fromRGBO(80, 200, 120, 0.55),
+        ),
         null => (
-            bg: const Color.fromRGBO(255, 255, 255, 0.06),
-            border: const Color.fromRGBO(255, 255, 255, 0.15),
-          ),
+          bg: const Color.fromRGBO(255, 255, 255, 0.06),
+          border: const Color.fromRGBO(255, 255, 255, 0.15),
+        ),
       };
 
   /// Dark [ThemeData] for the self-contained inspector [MaterialApp].
   ThemeData _buildInspectorTheme() => ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: LeakRadarColors.pageBg,
-        colorScheme: const ColorScheme.dark(
-          primary: LeakRadarColors.accent,
-          surface: LeakRadarColors.cardBg,
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: LeakRadarColors.appBarBg,
-          elevation: 0,
-        ),
-      );
+    brightness: Brightness.dark,
+    scaffoldBackgroundColor: LeakRadarColors.pageBg,
+    colorScheme: const ColorScheme.dark(
+      primary: LeakRadarColors.accent,
+      surface: LeakRadarColors.cardBg,
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: LeakRadarColors.appBarBg,
+      elevation: 0,
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -265,10 +267,14 @@ class _LeakRadarOverlayState extends State<LeakRadarOverlay>
                 key: const Key('leak_radar_badge'),
                 onPanUpdate: (details) {
                   setState(() {
-                    _right = (_right - details.delta.dx)
-                        .clamp(0, double.infinity);
-                    _bottom = (_bottom - details.delta.dy)
-                        .clamp(0, double.infinity);
+                    _right = (_right - details.delta.dx).clamp(
+                      0,
+                      double.infinity,
+                    );
+                    _bottom = (_bottom - details.delta.dy).clamp(
+                      0,
+                      double.infinity,
+                    );
                   });
                 },
                 onTap: () => setState(() => _inspectorOpen = true),

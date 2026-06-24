@@ -58,9 +58,7 @@ class _RetainingPathTileState extends State<RetainingPathTile> {
     if (_fetching) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 12),
-        child: Center(
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
       );
     }
     if (!_fetched) return const SizedBox.shrink();

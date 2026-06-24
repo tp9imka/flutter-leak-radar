@@ -13,19 +13,16 @@ void main() {
     testWidgets('renders child unchanged when hidden', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          home: LeakRadarOverlay(
-            show: false,
-            child: const Text('content'),
-          ),
+          home: LeakRadarOverlay(show: false, child: const Text('content')),
         ),
       );
       expect(find.text('content'), findsOneWidget);
       expect(find.byKey(const Key('leak_radar_badge')), findsNothing);
     });
 
-    testWidgets(
-        'badge is visible when show:true and a report is supplied',
-        (tester) async {
+    testWidgets('badge is visible when show:true and a report is supplied', (
+      tester,
+    ) async {
       final report = LeakReport(
         findings: [
           const LeakFinding(
@@ -80,9 +77,9 @@ void main() {
       expect(find.text('Leak Radar'), findsOneWidget); // AppBar title
     });
 
-    testWidgets(
-        'badge is present and shows critical finding count',
-        (tester) async {
+    testWidgets('badge is present and shows critical finding count', (
+      tester,
+    ) async {
       // The new badge uses rgba overlay colours, not a single container color.
       // Verify the badge renders and shows the correct count text instead.
       final criticalReport = LeakReport(
@@ -116,14 +113,12 @@ void main() {
       expect(find.text('1 leaks'), findsOneWidget);
     });
 
-    testWidgets(
-        'toggling showOverlay off hides badge on a mounted overlay',
-        (tester) async {
+    testWidgets('toggling showOverlay off hides badge on a mounted overlay', (
+      tester,
+    ) async {
       // LeakRadar.updateConfig updates _configNotifier even without an engine.
       await LeakRadar.dispose();
-      LeakRadar.updateConfig(
-        const LeakRadarConfig(showOverlay: true),
-      );
+      LeakRadar.updateConfig(const LeakRadarConfig(showOverlay: true));
 
       final report = LeakReport(
         findings: [
@@ -153,9 +148,7 @@ void main() {
 
       expect(find.byKey(const Key('leak_radar_badge')), findsOneWidget);
 
-      LeakRadar.updateConfig(
-        const LeakRadarConfig(showOverlay: false),
-      );
+      LeakRadar.updateConfig(const LeakRadarConfig(showOverlay: false));
       await tester.pump();
 
       expect(find.byKey(const Key('leak_radar_badge')), findsNothing);
@@ -164,13 +157,11 @@ void main() {
       await LeakRadar.dispose();
     });
 
-    testWidgets(
-        'toggling showOverlay on shows badge on a mounted overlay',
-        (tester) async {
+    testWidgets('toggling showOverlay on shows badge on a mounted overlay', (
+      tester,
+    ) async {
       await LeakRadar.dispose();
-      LeakRadar.updateConfig(
-        const LeakRadarConfig(showOverlay: false),
-      );
+      LeakRadar.updateConfig(const LeakRadarConfig(showOverlay: false));
 
       final report = LeakReport(
         findings: [
@@ -200,9 +191,7 @@ void main() {
 
       expect(find.byKey(const Key('leak_radar_badge')), findsNothing);
 
-      LeakRadar.updateConfig(
-        const LeakRadarConfig(showOverlay: true),
-      );
+      LeakRadar.updateConfig(const LeakRadarConfig(showOverlay: true));
       await tester.pump();
 
       expect(find.byKey(const Key('leak_radar_badge')), findsOneWidget);
@@ -210,9 +199,9 @@ void main() {
       await LeakRadar.dispose();
     });
 
-    testWidgets(
-        'pulse ring is NOT rendered when animations are disabled',
-        (tester) async {
+    testWidgets('pulse ring is NOT rendered when animations are disabled', (
+      tester,
+    ) async {
       final report = LeakReport(
         findings: [
           const LeakFinding(
@@ -253,27 +242,29 @@ void main() {
 
   group('LeakRadarOverlay above MaterialApp (real-usage shape)', () {
     testWidgets(
-        'renders without exception above MaterialApp (real-usage shape)',
-        (tester) async {
-      await tester.pumpWidget(
-        LeakRadarOverlay(
-          show: true,
-          initialReport: LeakReport(
-            findings: const [],
-            capturedAt: DateTime.now(),
-            trigger: 'test',
-            status: LeakRadarStatus.active,
+      'renders without exception above MaterialApp (real-usage shape)',
+      (tester) async {
+        await tester.pumpWidget(
+          LeakRadarOverlay(
+            show: true,
+            initialReport: LeakReport(
+              findings: const [],
+              capturedAt: DateTime.now(),
+              trigger: 'test',
+              status: LeakRadarStatus.active,
+            ),
+            child: MaterialApp(home: Scaffold(body: Text('app'))),
           ),
-          child: MaterialApp(home: Scaffold(body: Text('app'))),
-        ),
-      );
-      await tester.pump();
-      expect(find.byKey(const Key('leak_radar_badge')), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
+        );
+        await tester.pump();
+        expect(find.byKey(const Key('leak_radar_badge')), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
 
-    testWidgets('tapping badge opens LeakRadarScreen above MaterialApp',
-        (tester) async {
+    testWidgets('tapping badge opens LeakRadarScreen above MaterialApp', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         LeakRadarOverlay(
           show: true,

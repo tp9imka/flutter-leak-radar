@@ -31,14 +31,14 @@ class LeakEngine {
     RateLimitedLogger? logger,
     AutoScan? autoScan,
     LeakRadarConfig? config,
-  })  : _probe = probe,
-        _analyzer = analyzer,
-        _history = history ?? SampleHistory(),
-        _registry = registry ?? LeakObjectRegistry(),
-        _gcCyclesForPreciseLeak = gcCyclesForPreciseLeak,
-        _logger = logger ?? RateLimitedLogger(),
-        _autoScan = autoScan ?? config?.autoScan ?? const AutoScan(),
-        _config = config ?? const LeakRadarConfig();
+  }) : _probe = probe,
+       _analyzer = analyzer,
+       _history = history ?? SampleHistory(),
+       _registry = registry ?? LeakObjectRegistry(),
+       _gcCyclesForPreciseLeak = gcCyclesForPreciseLeak,
+       _logger = logger ?? RateLimitedLogger(),
+       _autoScan = autoScan ?? config?.autoScan ?? const AutoScan(),
+       _config = config ?? const LeakRadarConfig();
 
   final HeapProbe _probe;
   final LeakAnalyzer _analyzer;
@@ -83,8 +83,7 @@ class LeakEngine {
       fallback: false,
       logger: _logger,
     );
-    _status =
-        available ? LeakRadarStatus.active : LeakRadarStatus.preciseOnly;
+    _status = available ? LeakRadarStatus.active : LeakRadarStatus.preciseOnly;
     _startAutoScan();
   }
 
@@ -96,35 +95,39 @@ class LeakEngine {
   /// is cleared. When [LeakRadarConfig.reportThreshold] changes, the last
   /// full report is re-filtered and re-emitted on the [reports] stream.
   void updateConfig(LeakRadarConfig newConfig) {
-    runSafely<void>(() {
-      final autoScanChanged = newConfig.autoScan != _config.autoScan;
-      final preciseTrackingDisabled =
-          _config.preciseTracking && !newConfig.preciseTracking;
+    runSafely<void>(
+      () {
+        final autoScanChanged = newConfig.autoScan != _config.autoScan;
+        final preciseTrackingDisabled =
+            _config.preciseTracking && !newConfig.preciseTracking;
 
-      // Keep _autoScan in sync before restarting the scheduler, so
-      // _startAutoScan always sees the new period / flags regardless of whether
-      // the engine is currently disabled.
-      _autoScan = newConfig.autoScan;
+        // Keep _autoScan in sync before restarting the scheduler, so
+        // _startAutoScan always sees the new period / flags regardless of whether
+        // the engine is currently disabled.
+        _autoScan = newConfig.autoScan;
 
-      if (autoScanChanged && _status != LeakRadarStatus.disabled) {
-        _scheduler?.stop();
-        _scheduler = null;
-        _navObserver?.dispose();
-        _navObserver = null;
-        _startAutoScan();
-      }
+        if (autoScanChanged && _status != LeakRadarStatus.disabled) {
+          _scheduler?.stop();
+          _scheduler = null;
+          _navObserver?.dispose();
+          _navObserver = null;
+          _startAutoScan();
+        }
 
-      if (preciseTrackingDisabled) _registry.clear();
+        if (preciseTrackingDisabled) _registry.clear();
 
-      _config = newConfig;
+        _config = newConfig;
 
-      // Re-filter and re-emit whenever the threshold or the config changes
-      // so listeners always see a report consistent with the current config.
-      if (_latestFullReport != null && !_reports.isClosed) {
-        _latestFiltered = _filtered(_latestFullReport!);
-        _reports.add(_latestFiltered!);
-      }
-    }, fallback: null, logger: _logger);
+        // Re-filter and re-emit whenever the threshold or the config changes
+        // so listeners always see a report consistent with the current config.
+        if (_latestFullReport != null && !_reports.isClosed) {
+          _latestFiltered = _filtered(_latestFullReport!);
+          _reports.add(_latestFiltered!);
+        }
+      },
+      fallback: null,
+      logger: _logger,
+    );
   }
 
   void _startAutoScan() {
@@ -187,9 +190,7 @@ class LeakEngine {
           _history.add(snapshot);
         }
       }
-      final precise = _registry.collectLeaks(
-        gcCycles: _gcCyclesForPreciseLeak,
-      );
+      final precise = _registry.collectLeaks(gcCycles: _gcCyclesForPreciseLeak);
       final report = _analyzer.analyze(
         _history,
         trigger: trigger,
@@ -223,34 +224,31 @@ class LeakEngine {
   /// Returns a copy of [full] with findings below [LeakRadarConfig.reportThreshold]
   /// removed.
   LeakReport _filtered(LeakReport full) => LeakReport(
-        findings: full.findings
-            .where(
-              (f) => f.severity.index >= _config.reportThreshold.index,
-            )
-            .toList(),
-        capturedAt: full.capturedAt,
-        trigger: full.trigger,
-        status: full.status,
-        heapBytes: full.heapBytes,
-      );
+    findings: full.findings
+        .where((f) => f.severity.index >= _config.reportThreshold.index)
+        .toList(),
+    capturedAt: full.capturedAt,
+    trigger: full.trigger,
+    status: full.status,
+    heapBytes: full.heapBytes,
+  );
 
   LeakReport _degraded(String trigger) => LeakReport(
-        findings: const <LeakFinding>[],
-        capturedAt: DateTime.now(),
-        trigger: trigger,
-        status: _status,
-      );
+    findings: const <LeakFinding>[],
+    capturedAt: DateTime.now(),
+    trigger: trigger,
+    status: _status,
+  );
 
   /// Fetches the retaining path for [className] from the underlying probe.
   ///
   /// Returns null when the probe does not support retaining paths or when the
   /// engine is unavailable. Never throws.
-  Future<RetainingPathView?> retainingPath(String className) =>
-      runSafelyAsync(
-        () => _probe.retainingPath(className),
-        fallback: null,
-        logger: _logger,
-      );
+  Future<RetainingPathView?> retainingPath(String className) => runSafelyAsync(
+    () => _probe.retainingPath(className),
+    fallback: null,
+    logger: _logger,
+  );
 
   /// Disposes the probe, clears tracking state, and closes the reports stream.
   Future<void> stop() async {

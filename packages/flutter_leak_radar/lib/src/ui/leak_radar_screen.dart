@@ -154,40 +154,36 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
           ),
           Expanded(
             child: findings.isEmpty
-                ? _EmptyState(
-                    status: report?.status ?? LeakRadar.status,
-                  )
+                ? _EmptyState(status: report?.status ?? LeakRadar.status)
                 : filtered.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No findings match this filter',
-                          style: LeakRadarText.label,
+                ? Center(
+                    child: Text(
+                      'No findings match this filter',
+                      style: LeakRadarText.label,
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    itemCount: filtered.length,
+                    itemBuilder: (_, i) {
+                      final f = filtered[i];
+                      return Dismissible(
+                        key: ValueKey(
+                          '${f.className}|'
+                          '${f.kind.name}|'
+                          '${f.tag ?? ''}',
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        itemCount: filtered.length,
-                        itemBuilder: (_, i) {
-                          final f = filtered[i];
-                          return Dismissible(
-                            key: ValueKey(
-                              '${f.className}|'
-                              '${f.kind.name}|'
-                              '${f.tag ?? ''}',
-                            ),
-                            direction: DismissDirection.endToStart,
-                            // View-level dismiss: engine still detects;
-                            // re-adds on next scan.
-                            onDismissed: (_) => setState(
-                              () => _dismissed.add(f.className),
-                            ),
-                            background: const SizedBox.shrink(),
-                            secondaryBackground:
-                                const _DismissBackground(),
-                            child: _FindingRow(finding: f),
-                          );
-                        },
-                      ),
+                        direction: DismissDirection.endToStart,
+                        // View-level dismiss: engine still detects;
+                        // re-adds on next scan.
+                        onDismissed: (_) =>
+                            setState(() => _dismissed.add(f.className)),
+                        background: const SizedBox.shrink(),
+                        secondaryBackground: const _DismissBackground(),
+                        child: _FindingRow(finding: f),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -248,17 +244,13 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
         _IconBtn(
           icon: Icons.download_outlined,
           tooltip: 'Export',
-          onTap: _scanning
-              ? null
-              : () => _showExportSheet(context),
+          onTap: _scanning ? null : () => _showExportSheet(context),
         ),
         _IconBtn(
           icon: Icons.settings_outlined,
           tooltip: 'Settings',
           onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const SettingsScreen(),
-            ),
+            MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
           ),
         ),
         PopupMenuButton<_HeapMenuAction>(
@@ -328,11 +320,7 @@ enum _HeapMenuAction { heapSnapshot, share, clearLeaks }
 // ── Icon button ───────────────────────────────────────────────────────────────
 
 class _IconBtn extends StatelessWidget {
-  const _IconBtn({
-    required this.icon,
-    required this.tooltip,
-    this.onTap,
-  });
+  const _IconBtn({required this.icon, required this.tooltip, this.onTap});
 
   final IconData icon;
   final String tooltip;
@@ -351,8 +339,9 @@ class _IconBtn extends StatelessWidget {
           decoration: BoxDecoration(
             color: LeakRadarDimens.iconButtonBg,
             border: Border.all(color: LeakRadarDimens.iconButtonBorder),
-            borderRadius:
-                BorderRadius.circular(LeakRadarDimens.iconButtonRadius),
+            borderRadius: BorderRadius.circular(
+              LeakRadarDimens.iconButtonRadius,
+            ),
           ),
           child: Icon(
             icon,
@@ -378,12 +367,15 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final findings = report?.findings ?? const <LeakFinding>[];
-    final criticalCount =
-        findings.where((f) => f.severity == LeakSeverity.critical).length;
-    final warningCount =
-        findings.where((f) => f.severity == LeakSeverity.warning).length;
-    final infoCount =
-        findings.where((f) => f.severity == LeakSeverity.info).length;
+    final criticalCount = findings
+        .where((f) => f.severity == LeakSeverity.critical)
+        .length;
+    final warningCount = findings
+        .where((f) => f.severity == LeakSeverity.warning)
+        .length;
+    final infoCount = findings
+        .where((f) => f.severity == LeakSeverity.info)
+        .length;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -397,8 +389,7 @@ class _SummaryRow extends StatelessWidget {
                 color: severityTokens(LeakSeverity.critical).text,
               ),
             ),
-            if (warningCount > 0 || infoCount > 0)
-              const SizedBox(width: 12),
+            if (warningCount > 0 || infoCount > 0) const SizedBox(width: 12),
           ],
           if (warningCount > 0) ...[
             Text(
@@ -482,11 +473,7 @@ class _FilterRow extends StatelessWidget {
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
+  const _Chip({required this.label, required this.active, required this.onTap});
 
   final String label;
   final bool active;
@@ -498,8 +485,7 @@ class _Chip extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(right: 8),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: active
               ? LeakRadarColors.accent.withValues(alpha: 0.18)
@@ -516,9 +502,7 @@ class _Chip extends StatelessWidget {
           style: GoogleFonts.jetBrainsMono(
             fontSize: 11.5,
             fontWeight: FontWeight.w500,
-            color: active
-                ? LeakRadarColors.text100
-                : LeakRadarColors.text40,
+            color: active ? LeakRadarColors.text100 : LeakRadarColors.text40,
           ),
         ),
       ),
@@ -694,17 +678,17 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const RadarGlyph(size: 64),
-            const SizedBox(height: 16),
-            Text('No leaks detected', style: LeakRadarText.title),
-            const SizedBox(height: 8),
-            Text('status: ${status.name}', style: LeakRadarText.label),
-          ],
-        ),
-      );
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const RadarGlyph(size: 64),
+        const SizedBox(height: 16),
+        Text('No leaks detected', style: LeakRadarText.title),
+        const SizedBox(height: 8),
+        Text('status: ${status.name}', style: LeakRadarText.label),
+      ],
+    ),
+  );
 }
 
 // ── Dismiss background ────────────────────────────────────────────────────────
@@ -714,22 +698,20 @@ class _DismissBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        decoration: BoxDecoration(
-          color: const Color.fromRGBO(239, 68, 68, 0.18),
-          border: Border.all(
-            color: const Color.fromRGBO(239, 68, 68, 0.40),
-          ),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: const Icon(
-          Icons.delete_outline,
-          color: Color.fromRGBO(239, 68, 68, 0.80),
-          size: 20,
-        ),
-      );
+    alignment: Alignment.centerRight,
+    padding: const EdgeInsets.only(right: 20),
+    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    decoration: BoxDecoration(
+      color: const Color.fromRGBO(239, 68, 68, 0.18),
+      border: Border.all(color: const Color.fromRGBO(239, 68, 68, 0.40)),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: const Icon(
+      Icons.delete_outline,
+      color: Color.fromRGBO(239, 68, 68, 0.80),
+      size: 20,
+    ),
+  );
 }
 
 // ── Bottom bar ────────────────────────────────────────────────────────────────
@@ -747,8 +729,10 @@ class _BottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final instanceTotal =
-        filteredFindings.fold(0, (sum, f) => sum + f.liveCount);
+    final instanceTotal = filteredFindings.fold(
+      0,
+      (sum, f) => sum + f.liveCount,
+    );
 
     return Container(
       color: LeakRadarColors.appBarBg,

@@ -18,7 +18,11 @@ class _CountingFakeService extends Fake implements VmService {
     final classRef = ClassRef(
       id: 'classes/1',
       name: 'HomeBloc',
-      library: LibraryRef(id: 'libs/1', name: 'test', uri: 'package:test/test.dart'),
+      library: LibraryRef(
+        id: 'libs/1',
+        name: 'test',
+        uri: 'package:test/test.dart',
+      ),
     );
     final member = ClassHeapStats()
       ..classRef = classRef
@@ -71,10 +75,7 @@ void main() {
         final fakeService = _CountingFakeService();
 
         // Cold cache — no classRefCache entries injected.
-        probe.debugInjectServiceAndCache(
-          fakeService,
-          isolateId: 'isolates/1',
-        );
+        probe.debugInjectServiceAndCache(fakeService, isolateId: 'isolates/1');
 
         await probe.retainingPath('HomeBloc');
 

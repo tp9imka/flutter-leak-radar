@@ -15,7 +15,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('renders without error for single-point series', (tester) async {
+    testWidgets('renders without error for single-point series', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -57,8 +59,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('golden — growing series renders expected sparkline',
-        (tester) async {
+    testWidgets('golden — growing series renders expected sparkline', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(

@@ -34,8 +34,7 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
 
   Future<void> _fetchPath() async {
     setState(() => _fetchingPath = true);
-    final path =
-        await LeakRadar.fetchRetainingPath(widget.finding.className);
+    final path = await LeakRadar.fetchRetainingPath(widget.finding.className);
     if (!mounted) return;
     setState(() {
       _fetchingPath = false;
@@ -47,10 +46,12 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
   Future<void> _captureHeap() async {
     final path = await LeakRadar.captureHeapSnapshotToFile();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(path != null ? 'Saved: $path' : 'unavailable'),
-      backgroundColor: LeakRadarColors.appBarBg,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(path != null ? 'Saved: $path' : 'unavailable'),
+        backgroundColor: LeakRadarColors.appBarBg,
+      ),
+    );
   }
 
   void _showExportSheet(BuildContext context) {
@@ -91,89 +92,90 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
   }
 
   AppBar _buildAppBar() => AppBar(
-        backgroundColor: LeakRadarColors.appBarBg,
-        foregroundColor: LeakRadarColors.text100,
-        elevation: 0,
-        title: Text(
-          widget.finding.className,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: LeakRadarColors.text100,
-          ),
-          overflow: TextOverflow.ellipsis,
-        ),
-        actions: [
-          _IconBtn(
-            icon: Icons.ios_share_outlined,
-            tooltip: 'Share',
-            onTap: () => _showExportSheet(context),
-          ),
-          const SizedBox(width: 4),
-        ],
-      );
+    backgroundColor: LeakRadarColors.appBarBg,
+    foregroundColor: LeakRadarColors.text100,
+    elevation: 0,
+    title: Text(
+      widget.finding.className,
+      style: GoogleFonts.jetBrainsMono(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: LeakRadarColors.text100,
+      ),
+      overflow: TextOverflow.ellipsis,
+    ),
+    actions: [
+      _IconBtn(
+        icon: Icons.ios_share_outlined,
+        tooltip: 'Share',
+        onTap: () => _showExportSheet(context),
+      ),
+      const SizedBox(width: 4),
+    ],
+  );
 
   Widget _buildSeverityStrip() => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            _SeverityTag(severity: widget.finding.severity),
-            const SizedBox(width: 8),
-            Text(
-              widget.finding.series.isEmpty
-                  ? 'still live after disposal'
-                  : 'grew +$_growth over '
-                      '${widget.finding.series.length} captures',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 12,
-                color: LeakRadarColors.text40,
-              ),
-            ),
-          ],
-        ),
-      );
-
-  Widget _buildStatCards() => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: _StatCard(
-                  label: 'LIVE NOW',
-                  value: '${widget.finding.liveCount}',
-                  valueColor:
-                      severityTokens(widget.finding.severity).text,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _StatCard(
-                  label: 'NET GROWTH',
-                  value: widget.finding.series.isEmpty ? '—' : '+$_growth',
-                  valueColor: LeakRadarColors.text100,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _StatCard(
-                  label: 'FIRST SEEN',
-                  value: _formatFirstSeen(widget.finding.firstSeen),
-                  valueColor: LeakRadarColors.text100,
-                ),
-              ),
-            ],
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    child: Row(
+      children: [
+        _SeverityTag(severity: widget.finding.severity),
+        const SizedBox(width: 8),
+        Text(
+          widget.finding.series.isEmpty
+              ? 'still live after disposal'
+              : 'grew +$_growth over '
+                    '${widget.finding.series.length} captures',
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 12,
+            color: LeakRadarColors.text40,
           ),
         ),
-      );
+      ],
+    ),
+  );
+
+  Widget _buildStatCards() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _StatCard(
+              label: 'LIVE NOW',
+              value: '${widget.finding.liveCount}',
+              valueColor: severityTokens(widget.finding.severity).text,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _StatCard(
+              label: 'NET GROWTH',
+              value: widget.finding.series.isEmpty ? '—' : '+$_growth',
+              valueColor: LeakRadarColors.text100,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _StatCard(
+              label: 'FIRST SEEN',
+              value: _formatFirstSeen(widget.finding.firstSeen),
+              valueColor: LeakRadarColors.text100,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 
   Widget _buildBarChart() {
     final tokens = severityTokens(widget.finding.severity);
     final times = widget.finding.captureTimes;
     final s = widget.finding.series;
 
-    final firstLabel = times.isNotEmpty ? _formatCaptureLabel(times.first) : '—';
+    final firstLabel = times.isNotEmpty
+        ? _formatCaptureLabel(times.first)
+        : '—';
     final lastLabel = times.isNotEmpty ? _formatCaptureLabel(times.last) : '—';
 
     return Padding(
@@ -256,77 +258,73 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
   }
 
   Widget _buildPrecisePanel() => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Container(
-          decoration: BoxDecoration(
-            color: LeakRadarColors.cardBg,
-            border: Border.all(color: LeakRadarColors.border08),
-            borderRadius: BorderRadius.circular(13),
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: Container(
+      decoration: BoxDecoration(
+        color: LeakRadarColors.cardBg,
+        border: Border.all(color: LeakRadarColors.border08),
+        borderRadius: BorderRadius.circular(13),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Precise tracking',
+            style: LeakRadarText.title.copyWith(fontSize: 14),
           ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Precise tracking',
-                style: LeakRadarText.title.copyWith(fontSize: 14),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Confirmed still live after disposal via WeakReference '
-                'tracking. Precise findings carry no capture history — the '
-                'retaining path below explains what holds the object.',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11.5,
-                  height: 1.5,
-                  color: LeakRadarColors.text40,
-                ),
-              ),
-            ],
+          const SizedBox(height: 6),
+          Text(
+            'Confirmed still live after disposal via WeakReference '
+            'tracking. Precise findings carry no capture history — the '
+            'retaining path below explains what holds the object.',
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 11.5,
+              height: 1.5,
+              color: LeakRadarColors.text40,
+            ),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 
   Widget _buildRetainingPath() => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Container(
-          decoration: BoxDecoration(
-            color: LeakRadarColors.codePreviewBg,
-            border: Border.all(color: LeakRadarColors.border08),
-            borderRadius: BorderRadius.circular(13),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: Container(
+      decoration: BoxDecoration(
+        color: LeakRadarColors.codePreviewBg,
+        border: Border.all(color: LeakRadarColors.border08),
+        borderRadius: BorderRadius.circular(13),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
+              Icon(Icons.link, color: LeakRadarColors.severityInfo, size: 16),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.link,
-                    color: LeakRadarColors.severityInfo,
-                    size: 16,
+                  Text(
+                    'Retaining path',
+                    style: LeakRadarText.mono.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Retaining path',
-                        style: LeakRadarText.mono.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text('lazily fetched', style: LeakRadarText.label),
-                    ],
-                  ),
+                  Text('lazily fetched', style: LeakRadarText.label),
                 ],
               ),
-              const SizedBox(height: 12),
-              _buildPathBody(),
             ],
           ),
-        ),
-      );
+          const SizedBox(height: 12),
+          _buildPathBody(),
+        ],
+      ),
+    ),
+  );
 
   Widget _buildPathBody() {
     if (_fetchingPath) {
@@ -352,11 +350,13 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
     final rows = <Widget>[];
 
     if (path.gcRootType != null) {
-      rows.add(_PathLine(
-        connector: '',
-        label: path.gcRootType!,
-        labelColor: LeakRadarColors.text40,
-      ));
+      rows.add(
+        _PathLine(
+          connector: '',
+          label: path.gcRootType!,
+          labelColor: LeakRadarColors.text40,
+        ),
+      );
     }
 
     for (final hop in path.elements) {
@@ -364,108 +364,106 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
         if (hop.field != null) hop.field!,
         hop.objectType,
       ].join(' → ');
-      rows.add(_PathLine(
-        connector: '└─',
-        label: label,
-        labelColor: LeakRadarColors.severityInfo,
-      ));
+      rows.add(
+        _PathLine(
+          connector: '└─',
+          label: label,
+          labelColor: LeakRadarColors.severityInfo,
+        ),
+      );
     }
 
-    rows.add(_PathLine(
-      connector: '└─',
-      label: '${widget.finding.className} ← leaked',
-      labelColor: tokens.text,
-    ));
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: rows,
+    rows.add(
+      _PathLine(
+        connector: '└─',
+        label: '${widget.finding.className} ← leaked',
+        labelColor: tokens.text,
+      ),
     );
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: rows);
   }
 
   Widget _buildBottomRow() => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
+    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+    child: IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: LeakRadarColors.cardBg,
+                border: Border.all(color: LeakRadarColors.border08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('STATUS', style: LeakRadarText.label),
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.finding.tag != null
+                        ? 'Tracked'
+                        : 'Heap-inspected · no opt-in needed',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 11,
+                      color: LeakRadarColors.text80,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Material(
+            color: Colors.transparent,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                onTap: _captureHeap,
+                borderRadius: BorderRadius.circular(10),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: LeakRadarColors.cardBg,
-                    border: Border.all(color: LeakRadarColors.border08),
+                    color: const Color.fromRGBO(90, 209, 230, 0.12),
+                    border: Border.all(
+                      color: const Color.fromRGBO(90, 209, 230, 0.30),
+                    ),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 10,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('STATUS', style: LeakRadarText.label),
-                      const SizedBox(height: 2),
+                      Icon(
+                        Icons.camera_outlined,
+                        size: 14,
+                        color: LeakRadarColors.severityInfo,
+                      ),
+                      const SizedBox(width: 6),
                       Text(
-                        widget.finding.tag != null
-                            ? 'Tracked'
-                            : 'Heap-inspected · no opt-in needed',
+                        'Capture .dartheap',
                         style: GoogleFonts.jetBrainsMono(
                           fontSize: 11,
-                          color: LeakRadarColors.text80,
+                          fontWeight: FontWeight.w600,
+                          color: LeakRadarColors.severityInfo,
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Material(
-                color: Colors.transparent,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: InkWell(
-                    onTap: _captureHeap,
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color.fromRGBO(90, 209, 230, 0.12),
-                        border: Border.all(
-                          color: const Color.fromRGBO(90, 209, 230, 0.30),
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.camera_outlined,
-                            size: 14,
-                            color: LeakRadarColors.severityInfo,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Capture .dartheap',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: LeakRadarColors.severityInfo,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -496,30 +494,28 @@ class _IconBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Tooltip(
-        message: tooltip,
-        child: GestureDetector(
-          onTap: onTap,
-          child: Container(
-            width: LeakRadarDimens.iconButtonSize,
-            height: LeakRadarDimens.iconButtonSize,
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(
-              color: LeakRadarDimens.iconButtonBg,
-              border: Border.all(color: LeakRadarDimens.iconButtonBorder),
-              borderRadius: BorderRadius.circular(
-                LeakRadarDimens.iconButtonRadius,
-              ),
-            ),
-            child: Icon(
-              icon,
-              size: 18,
-              color: onTap != null
-                  ? LeakRadarColors.text100
-                  : LeakRadarColors.text25,
-            ),
-          ),
+    message: tooltip,
+    child: GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: LeakRadarDimens.iconButtonSize,
+        height: LeakRadarDimens.iconButtonSize,
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: LeakRadarDimens.iconButtonBg,
+          border: Border.all(color: LeakRadarDimens.iconButtonBorder),
+          borderRadius: BorderRadius.circular(LeakRadarDimens.iconButtonRadius),
         ),
-      );
+        child: Icon(
+          icon,
+          size: 18,
+          color: onTap != null
+              ? LeakRadarColors.text100
+              : LeakRadarColors.text25,
+        ),
+      ),
+    ),
+  );
 }
 
 class _SeverityTag extends StatelessWidget {
@@ -558,34 +554,34 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          color: LeakRadarColors.cardBg,
-          border: Border.all(color: LeakRadarColors.border08),
-          borderRadius: BorderRadius.circular(13),
+    decoration: BoxDecoration(
+      color: LeakRadarColors.cardBg,
+      border: Border.all(color: LeakRadarColors.border08),
+      borderRadius: BorderRadius.circular(13),
+    ),
+    padding: const EdgeInsets.all(12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 11,
+            color: LeakRadarColors.text25,
+          ),
         ),
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 11,
-                color: LeakRadarColors.text25,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: GoogleFonts.spaceGrotesk(
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-                color: valueColor,
-              ),
-            ),
-          ],
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: GoogleFonts.spaceGrotesk(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            color: valueColor,
+          ),
         ),
-      );
+      ],
+    ),
+  );
 }
 
 class _PathLine extends StatelessWidget {
@@ -601,39 +597,33 @@ class _PathLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (connector.isNotEmpty) ...[
-              Text(
-                connector,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 12,
-                  color: LeakRadarColors.text15,
-                ),
-              ),
-              const SizedBox(width: 4),
-            ],
-            Expanded(
-              child: Text(
-                label,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 12,
-                  color: labelColor,
-                ),
-              ),
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (connector.isNotEmpty) ...[
+          Text(
+            connector,
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 12,
+              color: LeakRadarColors.text15,
             ),
-          ],
+          ),
+          const SizedBox(width: 4),
+        ],
+        Expanded(
+          child: Text(
+            label,
+            style: GoogleFonts.jetBrainsMono(fontSize: 12, color: labelColor),
+          ),
         ),
-      );
+      ],
+    ),
+  );
 }
 
 class _BarChartPainter extends CustomPainter {
-  const _BarChartPainter({
-    required this.series,
-    required this.severityColor,
-  });
+  const _BarChartPainter({required this.series, required this.severityColor});
 
   final List<int> series;
   final Color severityColor;
@@ -647,8 +637,7 @@ class _BarChartPainter extends CustomPainter {
     final barWidth = (size.width - gap * (n - 1)) / n;
 
     for (var i = 0; i < n; i++) {
-      final barHeight =
-          maxVal == 0 ? 4.0 : size.height * series[i] / maxVal;
+      final barHeight = maxVal == 0 ? 4.0 : size.height * series[i] / maxVal;
       final x = i * (barWidth + gap);
       final y = size.height - barHeight;
       final isLast = i == n - 1;

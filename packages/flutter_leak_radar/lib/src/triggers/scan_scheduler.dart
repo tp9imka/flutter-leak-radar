@@ -7,8 +7,8 @@ class ScanScheduler {
   ScanScheduler({
     required Duration? period,
     required Future<void> Function() onTick,
-  })  : _period = period,
-        _onTick = onTick;
+  }) : _period = period,
+       _onTick = onTick;
 
   final Duration? _period;
   final Future<void> Function() _onTick;

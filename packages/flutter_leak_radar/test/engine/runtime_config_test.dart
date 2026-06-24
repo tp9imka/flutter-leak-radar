@@ -11,10 +11,10 @@ import '../support/fake_heap_probe.dart';
 import 'leak_engine_test.dart' show engineWith;
 
 LeakEngine _engineWithConfig(LeakRadarConfig config) => LeakEngine(
-      probe: FakeHeapProbe([]),
-      analyzer: LeakAnalyzer(SuspectSet.empty()),
-      config: config,
-    );
+  probe: FakeHeapProbe([]),
+  analyzer: LeakAnalyzer(SuspectSet.empty()),
+  config: config,
+);
 
 void main() {
   tearDown(() async => LeakRadar.dispose());
@@ -43,19 +43,21 @@ void main() {
       await engine.stop();
     });
 
-    test('autoScan change from onNavigation to manual removes navObserver',
-        () async {
-      final engine = _engineWithConfig(
-        const LeakRadarConfig(autoScan: AutoScan(onNavigation: true)),
-      );
-      await engine.start();
-      expect(engine.navigatorObserver, isNotNull);
+    test(
+      'autoScan change from onNavigation to manual removes navObserver',
+      () async {
+        final engine = _engineWithConfig(
+          const LeakRadarConfig(autoScan: AutoScan(onNavigation: true)),
+        );
+        await engine.start();
+        expect(engine.navigatorObserver, isNotNull);
 
-      engine.updateConfig(const LeakRadarConfig());
+        engine.updateConfig(const LeakRadarConfig());
 
-      expect(engine.navigatorObserver, isNull);
-      await engine.stop();
-    });
+        expect(engine.navigatorObserver, isNull);
+        await engine.stop();
+      },
+    );
 
     test('preciseTracking false → track() calls are ignored', () async {
       final engine = engineWith(FakeHeapProbe([]));
@@ -68,10 +70,7 @@ void main() {
       // Registry is cleared when disabling, so trackedCount is 0.
       // Indirectly verified by running collectLeaks in scan below.
       final report = await engine.scan();
-      expect(
-        report.findings.where((f) => f.tag == 'test'),
-        isEmpty,
-      );
+      expect(report.findings.where((f) => f.tag == 'test'), isEmpty);
 
       await engine.stop();
     });
@@ -80,16 +79,11 @@ void main() {
       final engine = engineWith(FakeHeapProbe([]));
       await engine.start();
 
-      expect(
-        () {
-          for (var i = 0; i < 10; i++) {
-            engine.updateConfig(
-              LeakRadarConfig(showOverlay: i.isEven),
-            );
-          }
-        },
-        returnsNormally,
-      );
+      expect(() {
+        for (var i = 0; i < 10; i++) {
+          engine.updateConfig(LeakRadarConfig(showOverlay: i.isEven));
+        }
+      }, returnsNormally);
 
       await engine.stop();
     });
@@ -129,9 +123,7 @@ void main() {
       await LeakRadar.debugInstall(engine);
 
       LeakRadar.updateConfig(
-        const LeakRadarConfig(
-          reportThreshold: LeakSeverity.critical,
-        ),
+        const LeakRadarConfig(reportThreshold: LeakSeverity.critical),
       );
 
       expect(

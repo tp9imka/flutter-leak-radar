@@ -12,17 +12,17 @@ import '../support/fake_heap_probe.dart';
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 HeapSnapshot snap(Map<String, int> c, {DateTime? at}) => HeapSnapshot(
-      capturedAt: at ?? DateTime(2026),
-      samples: [
-        for (final e in c.entries)
-          ClassSample(
-            className: e.key,
-            instancesCurrent: e.value,
-            bytesCurrent: 0,
-            timestamp: at ?? DateTime(2026),
-          ),
-      ],
-    );
+  capturedAt: at ?? DateTime(2026),
+  samples: [
+    for (final e in c.entries)
+      ClassSample(
+        className: e.key,
+        instancesCurrent: e.value,
+        bytesCurrent: 0,
+        timestamp: at ?? DateTime(2026),
+      ),
+  ],
+);
 
 LeakFinding testFinding({
   String className = 'TestBloc',
@@ -31,17 +31,16 @@ LeakFinding testFinding({
   List<int> series = const [2, 3, 5],
   List<DateTime>? captureTimes,
   String? tag,
-}) =>
-    LeakFinding(
-      className: className,
-      kind: LeakKind.growth,
-      severity: LeakSeverity.warning,
-      liveCount: liveCount,
-      growth: growth,
-      series: series,
-      captureTimes: captureTimes ?? const [],
-      tag: tag,
-    );
+}) => LeakFinding(
+  className: className,
+  kind: LeakKind.growth,
+  severity: LeakSeverity.warning,
+  liveCount: liveCount,
+  growth: growth,
+  series: series,
+  captureTimes: captureTimes ?? const [],
+  tag: tag,
+);
 
 Widget _wrap(Widget child) => MaterialApp(home: child);
 
@@ -52,10 +51,12 @@ void main() {
 
   group('FindingDetailScreen — stats', () {
     testWidgets('renders class name in AppBar', (tester) async {
-      await LeakRadar.debugInstall(LeakEngine(
-        probe: const NoopHeapProbe(),
-        analyzer: LeakAnalyzer(SuspectSet.empty()),
-      ));
+      await LeakRadar.debugInstall(
+        LeakEngine(
+          probe: const NoopHeapProbe(),
+          analyzer: LeakAnalyzer(SuspectSet.empty()),
+        ),
+      );
       final finding = testFinding(className: 'HomeBloc');
       await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
       await tester.pumpAndSettle();
@@ -63,10 +64,12 @@ void main() {
     });
 
     testWidgets('shows live count stat', (tester) async {
-      await LeakRadar.debugInstall(LeakEngine(
-        probe: const NoopHeapProbe(),
-        analyzer: LeakAnalyzer(SuspectSet.empty()),
-      ));
+      await LeakRadar.debugInstall(
+        LeakEngine(
+          probe: const NoopHeapProbe(),
+          analyzer: LeakAnalyzer(SuspectSet.empty()),
+        ),
+      );
       final finding = testFinding(liveCount: 7);
       await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
       await tester.pumpAndSettle();
@@ -74,10 +77,12 @@ void main() {
     });
 
     testWidgets('shows net growth stat', (tester) async {
-      await LeakRadar.debugInstall(LeakEngine(
-        probe: const NoopHeapProbe(),
-        analyzer: LeakAnalyzer(SuspectSet.empty()),
-      ));
+      await LeakRadar.debugInstall(
+        LeakEngine(
+          probe: const NoopHeapProbe(),
+          analyzer: LeakAnalyzer(SuspectSet.empty()),
+        ),
+      );
       // growth = last - first = 5 - 2 = 3
       final finding = testFinding(series: [2, 3, 5]);
       await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
@@ -86,10 +91,12 @@ void main() {
     });
 
     testWidgets('shows Tracked status when tag set', (tester) async {
-      await LeakRadar.debugInstall(LeakEngine(
-        probe: const NoopHeapProbe(),
-        analyzer: LeakAnalyzer(SuspectSet.empty()),
-      ));
+      await LeakRadar.debugInstall(
+        LeakEngine(
+          probe: const NoopHeapProbe(),
+          analyzer: LeakAnalyzer(SuspectSet.empty()),
+        ),
+      );
       final finding = testFinding(tag: 'my-tag');
       await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
       await tester.pumpAndSettle();
@@ -97,10 +104,12 @@ void main() {
     });
 
     testWidgets('shows Heap-inspected status when no tag', (tester) async {
-      await LeakRadar.debugInstall(LeakEngine(
-        probe: const NoopHeapProbe(),
-        analyzer: LeakAnalyzer(SuspectSet.empty()),
-      ));
+      await LeakRadar.debugInstall(
+        LeakEngine(
+          probe: const NoopHeapProbe(),
+          analyzer: LeakAnalyzer(SuspectSet.empty()),
+        ),
+      );
       final finding = testFinding(tag: null);
       await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
       await tester.pumpAndSettle();
@@ -108,47 +117,56 @@ void main() {
     });
 
     testWidgets('bar chart paints without overflow', (tester) async {
-      await LeakRadar.debugInstall(LeakEngine(
-        probe: const NoopHeapProbe(),
-        analyzer: LeakAnalyzer(SuspectSet.empty()),
-      ));
+      await LeakRadar.debugInstall(
+        LeakEngine(
+          probe: const NoopHeapProbe(),
+          analyzer: LeakAnalyzer(SuspectSet.empty()),
+        ),
+      );
       final finding = testFinding(series: [1, 2, 3, 4, 5]);
       await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('precise finding (empty series) shows precise panel, not chart',
-        (tester) async {
-      await LeakRadar.debugInstall(LeakEngine(
-        probe: const NoopHeapProbe(),
-        analyzer: LeakAnalyzer(SuspectSet.empty()),
-      ));
-      const finding = LeakFinding(
-        className: '_LeakyScreenState',
-        kind: LeakKind.notGced,
-        severity: LeakSeverity.critical,
-        liveCount: 3,
-        growth: 0,
-        series: <int>[],
-        tag: 'LeakyScreen',
-      );
-      await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
-      await tester.pumpAndSettle();
-      expect(find.text('Precise tracking'), findsOneWidget);
-      expect(find.text('still live after disposal'), findsOneWidget);
-      expect(find.text('Live instances / capture'), findsNothing);
-      expect(find.text('3'), findsOneWidget); // aggregated LIVE NOW count
-    });
+    testWidgets(
+      'precise finding (empty series) shows precise panel, not chart',
+      (tester) async {
+        await LeakRadar.debugInstall(
+          LeakEngine(
+            probe: const NoopHeapProbe(),
+            analyzer: LeakAnalyzer(SuspectSet.empty()),
+          ),
+        );
+        const finding = LeakFinding(
+          className: '_LeakyScreenState',
+          kind: LeakKind.notGced,
+          severity: LeakSeverity.critical,
+          liveCount: 3,
+          growth: 0,
+          series: <int>[],
+          tag: 'LeakyScreen',
+        );
+        await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
+        await tester.pumpAndSettle();
+        expect(find.text('Precise tracking'), findsOneWidget);
+        expect(find.text('still live after disposal'), findsOneWidget);
+        expect(find.text('Live instances / capture'), findsNothing);
+        expect(find.text('3'), findsOneWidget); // aggregated LIVE NOW count
+      },
+    );
   });
 
   group('FindingDetailScreen — retaining path', () {
-    testWidgets('shows spinner while fetching, then unavailable',
-        (tester) async {
-      await LeakRadar.debugInstall(LeakEngine(
-        probe: const NoopHeapProbe(),
-        analyzer: LeakAnalyzer(SuspectSet.empty()),
-      ));
+    testWidgets('shows spinner while fetching, then unavailable', (
+      tester,
+    ) async {
+      await LeakRadar.debugInstall(
+        LeakEngine(
+          probe: const NoopHeapProbe(),
+          analyzer: LeakAnalyzer(SuspectSet.empty()),
+        ),
+      );
       final finding = testFinding();
       await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
       await tester.pump();
@@ -165,10 +183,9 @@ void main() {
         ],
       );
       final probe = FakeHeapProbe([], path: path);
-      await LeakRadar.debugInstall(LeakEngine(
-        probe: probe,
-        analyzer: LeakAnalyzer(SuspectSet.empty()),
-      ));
+      await LeakRadar.debugInstall(
+        LeakEngine(probe: probe, analyzer: LeakAnalyzer(SuspectSet.empty())),
+      );
       final finding = testFinding(className: 'HomeBloc');
       await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
       await tester.pumpAndSettle();
@@ -178,58 +195,62 @@ void main() {
 
   group('FindingDetailScreen — navigation', () {
     testWidgets(
-        'tapping a finding row in LeakRadarScreen navigates to detail',
-        (tester) async {
-      final probe = FakeHeapProbe([
-        snap({'NavBloc': 1}),
-        snap({'NavBloc': 2}),
-        snap({'NavBloc': 3}),
-      ]);
-      final engine = LeakEngine(
-        probe: probe,
-        analyzer: const LeakAnalyzer(
-          SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
-        ),
-      );
-      await LeakRadar.debugInstall(engine);
-      await LeakRadar.scan();
-      await LeakRadar.scan();
-      await LeakRadar.scan();
+      'tapping a finding row in LeakRadarScreen navigates to detail',
+      (tester) async {
+        final probe = FakeHeapProbe([
+          snap({'NavBloc': 1}),
+          snap({'NavBloc': 2}),
+          snap({'NavBloc': 3}),
+        ]);
+        final engine = LeakEngine(
+          probe: probe,
+          analyzer: const LeakAnalyzer(
+            SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+          ),
+        );
+        await LeakRadar.debugInstall(engine);
+        await LeakRadar.scan();
+        await LeakRadar.scan();
+        await LeakRadar.scan();
 
-      await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
+        await tester.pumpAndSettle();
 
-      expect(find.text('NavBloc'), findsOneWidget);
-      await tester.tap(find.text('NavBloc'));
-      await tester.pumpAndSettle();
+        expect(find.text('NavBloc'), findsOneWidget);
+        await tester.tap(find.text('NavBloc'));
+        await tester.pumpAndSettle();
 
-      expect(find.byType(FindingDetailScreen), findsOneWidget);
-    });
+        expect(find.byType(FindingDetailScreen), findsOneWidget);
+      },
+    );
   });
 
   group('_buildBottomRow', () {
-    testWidgets('capture button has InkWell with non-null onTap',
-        (tester) async {
-      await LeakRadar.debugInstall(LeakEngine(
-        probe: const NoopHeapProbe(),
-        analyzer: LeakAnalyzer(SuspectSet.empty()),
-      ));
+    testWidgets('capture button has InkWell with non-null onTap', (
+      tester,
+    ) async {
+      await LeakRadar.debugInstall(
+        LeakEngine(
+          probe: const NoopHeapProbe(),
+          analyzer: LeakAnalyzer(SuspectSet.empty()),
+        ),
+      );
       final finding = testFinding();
       await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
       await tester.pumpAndSettle();
       expect(
-        find.byWidgetPredicate(
-          (w) => w is InkWell && w.onTap != null,
-        ),
+        find.byWidgetPredicate((w) => w is InkWell && w.onTap != null),
         findsOneWidget,
       );
     });
 
     testWidgets('bottom row renders without overflow', (tester) async {
-      await LeakRadar.debugInstall(LeakEngine(
-        probe: const NoopHeapProbe(),
-        analyzer: LeakAnalyzer(SuspectSet.empty()),
-      ));
+      await LeakRadar.debugInstall(
+        LeakEngine(
+          probe: const NoopHeapProbe(),
+          analyzer: LeakAnalyzer(SuspectSet.empty()),
+        ),
+      );
       final finding = testFinding();
       await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
       await tester.pumpAndSettle();
@@ -247,10 +268,7 @@ void main() {
       final t0 = DateTime(2026, 1, 1, 10, 0);
       final t1 = DateTime(2026, 1, 1, 10, 5);
       final t2 = DateTime(2026, 1, 1, 10, 10);
-      final f = testFinding(
-        series: [0, 1, 2],
-        captureTimes: [t0, t1, t2],
-      );
+      final f = testFinding(series: [0, 1, 2], captureTimes: [t0, t1, t2]);
       expect(f.firstSeen, equals(t1));
     });
 

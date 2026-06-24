@@ -19,8 +19,7 @@ const int _kSize = 1024;
 const int _kCornerRadius = 180;
 
 /// Creates a pixel colour from RGBA components.
-img.ColorRgba8 _rgba(int r, int g, int b, int a) =>
-    img.ColorRgba8(r, g, b, a);
+img.ColorRgba8 _rgba(int r, int g, int b, int a) => img.ColorRgba8(r, g, b, a);
 
 /// Draws a filled circle at [cx], [cy] with [radius].
 void _fillCircle(img.Image image, int cx, int cy, int radius, img.Color color) {
@@ -119,12 +118,9 @@ void _drawSweep(img.Image image, int cx, int cy, int maxRadius, img.Color bg) {
       // Blend accent colour over existing pixel
       final img.Pixel px = image.getPixel(x, y);
       final double a = alpha / 255.0;
-      final int nr =
-          (px.r * (1 - a) + _kAccR * a).round().clamp(0, 255);
-      final int ng =
-          (px.g * (1 - a) + _kAccG * a).round().clamp(0, 255);
-      final int nb =
-          (px.b * (1 - a) + _kAccB * a).round().clamp(0, 255);
+      final int nr = (px.r * (1 - a) + _kAccR * a).round().clamp(0, 255);
+      final int ng = (px.g * (1 - a) + _kAccG * a).round().clamp(0, 255);
+      final int nb = (px.b * (1 - a) + _kAccB * a).round().clamp(0, 255);
       image.setPixel(x, y, _rgba(nr, ng, nb, px.a.toInt()));
     }
   }
@@ -235,13 +231,17 @@ void main() {
   final img.Image fullIcon = _generateFullIcon();
   final List<int> fullPng = img.encodePng(fullIcon);
   File('$outDir/leak_radar_icon.png').writeAsBytesSync(fullPng);
-  stdout.writeln('  Written: $outDir/leak_radar_icon.png (${fullPng.length} bytes)');
+  stdout.writeln(
+    '  Written: $outDir/leak_radar_icon.png (${fullPng.length} bytes)',
+  );
 
   stdout.writeln('Generating foreground icon...');
   final img.Image fg = _generateForeground();
   final List<int> fgPng = img.encodePng(fg);
   File('$outDir/leak_radar_foreground.png').writeAsBytesSync(fgPng);
-  stdout.writeln('  Written: $outDir/leak_radar_foreground.png (${fgPng.length} bytes)');
+  stdout.writeln(
+    '  Written: $outDir/leak_radar_foreground.png (${fgPng.length} bytes)',
+  );
 
   stdout.writeln('Done.');
 }

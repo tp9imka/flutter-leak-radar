@@ -6,7 +6,12 @@ import 'package:flutter/foundation.dart';
 /// describes one object in the chain from the GC root to the leaked object.
 @immutable
 final class RetainingHop {
-  const RetainingHop({required this.objectType, this.field, this.index, this.mapKey});
+  const RetainingHop({
+    required this.objectType,
+    this.field,
+    this.index,
+    this.mapKey,
+  });
 
   /// Runtime type name of the retaining object at this hop.
   final String objectType;
@@ -21,11 +26,11 @@ final class RetainingHop {
   final String? mapKey;
 
   Map<String, Object?> toJson() => {
-        'objectType': objectType,
-        if (field != null) 'field': field,
-        if (index != null) 'index': index,
-        if (mapKey != null) 'mapKey': mapKey,
-      };
+    'objectType': objectType,
+    if (field != null) 'field': field,
+    if (index != null) 'index': index,
+    if (mapKey != null) 'mapKey': mapKey,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -55,9 +60,9 @@ final class RetainingPathView {
   final List<RetainingHop> elements;
 
   Map<String, Object?> toJson() => {
-        if (gcRootType != null) 'gcRootType': gcRootType,
-        'elements': elements.map((e) => e.toJson()).toList(),
-      };
+    if (gcRootType != null) 'gcRootType': gcRootType,
+    'elements': elements.map((e) => e.toJson()).toList(),
+  };
 
   @override
   bool operator ==(Object other) =>

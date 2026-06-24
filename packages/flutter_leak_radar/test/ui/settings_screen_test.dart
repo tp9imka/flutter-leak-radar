@@ -41,33 +41,28 @@ void main() {
 
     expect(LeakRadar.configListenable.value.showOverlay, isTrue);
 
-    await tester.tap(
-      find.byKey(const Key('settings_overlay_toggle')),
-    );
+    await tester.tap(find.byKey(const Key('settings_overlay_toggle')));
     await tester.pump();
 
     expect(LeakRadar.configListenable.value.showOverlay, isFalse);
   });
 
-  testWidgets('tapping Info segment sets reportThreshold to info',
-      (tester) async {
-    await _setup(
-      const LeakRadarConfig(reportThreshold: LeakSeverity.warning),
-    );
+  testWidgets('tapping Info segment sets reportThreshold to info', (
+    tester,
+  ) async {
+    await _setup(const LeakRadarConfig(reportThreshold: LeakSeverity.warning));
     await tester.pumpWidget(_wrap(const SettingsScreen()));
     await tester.pump();
 
     await tester.tap(find.text('Info'));
     await tester.pump();
 
-    expect(
-      LeakRadar.configListenable.value.reportThreshold,
-      LeakSeverity.info,
-    );
+    expect(LeakRadar.configListenable.value.reportThreshold, LeakSeverity.info);
   });
 
-  testWidgets('tapping Critical segment sets reportThreshold to critical',
-      (tester) async {
+  testWidgets('tapping Critical segment sets reportThreshold to critical', (
+    tester,
+  ) async {
     await _setup();
     await tester.pumpWidget(_wrap(const SettingsScreen()));
     await tester.pump();
@@ -97,8 +92,9 @@ void main() {
     await LeakRadar.dispose();
   });
 
-  testWidgets('tapping On screen-pop row updates autoScan.onNavigation',
-      (tester) async {
+  testWidgets('tapping On screen-pop row updates autoScan.onNavigation', (
+    tester,
+  ) async {
     await _setup();
     await tester.pumpWidget(_wrap(const SettingsScreen()));
     await tester.pump();
@@ -106,10 +102,7 @@ void main() {
     await tester.tap(find.text('On screen-pop'));
     await tester.pump();
 
-    expect(
-      LeakRadar.configListenable.value.autoScan.onNavigation,
-      isTrue,
-    );
+    expect(LeakRadar.configListenable.value.autoScan.onNavigation, isTrue);
   });
 
   testWidgets('precision toggle disables preciseTracking', (tester) async {
@@ -126,16 +119,15 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(
-      find.byKey(const Key('settings_precision_toggle')),
-    );
+    await tester.tap(find.byKey(const Key('settings_precision_toggle')));
     await tester.pump();
 
     expect(LeakRadar.configListenable.value.preciseTracking, isFalse);
   });
 
-  testWidgets('RECOMMENDED tag visible for On screen-pop option',
-      (tester) async {
+  testWidgets('RECOMMENDED tag visible for On screen-pop option', (
+    tester,
+  ) async {
     await _setup();
     await tester.pumpWidget(_wrap(const SettingsScreen()));
     await tester.pump();

@@ -27,13 +27,23 @@ final class ClassSample {
       other.timestamp == timestamp;
 
   @override
-  int get hashCode => Object.hash(className, library, instancesCurrent, bytesCurrent, timestamp);
+  int get hashCode => Object.hash(
+    className,
+    library,
+    instancesCurrent,
+    bytesCurrent,
+    timestamp,
+  );
 }
 
 /// A full per-class heap snapshot captured at one instant.
 @immutable
 final class HeapSnapshot {
-  const HeapSnapshot({required this.samples, required this.capturedAt, this.heapBytes});
+  const HeapSnapshot({
+    required this.samples,
+    required this.capturedAt,
+    this.heapBytes,
+  });
 
   final List<ClassSample> samples;
   final DateTime capturedAt;

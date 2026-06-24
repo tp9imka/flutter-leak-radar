@@ -15,7 +15,7 @@ import 'heap_probe.dart';
 /// app's own VM service (debug/profile) and never throws into callers.
 class VmHeapProbe implements HeapProbe {
   VmHeapProbe({RateLimitedLogger? logger, this.maxRetainingPathRequests = 5})
-      : _logger = logger ?? RateLimitedLogger();
+    : _logger = logger ?? RateLimitedLogger();
 
   final RateLimitedLogger _logger;
   final int maxRetainingPathRequests;
@@ -45,9 +45,9 @@ class VmHeapProbe implements HeapProbe {
   Future<Uri?> _serviceUri() async {
     var uri = (await developer.Service.getInfo()).serverWebSocketUri;
     if (uri != null) return uri;
-    uri =
-        (await developer.Service.controlWebServer(enable: true))
-            .serverWebSocketUri;
+    uri = (await developer.Service.controlWebServer(
+      enable: true,
+    )).serverWebSocketUri;
     return uri;
   }
 
@@ -91,10 +91,7 @@ class VmHeapProbe implements HeapProbe {
       _nextRetryAllowedAt = null; // clear on success
       return service;
     } catch (e) {
-      _logger.log(
-        'VmHeapProbe connect failed: $e',
-        level: LeakLogLevel.error,
-      );
+      _logger.log('VmHeapProbe connect failed: $e', level: LeakLogLevel.error);
       _nextRetryAllowedAt = DateTime.now().add(_reconnectBackoff);
       return null;
     }
@@ -204,20 +201,18 @@ class VmHeapProbe implements HeapProbe {
         classId,
         maxInstances,
       );
-      final targetId =
-          instanceSet.instances?.isNotEmpty == true
-              ? instanceSet.instances!.first.id
-              : null;
+      final targetId = instanceSet.instances?.isNotEmpty == true
+          ? instanceSet.instances!.first.id
+          : null;
       if (targetId == null) return null;
 
       final path = await service.getRetainingPath(isolateId, targetId, 100000);
       final hops = <RetainingHop>[];
       for (final el in path.elements ?? const <RetainingObject>[]) {
         final value = el.value;
-        final type =
-            value is InstanceRef
-                ? (value.classRef?.name ?? value.kind ?? 'Object')
-                : (value?.runtimeType.toString() ?? 'Object');
+        final type = value is InstanceRef
+            ? (value.classRef?.name ?? value.kind ?? 'Object')
+            : (value?.runtimeType.toString() ?? 'Object');
         hops.add(
           RetainingHop(
             objectType: type,

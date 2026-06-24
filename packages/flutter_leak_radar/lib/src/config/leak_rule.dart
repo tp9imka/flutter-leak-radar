@@ -93,26 +93,16 @@ final class LeakRule {
 }
 
 final class _GrowthRule extends LeakRule {
-  const _GrowthRule(
-    String pattern, {
-    super.minGrowth = 1,
-    super.severityHint,
-  }) : super._(pattern: pattern, mode: LeakDetectionMode.growth);
+  const _GrowthRule(String pattern, {super.minGrowth = 1, super.severityHint})
+    : super._(pattern: pattern, mode: LeakDetectionMode.growth);
 }
 
 final class _MaxLiveRule extends LeakRule {
-  const _MaxLiveRule(
-    String pattern,
-    int max, {
-    super.severityHint,
-  }) : super._(
-          pattern: pattern,
-          mode: LeakDetectionMode.maxLive,
-          maxLive: max,
-        );
+  const _MaxLiveRule(String pattern, int max, {super.severityHint})
+    : super._(pattern: pattern, mode: LeakDetectionMode.maxLive, maxLive: max);
 }
 
 final class _IgnoreRule extends LeakRule {
   const _IgnoreRule(String pattern)
-      : super._(pattern: pattern, mode: LeakDetectionMode.ignore);
+    : super._(pattern: pattern, mode: LeakDetectionMode.ignore);
 }

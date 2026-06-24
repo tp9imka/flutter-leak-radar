@@ -22,17 +22,13 @@ class NoopHeapProbe implements HeapProbe {
 
   @override
   Future<HeapSnapshot> capture({required bool forceGc}) async =>
-      HeapSnapshot(
-        samples: const <ClassSample>[],
-        capturedAt: DateTime.now(),
-      );
+      HeapSnapshot(samples: const <ClassSample>[], capturedAt: DateTime.now());
 
   @override
   Future<RetainingPathView?> retainingPath(
     String className, {
     int maxInstances = 10,
-  }) async =>
-      null;
+  }) async => null;
 
   @override
   Future<void> dispose() async {}

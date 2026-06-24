@@ -56,8 +56,9 @@ void main() {
       expect(find.textContaining('_blocs'), findsOneWidget);
     });
 
-    testWidgets('shows unavailable message when fetch returns null',
-        (tester) async {
+    testWidgets('shows unavailable message when fetch returns null', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
