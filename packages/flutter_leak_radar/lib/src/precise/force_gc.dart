@@ -2,18 +2,24 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
+import 'package:flutter/foundation.dart';
+
 /// Forces at least [fullGcCycles] full GC cycles.
 ///
 /// Allocates memory aggressively until [reachabilityBarrier] advances.
-/// Only effective in debug/profile builds; no-op in release
-/// (reachabilityBarrier is always 0 in release so the function returns
-/// immediately).
+/// Only meaningful in debug/profile builds — returns immediately in release
+/// mode because [reachabilityBarrier] is always 0 there and the loop would
+/// never terminate without a guard.
 ///
 /// Use [timeout] to cap the wait. Throws [TimeoutException] if exceeded.
 ///
-/// Gate this call with [kDebugMode] or [kProfileMode] at call sites —
-/// calling it in release builds is harmless but pointless.
+/// This is a test utility. Gate call sites with [kDebugMode] or
+/// [kProfileMode] when used outside of tests.
 Future<void> forceGc({Duration? timeout, int fullGcCycles = 1}) async {
+  // reachabilityBarrier is always 0 in release builds; the loop below
+  // would never terminate, so return early.
+  if (kReleaseMode) return;
+
   final stopwatch = timeout == null ? null : (Stopwatch()..start());
   final barrier = developer.reachabilityBarrier;
   final storage = <List<int>>[];
