@@ -13,10 +13,19 @@ import 'growth_sparkline.dart';
 import 'settings_screen.dart';
 import 'theme/theme.dart';
 
-/// Brand-themed results screen. Push it from anywhere:
+/// Brand-themed results screen.
+///
+/// When used from a Navigator, push it directly:
 /// `Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LeakRadarScreen()));`
+///
+/// When embedded in the overlay's self-contained [MaterialApp] layer, supply
+/// [onClose] so the leading close button can dismiss the inspector.
 class LeakRadarScreen extends StatefulWidget {
-  const LeakRadarScreen({super.key});
+  const LeakRadarScreen({super.key, this.onClose});
+
+  /// Called when the user taps the leading close button in the AppBar.
+  /// When null, no close button is shown (normal Navigator-push usage).
+  final VoidCallback? onClose;
 
   @override
   State<LeakRadarScreen> createState() => _LeakRadarScreenState();
@@ -189,6 +198,13 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
     return AppBar(
       backgroundColor: LeakRadarColors.appBarBg,
       elevation: 0,
+      leading: widget.onClose != null
+          ? IconButton(
+              icon: const Icon(Icons.close, color: LeakRadarColors.text100),
+              tooltip: 'Close',
+              onPressed: widget.onClose,
+            )
+          : null,
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
