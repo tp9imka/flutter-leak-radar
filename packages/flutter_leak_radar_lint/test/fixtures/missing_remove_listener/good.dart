@@ -144,3 +144,21 @@ class _UnrelatedAddListenerState extends State<StatefulWidget> {
   @override
   Widget build(BuildContext context) => const SizedBox();
 }
+
+// Good: addListener called INSIDE dispose() itself — never a listener the
+// developer needs to remove later; should NOT be flagged.
+class _AddListenerInDisposeState extends State<StatefulWidget> {
+  final ValueNotifier<int> _notifier = ValueNotifier<int>(0);
+
+  void _onDisposing() {}
+
+  @override
+  void dispose() {
+    // Unusual but valid: e.g. triggering one last notification.
+    _notifier.addListener(_onDisposing);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox();
+}

@@ -71,7 +71,10 @@ class MissingRemoveListener extends DartLintRule {
           if (findTeardownMethod(cls, name) case final m?) m,
       ];
 
-      final addCalls = collectPairableAddListeners(cls);
+      final addCalls = collectPairableAddListeners(
+        cls,
+        excludeMethodNames: teardownNames.toSet(),
+      );
 
       // Track which (receiver, callback) pairs we have already reported so a
       // listenable registered twice doesn't produce duplicate diagnostics.
