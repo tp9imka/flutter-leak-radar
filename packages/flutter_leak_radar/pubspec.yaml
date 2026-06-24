@@ -3,7 +3,7 @@ description: On-device memory-leak detector for Flutter. Tracks per-class heap g
 version: 0.0.1
 repository: https://github.com/tp9imka/flutter-leak-radar
 issue_tracker: https://github.com/tp9imka/flutter-leak-radar/issues
-homepage: https://github.com/tp9imka/flutter-leak-radar
+homepage: https://tp9imka.github.io/flutter-leak-radar/
 topics:
   - memory
   - leak-detection
