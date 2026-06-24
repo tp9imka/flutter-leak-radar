@@ -110,11 +110,23 @@ class AddListenerCall {
 ///
 /// Only invocations whose receiver is a [SimpleIdentifier] (a bare field/local
 /// reference) are collected, so we always have a stable receiver name to pair.
-List<AddListenerCall> collectPairableAddListeners(ClassDeclaration cls) {
+///
+/// [excludeMethodNames] is the set of teardown method names (e.g. `{'dispose',
+/// 'deactivate', 'close'}`) to SKIP when scanning. An `addListener` placed
+/// INSIDE the teardown method itself (e.g. to do a one-time listen during
+/// teardown) would otherwise produce a spurious "missing removeListener" lint
+/// because the teardown body has no matching `removeListener` for that call.
+List<AddListenerCall> collectPairableAddListeners(
+  ClassDeclaration cls, {
+  Set<String> excludeMethodNames = const {},
+}) {
   final visitor = _AddListenerVisitor();
   for (final member in cls.members) {
-    // Scan constructors and methods (initState, constructor bodies, helpers).
+    // Scan constructors and methods (initState, constructor bodies, helpers),
+    // but SKIP teardown methods — addListener inside dispose/close is not a
+    // listener that needs a paired removeListener (it's teardown-time work).
     if (member is MethodDeclaration) {
+      if (excludeMethodNames.contains(member.name.lexeme)) continue;
       member.body.accept(visitor);
     } else if (member is ConstructorDeclaration) {
       member.body.accept(visitor);
