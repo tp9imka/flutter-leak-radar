@@ -7,8 +7,8 @@ import '../model/leak_finding.dart';
 import '../model/leak_kind.dart';
 import '../model/leak_report.dart';
 import '../leak_radar.dart';
+import 'finding_detail_screen.dart';
 import 'growth_sparkline.dart';
-import 'retaining_path_tile.dart';
 import 'theme/theme.dart';
 
 /// Brand-themed results screen. Push it from anywhere:
@@ -512,13 +512,7 @@ class _FindingRow extends StatelessWidget {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute<void>(
-              builder: (_) => Scaffold(
-                backgroundColor: LeakRadarColors.pageBg,
-                appBar: AppBar(
-                  title: Text(finding.className),
-                  backgroundColor: LeakRadarColors.appBarBg,
-                ),
-              ),
+              builder: (_) => FindingDetailScreen(finding: finding),
             ),
           ),
           child: Container(
@@ -629,15 +623,6 @@ class _FindingRow extends StatelessWidget {
             ),
           ),
         ),
-        if (finding.series.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: RetainingPathTile(
-              className: finding.className,
-              onFetch: () =>
-                  LeakRadar.fetchRetainingPath(finding.className),
-            ),
-          ),
       ],
     );
   }
