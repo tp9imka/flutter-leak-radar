@@ -23,9 +23,15 @@ class LeakObjectRegistry {
   LeakObjectRegistry({
     GcCounter? gcCounter,
     this.disposalGrace = const Duration(seconds: 2),
-  }) : _gc = gcCounter ?? const DeveloperGcCounter();
+    DateTime Function()? clock,
+  })  : _gc = gcCounter ?? const DeveloperGcCounter(),
+        _clock = clock ?? DateTime.now;
 
   final GcCounter _gc;
+
+  /// Source of the current wall-clock time. Injected for testability;
+  /// defaults to [DateTime.now].
+  final DateTime Function() _clock;
 
   /// Minimum wall-clock time after disposal before an object is considered
   /// a leak, regardless of GC cycles elapsed.
@@ -48,7 +54,7 @@ class LeakObjectRegistry {
     final entry = _entries[identityHashCode(obj)];
     if (entry == null) return;
     entry.disposedGc = _gc.currentGcCount;
-    entry.disposedAt = DateTime.now();
+    entry.disposedAt = _clock();
   }
 
   /// Returns all objects that are disposed, survived >= [gcCycles] GC cycles,
@@ -71,10 +77,9 @@ class LeakObjectRegistry {
       final disposedAt = entry.disposedAt;
       if (disposedGc == null || disposedAt == null) return;
       final survivedCycles = current - disposedGc >= gcCycles;
-      // Duration.zero means "no grace required" — always satisfied.
-      // For positive grace, at must be after disposedAt by at least that amount.
-      final pastGrace = disposalGrace == Duration.zero ||
-          at.difference(disposedAt) >= disposalGrace;
+      // elapsed >= Duration.zero is always true when at >= disposedAt,
+      // so Duration.zero grace is unconditionally satisfied.
+      final pastGrace = at.difference(disposedAt) >= disposalGrace;
       if (survivedCycles && pastGrace) {
         leaks.add(LeakFinding(
           className: target.runtimeType.toString(),
