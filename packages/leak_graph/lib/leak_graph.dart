@@ -6,3 +6,8 @@
 ///
 /// Exports are added incrementally as each phase of the implementation lands.
 library;
+
+export 'src/model/root_kind.dart';
+export 'src/model/graph_retaining_path.dart';
+export 'src/model/graph_leak_cluster.dart';
+export 'src/model/graph_analysis_result.dart';
