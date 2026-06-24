@@ -91,6 +91,45 @@ void main() {
 
       expect(report, contains('1'));
     });
+
+    test('includes confidence label heuristic for heuristic clusters', () {
+      final result = _singleClusterResult();
+      final report = renderReport(result);
+
+      expect(report, contains('heuristic'));
+    });
+
+    test('includes confidence label confirmed for confirmed clusters', () {
+      const path = GraphRetainingPath(
+        hops: [
+          GraphHop(className: '_Timer'),
+          GraphHop(className: 'Foo'),
+        ],
+        rootKind: RootKind.timer,
+      );
+      const cluster = GraphLeakCluster(
+        className: 'Foo',
+        libraryUri: null,
+        instanceCount: 1,
+        retainedShallowBytes: 100,
+        representativePath: path,
+        rootKind: RootKind.timer,
+        confidence: LeakConfidence.confirmed,
+        signature: 'sig2',
+      );
+      const stats = GraphAnalysisStats(
+        totalObjects: 1,
+        reachableObjects: 1,
+        leakCandidates: 1,
+        clusters: 1,
+        suppressedByAppFilter: 0,
+        warnings: [],
+      );
+      const result = GraphAnalysisResult(clusters: [cluster], stats: stats);
+      final report = renderReport(result);
+
+      expect(report, contains('confirmed'));
+    });
   });
 
   group('renderJson', () {

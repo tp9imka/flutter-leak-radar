@@ -8,6 +8,7 @@ final class CliConfig {
   final int minCluster;
   final int top;
   final String? jsonOut;
+  final bool confirm;
 
   const CliConfig({
     required this.dumpPath,
@@ -16,6 +17,7 @@ final class CliConfig {
     required this.minCluster,
     required this.top,
     required this.jsonOut,
+    required this.confirm,
   });
 }
 
@@ -40,7 +42,12 @@ final _parser = ArgParser()
     defaultsTo: '50',
     help: 'Maximum number of clusters to display in the report.',
   )
-  ..addOption('json', help: 'Write full JSON output to this file path.');
+  ..addOption('json', help: 'Write full JSON output to this file path.')
+  ..addFlag(
+    'confirm',
+    negatable: false,
+    help: 'Run reachability confirmation on each cluster.',
+  );
 
 /// Parses [argv] into a [CliConfig].
 ///
@@ -80,5 +87,6 @@ CliConfig parseCliArgs(List<String> argv) {
     minCluster: minCluster,
     top: top,
     jsonOut: results['json'] as String?,
+    confirm: results['confirm'] as bool,
   );
 }

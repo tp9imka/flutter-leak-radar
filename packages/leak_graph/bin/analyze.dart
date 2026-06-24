@@ -26,6 +26,7 @@ Future<void> main(List<String> argv) async {
       appPackages: config.appPackages,
       disableAppFilter: config.all,
       minClusterSize: config.minCluster,
+      confirmWithReachability: config.confirm,
     ),
   );
 

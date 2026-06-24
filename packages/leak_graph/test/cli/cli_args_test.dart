@@ -54,5 +54,15 @@ void main() {
       final c = parseCliArgs(['dump.data']);
       expect(c.jsonOut, isNull);
     });
+
+    test('--confirm parses to true', () {
+      final c = parseCliArgs(['dump.data', '--confirm']);
+      expect(c.confirm, isTrue);
+    });
+
+    test('confirm defaults to false', () {
+      final c = parseCliArgs(['dump.data']);
+      expect(c.confirm, isFalse);
+    });
   });
 }

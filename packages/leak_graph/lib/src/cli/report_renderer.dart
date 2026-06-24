@@ -22,7 +22,8 @@ String renderReport(GraphAnalysisResult result, {int top = 20}) {
   for (var i = 0; i < shown; i++) {
     final c = clusters[i];
     buf.writeln(
-      '× ${c.instanceCount}  ${c.className}  (${c.retainedShallowBytes} B)  [${c.rootKind.label}]',
+      '× ${c.instanceCount}  ${c.className}  (${c.retainedShallowBytes} B)'
+      '  [${c.rootKind.label}]  [${c.confidence.name}]',
     );
     buf.writeln('  ${_formatPath(c.representativePath)}');
   }
