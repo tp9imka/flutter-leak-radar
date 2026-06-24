@@ -1,6 +1,7 @@
 // lib/src/config/leak_radar_config.dart
 import 'package:flutter/foundation.dart';
 
+import '../model/leak_kind.dart';
 import '../util/rate_limited_logger.dart';
 import 'leak_rule.dart';
 import 'suspect_set.dart';
@@ -73,6 +74,8 @@ final class LeakRadarConfig {
     this.maxRetainingPathRequests = 5,
     this.logLevel = LeakLogLevel.warning,
     this.showOverlay = true,
+    this.reportThreshold = LeakSeverity.info,
+    this.preciseTracking = true,
   });
 
   /// Recommended constructor for production apps.
@@ -131,6 +134,18 @@ final class LeakRadarConfig {
   /// Defaults to `true`. Has no effect when the engine is disabled or in release.
   final bool showOverlay;
 
+  /// Minimum severity a finding must meet to appear in reports and the UI.
+  ///
+  /// Findings below this threshold are still detected internally but are
+  /// filtered before emission. Defaults to [LeakSeverity.info] (show all).
+  final LeakSeverity reportThreshold;
+
+  /// Whether [LeakRadar.track] and [LeakRadar.markDisposed] are honoured.
+  ///
+  /// When false, precise opt-in tracking calls are no-ops and the registry
+  /// is cleared. Defaults to `true`.
+  final bool preciseTracking;
+
   LeakRadarConfig copyWith({
     bool? enabled,
     AutoScan? autoScan,
@@ -142,6 +157,8 @@ final class LeakRadarConfig {
     int? maxRetainingPathRequests,
     LeakLogLevel? logLevel,
     bool? showOverlay,
+    LeakSeverity? reportThreshold,
+    bool? preciseTracking,
   }) =>
       LeakRadarConfig(
         enabled: enabled ?? this.enabled,
@@ -149,11 +166,15 @@ final class LeakRadarConfig {
         suspects: suspects ?? this.suspects,
         rules: rules ?? this.rules,
         maxSnapshots: maxSnapshots ?? this.maxSnapshots,
-        gcCyclesForPreciseLeak: gcCyclesForPreciseLeak ?? this.gcCyclesForPreciseLeak,
+        gcCyclesForPreciseLeak:
+            gcCyclesForPreciseLeak ?? this.gcCyclesForPreciseLeak,
         disposalGrace: disposalGrace ?? this.disposalGrace,
-        maxRetainingPathRequests: maxRetainingPathRequests ?? this.maxRetainingPathRequests,
+        maxRetainingPathRequests:
+            maxRetainingPathRequests ?? this.maxRetainingPathRequests,
         logLevel: logLevel ?? this.logLevel,
         showOverlay: showOverlay ?? this.showOverlay,
+        reportThreshold: reportThreshold ?? this.reportThreshold,
+        preciseTracking: preciseTracking ?? this.preciseTracking,
       );
 
   @override
@@ -168,7 +189,9 @@ final class LeakRadarConfig {
       other.disposalGrace == disposalGrace &&
       other.maxRetainingPathRequests == maxRetainingPathRequests &&
       other.logLevel == logLevel &&
-      other.showOverlay == showOverlay;
+      other.showOverlay == showOverlay &&
+      other.reportThreshold == reportThreshold &&
+      other.preciseTracking == preciseTracking;
 
   @override
   int get hashCode => Object.hash(
@@ -182,5 +205,7 @@ final class LeakRadarConfig {
         maxRetainingPathRequests,
         logLevel,
         showOverlay,
+        reportThreshold,
+        preciseTracking,
       );
 }
