@@ -21,13 +21,20 @@ Push a leaky screen, pop back, and the **navigation-triggered scan** fires autom
 (debounced 500 ms). The overlay FAB also lets you trigger a manual scan at any time.
 A **periodic scan** runs every 20 seconds in the background.
 
-## Running the lint plugin
+## Seeing the lint rules
+
+> ⚠️ **`flutter analyze` / `dart analyze` will NOT show these.** `custom_lint` rules don't
+> surface through the CLI analyzer (it doesn't run analyzer plugins) — so `flutter analyze`
+> correctly reports "No issues found" even though the leaks below are flagged. This is by
+> design, not a bug. You see the rules two ways:
+
+**1. CLI — the `custom_lint` runner:**
 
 ```bash
 cd example && dart run custom_lint
 ```
 
-Expected output — all 7 rules should fire:
+All 7 rules fire (8 diagnostics):
 
 | File | Rule | Pattern |
 |------|------|---------|
@@ -38,6 +45,11 @@ Expected output — all 7 rules should fire:
 | `leaky_screen.dart` | `discarded_listen_result` | bare `_streamController.stream.listen((_) {})` |
 | `leaky_screen.dart` | `missing_remove_listener` | `_notifier.addListener(_onNotifierChanged)` without `removeListener` |
 | `leaky_cubit.dart` | `bloc_uncancelled_subscription` | `stream.listen(emit)` in constructor, `close()` not overridden |
+
+**2. IDE — editor squiggles:** open `example/` in VS Code or IntelliJ and the rules show as
+warning underlines in `leaky_screen.dart` / `leaky_cubit.dart` (the plugin is enabled via
+`analysis_options.yaml`). If they don't appear, run `dart pub get` in `example/` and restart
+the Dart analysis server (VS Code: **Dart: Restart Analysis Server**, or **Reload Window**).
 
 ## Runtime detector setup
 
