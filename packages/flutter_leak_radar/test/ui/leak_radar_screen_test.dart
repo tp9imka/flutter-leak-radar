@@ -335,7 +335,10 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('HomeBloc'), findsNothing);
-        expect(find.text('No leaks detected'), findsOneWidget);
+        expect(
+          find.text('No findings match this filter'),
+          findsOneWidget,
+        );
       },
     );
 

@@ -153,11 +153,18 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
             onSelected: (f) => setState(() => _activeFilter = f),
           ),
           Expanded(
-            child: filtered.isEmpty
+            child: findings.isEmpty
                 ? _EmptyState(
                     status: report?.status ?? LeakRadar.status,
                   )
-                : ListView.builder(
+                : filtered.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No findings match this filter',
+                          style: LeakRadarText.label,
+                        ),
+                      )
+                    : ListView.builder(
                         padding: const EdgeInsets.only(bottom: 8),
                         itemCount: filtered.length,
                         itemBuilder: (_, i) {
