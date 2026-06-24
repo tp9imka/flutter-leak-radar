@@ -178,4 +178,138 @@ void main() {
       expect(countAtStop, 0); // reports stream drained when closed
     });
   });
+
+  // Severity reference for these tests (from severity.dart):
+  //   growth mode: monotonic && growth >= 2 → critical
+  //                growth >= 1 (non-monotonic) → warning
+  //   Produce warning: snapshots [2, 1, 3] on *Bloc → non-monotonic, growth=2 → warning
+  //   Produce critical: snapshots [1, 2, 3] on *Bloc → monotonic, growth=2 → critical
+  group('reportThreshold filtering', () {
+    // Helper: engine configured with the given threshold.
+    LeakEngine engineWithThreshold(
+      FakeHeapProbe probe,
+      LeakSeverity threshold,
+    ) =>
+        LeakEngine(
+          probe: probe,
+          analyzer: const LeakAnalyzer(
+            SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+          ),
+          config: LeakRadarConfig(reportThreshold: threshold),
+        );
+
+    test(
+      'warning finding is excluded when threshold is critical',
+      () async {
+        // Non-monotonic growth → warning severity.
+        final probe = FakeHeapProbe([
+          snap({'HomeBloc': 2}, 1),
+          snap({'HomeBloc': 1}, 2),
+          snap({'HomeBloc': 3}, 3),
+        ]);
+        final engine = engineWithThreshold(probe, LeakSeverity.critical);
+        await engine.start();
+
+        final emitted = <LeakReport>[];
+        final sub = engine.reports.listen(emitted.add);
+
+        await engine.scan();
+        await engine.scan();
+        final report = await engine.scan();
+
+        await sub.cancel();
+        await engine.stop();
+
+        // The finding has severity=warning, threshold=critical → excluded.
+        expect(report.findings, isEmpty);
+        expect(engine.latest?.findings, isEmpty);
+        expect(
+          emitted.last.findings,
+          isEmpty,
+          reason: 'stream must emit filtered report',
+        );
+      },
+    );
+
+    test(
+      'warning finding appears when threshold is lowered to warning',
+      () async {
+        // Same non-monotonic growth → warning severity.
+        final probe = FakeHeapProbe([
+          snap({'HomeBloc': 2}, 1),
+          snap({'HomeBloc': 1}, 2),
+          snap({'HomeBloc': 3}, 3),
+        ]);
+        final engine = engineWithThreshold(probe, LeakSeverity.warning);
+        await engine.start();
+
+        await engine.scan();
+        await engine.scan();
+        final report = await engine.scan();
+        await engine.stop();
+
+        expect(
+          report.findings.any(
+            (f) => f.className == 'HomeBloc' &&
+                f.severity == LeakSeverity.warning,
+          ),
+          isTrue,
+          reason: 'warning finding must pass warning threshold',
+        );
+      },
+    );
+
+    test(
+      'updateConfig re-emits filtered report when threshold changes',
+      () async {
+        // Critical finding (monotonic growth).
+        final probe = FakeHeapProbe([
+          snap({'HomeBloc': 1}, 1),
+          snap({'HomeBloc': 2}, 2),
+          snap({'HomeBloc': 3}, 3),
+        ]);
+        // Start with threshold=critical so the critical finding passes.
+        final engine = engineWithThreshold(probe, LeakSeverity.critical);
+        await engine.start();
+
+        await engine.scan();
+        await engine.scan();
+        await engine.scan();
+
+        expect(engine.latest?.findings, isNotEmpty);
+
+        final reEmitted = <LeakReport>[];
+        final sub = engine.reports.listen(reEmitted.add);
+
+        // Lower threshold to info — critical finding must pass info threshold.
+        engine.updateConfig(
+          const LeakRadarConfig(reportThreshold: LeakSeverity.info),
+        );
+        // The broadcast stream is async (sync: false), so await a microtask
+        // to let the event propagate before asserting.
+        await Future<void>.value();
+
+        expect(reEmitted, hasLength(1));
+        // The re-emitted report must still contain the critical finding.
+        expect(
+          reEmitted.first.findings.any(
+            (f) => f.severity == LeakSeverity.critical,
+          ),
+          isTrue,
+          reason: 'lowering threshold should include the existing finding',
+        );
+
+        engine.updateConfig(
+          const LeakRadarConfig(reportThreshold: LeakSeverity.critical),
+        );
+        // Raise back to critical — critical findings still pass (index match).
+        await Future<void>.value();
+        expect(reEmitted, hasLength(2));
+        expect(reEmitted.last.findings, isNotEmpty);
+
+        await sub.cancel();
+        await engine.stop();
+      },
+    );
+  });
 }
