@@ -198,10 +198,7 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
             SnackBar(
               content: Text(
                 'Heap captured · $count findings',
-                style: monoFont(
-                  fontSize: 13,
-                  color: LeakRadarColors.pageBg,
-                ),
+                style: monoFont(fontSize: 13, color: LeakRadarColors.pageBg),
               ),
               backgroundColor: LeakRadarColors.accent,
               behavior: SnackBarBehavior.floating,
@@ -414,10 +411,7 @@ class _SummaryRow extends StatelessWidget {
           if (report != null)
             Text(
               'scan ${formatTime(report!.capturedAt)}',
-              style: monoFont(
-                fontSize: 11,
-                color: LeakRadarColors.text40,
-              ),
+              style: monoFont(fontSize: 11, color: LeakRadarColors.text40),
             ),
         ],
       ),
@@ -744,10 +738,7 @@ class _BottomBar extends StatelessWidget {
                 child: Text(
                   '${filteredFindings.length} classes · $instanceTotal instances',
                   overflow: TextOverflow.ellipsis,
-                  style: monoFont(
-                    fontSize: 11,
-                    color: LeakRadarColors.text25,
-                  ),
+                  style: monoFont(fontSize: 11, color: LeakRadarColors.text25),
                 ),
               ),
               const SizedBox(width: 8),

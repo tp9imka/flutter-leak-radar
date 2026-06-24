@@ -155,10 +155,7 @@ class _ThresholdSection extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             hint,
-            style: monoFont(
-              fontSize: 10,
-              color: LeakRadarColors.text40,
-            ),
+            style: monoFont(fontSize: 10, color: LeakRadarColors.text40),
           ),
         ],
       ),
@@ -468,10 +465,7 @@ class _ToggleRow extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: monoFont(
-                  fontSize: 11,
-                  color: LeakRadarColors.text40,
-                ),
+                style: monoFont(fontSize: 11, color: LeakRadarColors.text40),
               ),
             ],
           ),

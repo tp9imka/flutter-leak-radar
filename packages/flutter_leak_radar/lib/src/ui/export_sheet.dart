@@ -152,10 +152,7 @@ class _Header extends StatelessWidget {
         Text(
           'Share straight from the device — '
           'into a bug, a PR, a thread.',
-          style: monoFont(
-            fontSize: 13,
-            color: LeakRadarColors.text40,
-          ),
+          style: monoFont(fontSize: 13, color: LeakRadarColors.text40),
         ),
       ],
     ),

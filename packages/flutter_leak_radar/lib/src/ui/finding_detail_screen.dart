@@ -124,10 +124,7 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
               ? 'still live after disposal'
               : 'grew +$_growth over '
                     '${widget.finding.series.length} captures',
-          style: monoFont(
-            fontSize: 12,
-            color: LeakRadarColors.text40,
-          ),
+          style: monoFont(fontSize: 12, color: LeakRadarColors.text40),
         ),
       ],
     ),
@@ -196,10 +193,7 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
             const SizedBox(height: 4),
             RichText(
               text: TextSpan(
-                style: monoFont(
-                  fontSize: 11,
-                  color: LeakRadarColors.text40,
-                ),
+                style: monoFont(fontSize: 11, color: LeakRadarColors.text40),
                 children: [
                   const TextSpan(text: 'never returns '),
                   TextSpan(
@@ -226,10 +220,7 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
               children: [
                 Text(
                   firstLabel,
-                  style: monoFont(
-                    fontSize: 9.5,
-                    color: LeakRadarColors.text25,
-                  ),
+                  style: monoFont(fontSize: 9.5, color: LeakRadarColors.text25),
                 ),
                 Flexible(
                   child: Text(
@@ -243,10 +234,7 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
                 ),
                 Text(
                   lastLabel,
-                  style: monoFont(
-                    fontSize: 9.5,
-                    color: LeakRadarColors.text25,
-                  ),
+                  style: monoFont(fontSize: 9.5, color: LeakRadarColors.text25),
                 ),
               ],
             ),
@@ -564,10 +552,7 @@ class _StatCard extends StatelessWidget {
       children: [
         Text(
           label,
-          style: monoFont(
-            fontSize: 11,
-            color: LeakRadarColors.text25,
-          ),
+          style: monoFont(fontSize: 11, color: LeakRadarColors.text25),
         ),
         const SizedBox(height: 4),
         Text(
@@ -603,18 +588,12 @@ class _PathLine extends StatelessWidget {
         if (connector.isNotEmpty) ...[
           Text(
             connector,
-            style: monoFont(
-              fontSize: 12,
-              color: LeakRadarColors.text15,
-            ),
+            style: monoFont(fontSize: 12, color: LeakRadarColors.text15),
           ),
           const SizedBox(width: 4),
         ],
         Expanded(
-          child: Text(
-            label,
-            style: monoFont(fontSize: 12, color: labelColor),
-          ),
+          child: Text(label, style: monoFont(fontSize: 12, color: labelColor)),
         ),
       ],
     ),
