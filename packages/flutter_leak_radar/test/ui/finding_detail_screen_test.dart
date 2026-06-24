@@ -258,6 +258,78 @@ void main() {
     });
   });
 
+  // ── T9: retainedByNonLiveRoot label ──────────────────────────────────────────
+
+  group('FindingDetailScreen — retainedByNonLiveRoot label', () {
+    testWidgets('severity strip shows readable label, not raw enum name', (
+      tester,
+    ) async {
+      await LeakRadar.debugInstall(
+        LeakEngine(
+          probe: const NoopHeapProbe(),
+          analyzer: LeakAnalyzer(SuspectSet.empty()),
+        ),
+      );
+      const finding = LeakFinding(
+        className: 'LeakyController',
+        kind: LeakKind.retainedByNonLiveRoot,
+        severity: LeakSeverity.critical,
+        liveCount: 1,
+        growth: 0,
+        series: <int>[],
+      );
+      await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Retained (non-live root)'),
+        findsOneWidget,
+        reason: 'readable label must appear',
+      );
+      expect(
+        find.text('retainedByNonLiveRoot'),
+        findsNothing,
+        reason: 'raw enum name must not be visible',
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('finding row shows readable label at 320 px without overflow', (
+      tester,
+    ) async {
+      const path = RetainingPathView(
+        gcRootType: 'class table',
+        elements: [
+          RetainingHop(objectType: 'WidgetsFlutterBinding', field: '_nodes'),
+          RetainingHop(objectType: 'LeakyController'),
+        ],
+      );
+      final probe = FakeHeapProbe([], path: path);
+      await LeakRadar.debugInstall(
+        LeakEngine(probe: probe, analyzer: LeakAnalyzer(SuspectSet.empty())),
+      );
+
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const finding = LeakFinding(
+        className: 'LeakyController',
+        kind: LeakKind.retainedByNonLiveRoot,
+        severity: LeakSeverity.critical,
+        liveCount: 2,
+        growth: 0,
+        series: <int>[],
+      );
+      await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Retained (non-live root)'), findsOneWidget);
+      expect(find.textContaining('WidgetsFlutterBinding'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('LeakFinding.firstSeen', () {
     test('returns null when captureTimes is empty', () {
       final f = testFinding(series: [0, 1, 2], captureTimes: []);

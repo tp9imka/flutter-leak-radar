@@ -2,6 +2,9 @@ name: flutter_leak_radar_example
 description: Demo app for flutter_leak_radar — exercises all 7 lint rules and the runtime detector.
 publish_to: none
 version: 0.0.1
+# Resolves independently (NOT a workspace member) so `dart run custom_lint`
+# can bootstrap the local lint plugin. The dependency_overrides below let it
+# resolve the unpublished local leak_graph that flutter_leak_radar depends on.
 environment:
   sdk: ">=3.10.0 <4.0.0"
   flutter: ">=3.38.0"
@@ -20,6 +23,9 @@ dev_dependencies:
   custom_lint: ^0.8.1
   image: ^4.5.4
   flutter_launcher_icons: ^0.14.4
+dependency_overrides:
+  leak_graph:
+    path: ../packages/leak_graph
 flutter:
   uses-material-design: true
   assets:

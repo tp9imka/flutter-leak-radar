@@ -7,6 +7,7 @@ final class GraphAnalysisStats {
   final int leakCandidates;
   final int clusters;
   final int suppressedByAppFilter;
+  final int suppressedByLiveTree;
   final List<String> warnings;
 
   const GraphAnalysisStats({
@@ -15,6 +16,7 @@ final class GraphAnalysisStats {
     required this.leakCandidates,
     required this.clusters,
     required this.suppressedByAppFilter,
+    this.suppressedByLiveTree = 0,
     required this.warnings,
   });
 
@@ -27,6 +29,7 @@ final class GraphAnalysisStats {
           leakCandidates == other.leakCandidates &&
           clusters == other.clusters &&
           suppressedByAppFilter == other.suppressedByAppFilter &&
+          suppressedByLiveTree == other.suppressedByLiveTree &&
           _listEquals(warnings, other.warnings);
 
   @override
@@ -36,6 +39,7 @@ final class GraphAnalysisStats {
     leakCandidates,
     clusters,
     suppressedByAppFilter,
+    suppressedByLiveTree,
     Object.hashAll(warnings),
   );
 
@@ -45,6 +49,7 @@ final class GraphAnalysisStats {
     'leakCandidates': leakCandidates,
     'clusters': clusters,
     'suppressedByAppFilter': suppressedByAppFilter,
+    'suppressedByLiveTree': suppressedByLiveTree,
     'warnings': [...warnings],
   };
 }

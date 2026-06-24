@@ -41,6 +41,7 @@ void main() {
     GraphRetainingPath makePath(List<GraphHop> hops) =>
         GraphRetainingPath(hops: hops, rootKind: RootKind.timer);
 
+    var nextNodeId = 0;
     LeakRecord makeRecord({
       String className = 'MyWidget',
       int shallowSize = 100,
@@ -48,6 +49,7 @@ void main() {
     }) {
       final path = makePath(hops);
       return LeakRecord(
+        nodeId: nextNodeId++,
         className: className,
         libraryUri: Uri.parse('package:app/my_widget.dart'),
         shallowSize: shallowSize,

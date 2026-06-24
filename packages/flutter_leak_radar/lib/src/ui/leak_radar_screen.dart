@@ -9,6 +9,7 @@ import '../leak_radar.dart';
 import 'export_sheet.dart';
 import 'finding_detail_screen.dart';
 import 'growth_sparkline.dart';
+import 'leak_kind_label.dart';
 import 'settings_screen.dart';
 import 'theme/theme.dart';
 
@@ -590,10 +591,18 @@ class _FindingRow extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 4),
-                          // Row 2: tag pill + live count + sparkline
+                          // Row 2: tag pill + kind label + live count + sparkline
                           Row(
                             children: [
                               _SeverityTag(severity: finding.severity),
+                              const SizedBox(width: 6),
+                              Text(
+                                finding.kind.label,
+                                style: monoFont(
+                                  fontSize: 10,
+                                  color: LeakRadarColors.text40,
+                                ),
+                              ),
                               const SizedBox(width: 6),
                               Flexible(
                                 child: Text(

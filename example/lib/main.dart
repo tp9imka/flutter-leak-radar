@@ -21,6 +21,7 @@ Future<void> main() async {
         onNavigation: true,
         period: Duration(seconds: 8),
       ),
+      graphScan: const GraphScan(everyNthNavigation: 2),
       // Surface precise (track + markDisposed) leaks quickly in the demo:
       // 1 GC cycle + 1s grace, instead of the 3-cycle / 2s production defaults.
       // This is why popping a leaky screen once flags it within a scan or two.

@@ -1,8 +1,10 @@
 import '../graph/heap_graph_view.dart';
 import '../model/graph_analysis_result.dart';
 import '../model/graph_retaining_path.dart';
+import '../model/root_kind.dart';
 import 'app_package_set.dart';
 import 'clustering.dart';
+import 'live_tree.dart';
 import 'root_classifier.dart';
 import 'shortest_retaining_paths.dart';
 
@@ -23,11 +25,25 @@ final class GraphAnalysisOptions {
   /// Maximum number of path hops included in a signature.
   final int maxSignatureDepth;
 
+  /// When true, runs [LiveTreeReachability] after candidate collection.
+  ///
+  /// If a live-tree anchor is found, candidates reachable from it are
+  /// suppressed and survivors are clustered with [LeakConfidence.confirmed].
+  /// If no anchor is found, falls back to [LeakConfidence.heuristic] with no
+  /// suppression. When false (default), Phase 1 behaviour is unchanged.
+  final bool confirmWithReachability;
+
+  /// Class names used as live-tree anchors when [confirmWithReachability] is
+  /// true. Defaults to [kDefaultLiveAnchorClassNames] when null.
+  final Set<String>? liveAnchorClassNames;
+
   const GraphAnalysisOptions({
     this.appPackages = const [],
     this.disableAppFilter = false,
     this.minClusterSize = 2,
     this.maxSignatureDepth = 12,
+    this.confirmWithReachability = false,
+    this.liveAnchorClassNames,
   });
 }
 
@@ -117,6 +133,7 @@ final class GraphLeakAnalyzer {
 
       leakRecords.add(
         LeakRecord(
+          nodeId: id,
           className: node.className,
           libraryUri: node.libraryUri,
           shallowSize: node.shallowSize,
@@ -148,7 +165,39 @@ final class GraphLeakAnalyzer {
       }
     }
 
-    final clusters = clusterLeaks(kept, minClusterSize: options.minClusterSize);
+    var suppressedByLiveTree = 0;
+    List<LeakRecord> survivors;
+    LeakConfidence clusterConfidence;
+
+    if (options.confirmWithReachability) {
+      final liveTree = LiveTreeReachability.compute(
+        graph,
+        anchorClassNames: options.liveAnchorClassNames,
+      );
+      if (liveTree.hasAnchor) {
+        survivors = <LeakRecord>[];
+        for (final record in kept) {
+          if (liveTree.isReachable(record.nodeId)) {
+            suppressedByLiveTree++;
+          } else {
+            survivors.add(record);
+          }
+        }
+        clusterConfidence = LeakConfidence.confirmed;
+      } else {
+        survivors = kept;
+        clusterConfidence = LeakConfidence.heuristic;
+      }
+    } else {
+      survivors = kept;
+      clusterConfidence = LeakConfidence.heuristic;
+    }
+
+    final clusters = clusterLeaks(
+      survivors,
+      minClusterSize: options.minClusterSize,
+      confidence: clusterConfidence,
+    );
 
     return GraphAnalysisResult(
       clusters: clusters,
@@ -158,6 +207,7 @@ final class GraphLeakAnalyzer {
         leakCandidates: leakCandidates,
         clusters: clusters.length,
         suppressedByAppFilter: suppressedByAppFilter,
+        suppressedByLiveTree: suppressedByLiveTree,
         warnings: warnings,
       ),
     );

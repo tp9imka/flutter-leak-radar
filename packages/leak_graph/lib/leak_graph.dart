@@ -19,4 +19,5 @@ export 'src/analysis/root_classifier.dart';
 export 'src/analysis/app_package_set.dart';
 export 'src/analysis/clustering.dart';
 export 'src/analysis/graph_leak_analyzer.dart';
+export 'src/analysis/live_tree.dart';
 export 'src/cli/report_renderer.dart';

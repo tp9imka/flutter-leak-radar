@@ -281,4 +281,14 @@ class VmHeapProbe implements HeapProbe {
   @visibleForTesting
   Map<String, ClassRef> get debugClassRefCache =>
       Map<String, ClassRef>.unmodifiable(_classRefCache);
+
+  /// Returns the active VM service connection and the current isolate id,
+  /// or `(null, null)` when no connection is established.
+  ///
+  /// Intended for use by [HeapGraphSource] implementations that need direct
+  /// VM service access (e.g. [HeapSnapshotGraph.getSnapshot]). Never throws.
+  /// Marked internal: callers outside this library should not depend on the
+  /// raw [VmService] instance.
+  @internal
+  (VmService?, String?) get internalConnection => (_service, _isolateId);
 }

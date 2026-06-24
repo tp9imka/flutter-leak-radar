@@ -49,4 +49,30 @@ void main() {
       expect(c.disposalGrace, const Duration(seconds: 1));
     });
   });
+
+  group('LeakRadarConfig graphScan integration', () {
+    test('standard(graphScan: GraphScan()) sets graphScan', () {
+      final c = LeakRadarConfig.standard(graphScan: const GraphScan());
+      expect(c.graphScan, isNotNull);
+      expect(c.graphScan, equals(const GraphScan()));
+    });
+
+    test('standard() leaves graphScan null by default', () {
+      final c = LeakRadarConfig.standard();
+      expect(c.graphScan, isNull);
+    });
+
+    test('configs differing only by graphScan are not equal', () {
+      const a = LeakRadarConfig(graphScan: GraphScan());
+      const b = LeakRadarConfig();
+      expect(a == b, isFalse);
+      expect(a.hashCode == b.hashCode, isFalse);
+    });
+
+    test('copyWith(graphScan: ...) changes equality', () {
+      const base = LeakRadarConfig();
+      final changed = base.copyWith(graphScan: const GraphScan());
+      expect(base == changed, isFalse);
+    });
+  });
 }
