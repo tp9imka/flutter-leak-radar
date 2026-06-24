@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: #07090a; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  ::selection { background: rgba(47,227,155,0.28); color: #eafff5; }
+  @keyframes lr-sweep { to { transform: rotate(360deg); } }
+  @keyframes lr-blip { 0%,100% { opacity: .25; transform: scale(.7); } 45% { opacity: 1; transform: scale(1.25); } }
+  @keyframes lr-ring { 0% { transform: scale(.55); opacity: .55; } 100% { transform: scale(1.25); opacity: 0; } }
+  @keyframes lr-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+  @keyframes lr-bar { from { transform: scaleY(.25); } to { transform: scaleY(1); } }
+  [data-reveal] { opacity: 0; transform: translateY(18px); transition: opacity .7s cubic-bezier(.22,1,.36,1), transform .7s cubic-bezier(.22,1,.36,1); will-change: transform, opacity; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    [data-reveal] { opacity: 1 !important; transform: none !important; transition: none !important; }
+    [data-sweep] { animation: none !important; }
+    [data-blip] { animation: none !important; opacity: .8 !important; }
+    [data-ring-pulse] { animation: none !important; opacity: .25 !important; }
+    [data-float] { animation: none !important; }
+    [data-draw] { stroke-dashoffset: 0 !important; transition: none !important; }
+  }
+</style>
+</helmet>
+
+<div style="background:#07090a; color:#e7eef0; font-family:'Hanken Grotesk',system-ui,sans-serif; position:relative; overflow-x:hidden; min-height:100vh;">
+
+  <!-- ambient backdrop -->
+  <div aria-hidden="true" style="position:fixed; inset:0; pointer-events:none; z-index:0; background:radial-gradient(900px 600px at 78% -8%, rgba(47,227,155,0.09), transparent 60%), radial-gradient(700px 500px at 8% 18%, rgba(90,209,230,0.05), transparent 55%);"></div>
+  <div aria-hidden="true" style="position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.4; background-image:linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px); background-size:64px 64px; mask-image:radial-gradient(1100px 700px at 70% 0%, #000, transparent 75%);"></div>
+
+  <!-- ============ NAV ============ -->
+  <nav style="position:sticky; top:0; z-index:50; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); background:rgba(7,9,10,0.72); border-bottom:1px solid rgba(255,255,255,0.07);">
+    <div style="max-width:1240px; margin:0 auto; padding:14px clamp(18px,4vw,40px); display:flex; align-items:center; justify-content:space-between; gap:20px;">
+      <a href="#top" style="display:flex; align-items:center; gap:11px; text-decoration:none; color:inherit;">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+          <circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/>
+          <circle cx="13" cy="13" r="7" stroke="rgba(47,227,155,0.55)" stroke-width="1"/>
+          <circle cx="13" cy="13" r="2.4" fill="#2fe39b"/>
+          <path d="M13 13 L13 1.5 A11.5 11.5 0 0 1 22.6 8 Z" fill="rgba(47,227,155,0.22)"/>
+        </svg>
+        <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16.5px; letter-spacing:-0.01em;">Leak&nbsp;Radar</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#5f7178; border:1px solid rgba(255,255,255,0.12); padding:2px 6px; border-radius:5px; letter-spacing:0.04em;">FLUTTER</span>
+      </a>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <a href="#problem" style="display:none; color:#a7b6bc; text-decoration:none; font-size:13.5px; padding:8px 12px; border-radius:8px;" style-hover="color:#fff;">The problem</a>
+        <a href="#how" style="color:#a7b6bc; text-decoration:none; font-size:13.5px; padding:8px 12px; border-radius:8px;" style-hover="background:rgba(255,255,255,0.05); color:#fff;">How it works</a>
+        <a href="#features" style="color:#a7b6bc; text-decoration:none; font-size:13.5px; padding:8px 12px; border-radius:8px;" style-hover="background:rgba(255,255,255,0.05); color:#fff;">Features</a>
+        <a href="#install" style="color:#a7b6bc; text-decoration:none; font-size:13.5px; padding:8px 12px; border-radius:8px;" style-hover="background:rgba(255,255,255,0.05); color:#fff;">Install</a>
+        <a href="#" style="margin-left:8px; display:inline-flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#07090a; background:#2fe39b; text-decoration:none; padding:9px 15px; border-radius:9px; font-weight:600;" style-hover="background:#52f0b0;">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============ HERO ============ -->
+  <header id="top" data-screen-label="Hero" style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(48px,8vw,104px) clamp(18px,4vw,40px) clamp(40px,6vw,72px);">
+    <div style="display:flex; flex-wrap:wrap; gap:clamp(36px,5vw,72px); align-items:center;">
+
+      <!-- left -->
+      <div style="flex:1 1 460px; min-width:300px;">
+        <div data-reveal style="display:inline-flex; align-items:center; gap:9px; font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:0.06em; text-transform:uppercase; color:#2fe39b; border:1px solid rgba(47,227,155,0.28); background:rgba(47,227,155,0.06); padding:6px 12px; border-radius:999px; margin-bottom:26px;">
+          <span style="width:6px; height:6px; border-radius:50%; background:#2fe39b; box-shadow:0 0 10px #2fe39b;"></span>
+          Open-source memory-leak toolkit
+        </div>
+        <h1 data-reveal style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(40px,6.6vw,76px); line-height:0.98; letter-spacing:-0.03em; margin:0 0 22px; text-wrap:balance;">
+          Catch Flutter<br>leaks <span style="color:#2fe39b; position:relative; white-space:nowrap;">twice<svg width="100%" height="9" viewBox="0 0 120 9" preserveAspectRatio="none" style="position:absolute; left:0; bottom:-6px; width:100%;" aria-hidden="true"><path d="M2 5 Q 30 1 60 5 T 118 4" stroke="#2fe39b" stroke-width="2.4" fill="none" stroke-linecap="round" opacity="0.7"/></svg></span>.
+        </h1>
+        <p data-reveal style="font-size:clamp(16px,1.7vw,19px); line-height:1.6; color:#a7b6bc; max-width:520px; margin:0 0 32px;">
+          Before they ship, and while they run. A static lint that stops leak-prone code at analysis time — plus an on-device detector that finds the leaks that slip through. <span style="color:#d6e2e5;">Zero config. No mixins. A complete no-op in release.</span>
+        </p>
+        <div data-reveal style="display:flex; flex-wrap:wrap; gap:13px; align-items:center; margin-bottom:26px;">
+          <a href="#install" style="display:inline-flex; align-items:center; gap:9px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px; color:#07090a; background:#2fe39b; text-decoration:none; padding:13px 22px; border-radius:11px; box-shadow:0 8px 30px rgba(47,227,155,0.22);" style-hover="background:#52f0b0; transform:translateY(-1px);">
+            Get started
+            <span style="font-family:'JetBrains Mono',monospace;">→</span>
+          </a>
+          <a href="#how" style="display:inline-flex; align-items:center; gap:9px; font-size:15px; color:#e7eef0; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.12); text-decoration:none; padding:13px 22px; border-radius:11px;" style-hover="background:rgba(255,255,255,0.08);">
+            See how it works
+          </a>
+        </div>
+        <div data-reveal style="display:inline-flex; align-items:center; gap:12px; font-family:'JetBrains Mono',monospace; font-size:13px; color:#8fa0a6; background:#0c1113; border:1px solid rgba(255,255,255,0.08); padding:11px 15px; border-radius:10px;">
+          <span style="color:#4a5a60;">$</span>
+          <span><span style="color:#5ad1e6;">flutter</span> pub add <span style="color:#c3e88d;">dev:leak_radar</span></span>
+          <span style="width:1px; height:15px; background:rgba(255,255,255,0.12);"></span>
+          <span style="color:#5f7178;">debug + profile only</span>
+        </div>
+      </div>
+
+      <!-- right: radar instrument + device mock -->
+      <div style="flex:1 1 420px; min-width:300px; position:relative; display:flex; justify-content:center; align-items:center; min-height:clamp(380px,42vw,520px);">
+
+        <!-- radar instrument -->
+        <div aria-hidden="true" style="position:absolute; width:clamp(300px,34vw,440px); aspect-ratio:1; left:50%; top:48%; transform:translate(-50%,-50%);">
+          <div style="position:absolute; inset:0; border-radius:50%; border:1px solid rgba(47,227,155,0.10);"></div>
+          <div style="position:absolute; inset:13%; border-radius:50%; border:1px solid rgba(47,227,155,0.12);"></div>
+          <div style="position:absolute; inset:28%; border-radius:50%; border:1px solid rgba(47,227,155,0.14);"></div>
+          <div style="position:absolute; inset:44%; border-radius:50%; border:1px solid rgba(47,227,155,0.16);"></div>
+          <div style="position:absolute; left:0; right:0; top:50%; height:1px; background:rgba(47,227,155,0.08);"></div>
+          <div style="position:absolute; top:0; bottom:0; left:50%; width:1px; background:rgba(47,227,155,0.08);"></div>
+          <!-- sweep -->
+          <div data-sweep style="position:absolute; inset:0; border-radius:50%; background:conic-gradient(from 0deg, transparent 0deg, transparent 300deg, rgba(47,227,155,0.05) 330deg, rgba(47,227,155,0.34) 360deg); animation:lr-sweep 5s linear infinite; transform-origin:center;"></div>
+          <!-- expanding ring pulse -->
+          <div data-ring-pulse style="position:absolute; inset:30%; border-radius:50%; border:1px solid rgba(47,227,155,0.5); animation:lr-ring 4s ease-out infinite; transform-origin:center;"></div>
+          <!-- blips -->
+          <div data-blip style="position:absolute; left:66%; top:30%; width:9px; height:9px; border-radius:50%; background:#ff5d6c; box-shadow:0 0 12px #ff5d6c; animation:lr-blip 2.4s ease-in-out infinite;"></div>
+          <div data-blip style="position:absolute; left:33%; top:60%; width:7px; height:7px; border-radius:50%; background:#f5b54a; box-shadow:0 0 10px #f5b54a; animation:lr-blip 2.9s ease-in-out infinite .6s;"></div>
+          <div data-blip style="position:absolute; left:58%; top:68%; width:6px; height:6px; border-radius:50%; background:#5ad1e6; box-shadow:0 0 9px #5ad1e6; animation:lr-blip 3.3s ease-in-out infinite 1.1s;"></div>
+        </div>
+
+        <!-- findings device card -->
+        <div data-reveal style="position:relative; z-index:2; width:clamp(280px,30vw,330px); background:linear-gradient(180deg,#0e1417,#0b0f11); border:1px solid rgba(255,255,255,0.1); border-radius:20px; box-shadow:0 40px 90px -30px rgba(0,0,0,0.8), 0 0 0 1px rgba(47,227,155,0.04); overflow:hidden;">
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid rgba(255,255,255,0.06);">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <svg width="15" height="15" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11" stroke="rgba(47,227,155,0.45)" stroke-width="1.4"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+              <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13.5px;">Leak findings</span>
+            </div>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5f7178;">scan 14:32</span>
+          </div>
+
+          <!-- finding rows -->
+          <div style="padding:6px;">
+            <div style="display:flex; gap:11px; padding:11px 11px; border-radius:12px; background:rgba(255,93,108,0.06);">
+              <span style="flex:0 0 auto; width:5px; border-radius:3px; background:#ff5d6c; box-shadow:0 0 10px rgba(255,93,108,0.5);"></span>
+              <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px;">
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#e7eef0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">ChatRoomController</span>
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#ff5d6c; font-weight:600;">+48</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.05em; color:#ff5d6c; background:rgba(255,93,108,0.12); padding:1px 6px; border-radius:4px;">CRITICAL</span>
+                  <svg width="74" height="20" viewBox="0 0 74 20" fill="none" style="overflow:visible;" aria-hidden="true"><path data-draw d="M1 18 L13 17 L25 14 L37 11 L49 7 L61 4 L73 1.5" stroke="#ff5d6c" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex; gap:11px; padding:11px 11px; border-radius:12px;">
+              <span style="flex:0 0 auto; width:5px; border-radius:3px; background:#f5b54a;"></span>
+              <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px;">
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#cdd6da; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">VideoPlayerController</span>
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#f5b54a; font-weight:600;">+6</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.05em; color:#f5b54a; background:rgba(245,181,74,0.12); padding:1px 6px; border-radius:4px;">WARNING</span>
+                  <svg width="74" height="20" viewBox="0 0 74 20" fill="none" style="overflow:visible;" aria-hidden="true"><path data-draw d="M1 16 L13 17 L25 13 L37 14 L49 10 L61 9 L73 6" stroke="#f5b54a" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex; gap:11px; padding:11px 11px; border-radius:12px;">
+              <span style="flex:0 0 auto; width:5px; border-radius:3px; background:#5ad1e6;"></span>
+              <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px;">
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#cdd6da; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">_PresenceSubscription</span>
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#5ad1e6; font-weight:600;">+3</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.05em; color:#5ad1e6; background:rgba(90,209,230,0.12); padding:1px 6px; border-radius:4px;">INFO</span>
+                  <svg width="74" height="20" viewBox="0 0 74 20" fill="none" style="overflow:visible;" aria-hidden="true"><path data-draw d="M1 15 L13 14 L25 15 L37 12 L49 13 L61 11 L73 10" stroke="#5ad1e6" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="padding:11px 16px; border-top:1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178;">3 classes · 57 instances</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#2fe39b;">Scan now ↺</span>
+          </div>
+        </div>
+
+        <!-- draggable overlay badge -->
+        <div data-float style="position:absolute; z-index:3; right:clamp(2px,1vw,8px); top:8%; display:flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:600; color:#fff; background:rgba(255,93,108,0.16); border:1px solid rgba(255,93,108,0.5); backdrop-filter:blur(8px); padding:8px 13px; border-radius:999px; box-shadow:0 12px 30px -8px rgba(255,93,108,0.4); animation:lr-float 4s ease-in-out infinite; cursor:grab;">
+          <span style="width:8px; height:8px; border-radius:50%; background:#ff5d6c; box-shadow:0 0 10px #ff5d6c;"></span>
+          3 leaks
+          <span style="opacity:.5;">⠿</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- duality strip -->
+    <div data-reveal style="margin-top:clamp(40px,6vw,72px); display:flex; flex-wrap:wrap; gap:1px; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.07); border-radius:16px; overflow:hidden;">
+      <div style="flex:1 1 280px; padding:22px 24px; background:#090c0d; display:flex; align-items:center; gap:16px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5ad1e6; border:1px solid rgba(90,209,230,0.3); padding:4px 9px; border-radius:6px; white-space:nowrap;">BEFORE SHIP</span>
+        <p style="margin:0; font-size:14.5px; color:#a7b6bc; line-height:1.5;"><span style="color:#e7eef0; font-weight:600;">Static lint.</span> 7 rules with auto-fixes catch leak-prone code in your editor, at analysis time.</p>
+      </div>
+      <div style="flex:1 1 280px; padding:22px 24px; background:#090c0d; display:flex; align-items:center; gap:16px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#2fe39b; border:1px solid rgba(47,227,155,0.3); padding:4px 9px; border-radius:6px; white-space:nowrap;">WHILE RUNNING</span>
+        <p style="margin:0; font-size:14.5px; color:#a7b6bc; line-height:1.5;"><span style="color:#e7eef0; font-weight:600;">Runtime detector.</span> Inspects the live heap on a real device and brings the signal to you.</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ PROBLEM ============ -->
+  <section id="problem" data-screen-label="Problem" style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(60px,9vw,120px) clamp(18px,4vw,40px);">
+    <div style="display:flex; flex-wrap:wrap; gap:clamp(32px,5vw,64px); align-items:center;">
+      <div style="flex:1 1 420px; min-width:300px;">
+        <div data-reveal style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#f5b54a; margin-bottom:18px;">The problem</div>
+        <h2 data-reveal style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(30px,4.6vw,52px); line-height:1.04; letter-spacing:-0.025em; margin:0 0 22px; text-wrap:balance;">Memory growth is invisible — until it isn't.</h2>
+        <p data-reveal style="font-size:clamp(15px,1.6vw,18px); line-height:1.65; color:#a7b6bc; max-width:540px; margin:0 0 18px;">Leaks don't crash on commit. They accumulate. A controller here, a subscription there, a screen that quietly never lets go. Hours later your real-time app is sluggish and OOM-killed in the field — and the trace points at nothing.</p>
+        <p data-reveal style="font-size:clamp(15px,1.6vw,18px); line-height:1.65; color:#7d8e94; max-width:540px; margin:0;">DevTools can find it, if you know to go looking. Most teams don't — until a user does.</p>
+      </div>
+      <!-- heap growth chart -->
+      <div data-reveal style="flex:1 1 380px; min-width:300px; background:linear-gradient(180deg,#0c1113,#090c0d); border:1px solid rgba(255,255,255,0.08); border-radius:18px; padding:22px 24px;">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;">
+          <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px; color:#cdd6da;">Heap usage · 90 min session</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#ff5d6c;">↑ 312 MB</span>
+        </div>
+        <svg viewBox="0 0 420 180" width="100%" height="auto" fill="none" preserveAspectRatio="none" aria-label="Chart showing heap memory steadily growing over a session" style="overflow:visible;">
+          <line x1="0" y1="45" x2="420" y2="45" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+          <line x1="0" y1="90" x2="420" y2="90" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+          <line x1="0" y1="135" x2="420" y2="135" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+          <path data-draw d="M0 165 L30 158 L48 168 L70 150 L92 160 L116 138 L140 148 L168 122 L190 132 L214 104 L240 114 L268 84 L292 94 L320 62 L346 72 L372 40 L398 50 L420 22" stroke="#ff5d6c" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M372 40 L398 50 L420 22 L420 180 L0 180 Z" fill="url(#leakfade)" opacity="0.0"/>
+        </svg>
+        <div style="display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5f7178; margin-top:10px;">
+          <span>00:00</span><span>app feels fine →</span><span>OOM</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TWO HALVES ============ -->
+  <section style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(20px,3vw,40px) clamp(18px,4vw,40px) clamp(60px,9vw,110px);">
+    <div data-reveal style="text-align:center; margin-bottom:clamp(36px,5vw,56px);">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#2fe39b; margin-bottom:16px;">Catch leaks twice</div>
+      <h2 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(28px,4.4vw,50px); line-height:1.04; letter-spacing:-0.025em; margin:0 auto; max-width:14ch; text-wrap:balance;">Two halves of the same fix.</h2>
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:clamp(16px,2.2vw,28px); align-items:stretch; position:relative;">
+      <!-- LINT -->
+      <div data-reveal style="flex:1 1 340px; min-width:290px; background:linear-gradient(180deg,#0c1214,#090d0e); border:1px solid rgba(90,209,230,0.16); border-radius:20px; padding:clamp(24px,3vw,36px); position:relative; overflow:hidden;">
+        <div aria-hidden="true" style="position:absolute; right:-40px; top:-40px; width:160px; height:160px; border-radius:50%; border:1px solid rgba(90,209,230,0.12);"></div>
+        <div style="display:flex; align-items:center; gap:11px; margin-bottom:18px;">
+          <div style="width:38px; height:38px; border-radius:10px; background:rgba(90,209,230,0.1); border:1px solid rgba(90,209,230,0.25); display:flex; align-items:center; justify-content:center;">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#5ad1e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c.55 0 1-.45.97-1A10 10 0 0 0 12 2"/><circle cx="12" cy="12" r="10"/></svg>
+          </div>
+          <div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5ad1e6; letter-spacing:0.05em;">STATIC · custom_lint</div>
+            <h3 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:20px; margin:2px 0 0;">Stop it before it ships</h3>
+          </div>
+        </div>
+        <p style="font-size:15px; line-height:1.6; color:#a7b6bc; margin:0 0 20px;">7 rules with auto-fixes flag the classics right in your editor — and they're false-positive-disciplined, so they understand idiomatic disposal.</p>
+        <ul style="list-style:none; padding:0; margin:0; display:grid; gap:10px;">
+          <li style="display:flex; gap:10px; font-size:13.5px; color:#c4d0d4; align-items:flex-start;"><span style="color:#5ad1e6; font-family:'JetBrains Mono',monospace;">›</span> Undisposed controllers</li>
+          <li style="display:flex; gap:10px; font-size:13.5px; color:#c4d0d4; align-items:flex-start;"><span style="color:#5ad1e6; font-family:'JetBrains Mono',monospace;">›</span> Uncancelled <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">StreamSubscription</code> &amp; <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">Timer</code></li>
+          <li style="display:flex; gap:10px; font-size:13.5px; color:#c4d0d4; align-items:flex-start;"><span style="color:#5ad1e6; font-family:'JetBrains Mono',monospace;">›</span> Unclosed <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">StreamController</code></li>
+          <li style="display:flex; gap:10px; font-size:13.5px; color:#c4d0d4; align-items:flex-start;"><span style="color:#5ad1e6; font-family:'JetBrains Mono',monospace;">›</span> Discarded <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">.listen()</code> results &amp; missing <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">removeListener</code></li>
+          <li style="display:flex; gap:10px; font-size:13.5px; color:#c4d0d4; align-items:flex-start;"><span style="color:#5ad1e6; font-family:'JetBrains Mono',monospace;">›</span> Bloc subscriptions never cancelled in <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">close()</code></li>
+        </ul>
+        <div style="margin-top:20px; font-family:'JetBrains Mono',monospace; font-size:12px; color:#7d8e94;">Understands <span style="color:#c4d0d4;">if</span> / <span style="color:#c4d0d4;">try</span> disposal, injected fields &amp; locals.</div>
+      </div>
+
+      <!-- center connector -->
+      <div aria-hidden="true" style="flex:0 0 auto; align-self:center; display:flex; flex-direction:column; align-items:center; gap:4px; padding:6px 0;">
+        <div style="width:46px; height:46px; border-radius:50%; border:1px solid rgba(47,227,155,0.3); display:flex; align-items:center; justify-content:center; background:#090c0d;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7.5" opacity="0.5"/></svg>
+        </div>
+      </div>
+
+      <!-- RUNTIME -->
+      <div data-reveal style="flex:1 1 340px; min-width:290px; background:linear-gradient(180deg,#0c1413,#090d0c); border:1px solid rgba(47,227,155,0.2); border-radius:20px; padding:clamp(24px,3vw,36px); position:relative; overflow:hidden;">
+        <div aria-hidden="true" style="position:absolute; right:-40px; top:-40px; width:160px; height:160px; border-radius:50%; border:1px solid rgba(47,227,155,0.14);"></div>
+        <div style="display:flex; align-items:center; gap:11px; margin-bottom:18px;">
+          <div style="width:38px; height:38px; border-radius:10px; background:rgba(47,227,155,0.1); border:1px solid rgba(47,227,155,0.28); display:flex; align-items:center; justify-content:center;">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          </div>
+          <div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#2fe39b; letter-spacing:0.05em;">RUNTIME · on-device</div>
+            <h3 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:20px; margin:2px 0 0;">Catch what slips through</h3>
+          </div>
+        </div>
+        <p style="font-size:15px; line-height:1.6; color:#a7b6bc; margin:0 0 20px;">Inspects the live heap via the Dart VM service. Tracks per-class live-instance growth across forced-GC captures and flags classes that grow and never return.</p>
+        <ul style="list-style:none; padding:0; margin:0; display:grid; gap:10px;">
+          <li style="display:flex; gap:10px; font-size:13.5px; color:#c4d0d4; align-items:flex-start;"><span style="color:#2fe39b; font-family:'JetBrains Mono',monospace;">›</span> One <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">LeakRadar.init(...)</code> — no mixins, no interfaces</li>
+          <li style="display:flex; gap:10px; font-size:13.5px; color:#c4d0d4; align-items:flex-start;"><span style="color:#2fe39b; font-family:'JetBrains Mono',monospace;">›</span> Draggable badge: live worst-severity + count</li>
+          <li style="display:flex; gap:10px; font-size:13.5px; color:#c4d0d4; align-items:flex-start;"><span style="color:#2fe39b; font-family:'JetBrains Mono',monospace;">›</span> Findings with sparklines &amp; retaining paths</li>
+          <li style="display:flex; gap:10px; font-size:13.5px; color:#c4d0d4; align-items:flex-start;"><span style="color:#2fe39b; font-family:'JetBrains Mono',monospace;">›</span> Scan now, periodic, or auto on screen-pop</li>
+          <li style="display:flex; gap:10px; font-size:13.5px; color:#c4d0d4; align-items:flex-start;"><span style="color:#2fe39b; font-family:'JetBrains Mono',monospace;">›</span> Export findings as JSON / Markdown</li>
+        </ul>
+        <div style="margin-top:20px; font-family:'JetBrains Mono',monospace; font-size:12px; color:#7d8e94;">Precise opt-in: <span style="color:#c4d0d4;">track(obj)</span> / <span style="color:#c4d0d4;">markDisposed(obj)</span>.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HOW IT WORKS ============ -->
+  <section id="how" data-screen-label="How it works" style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(40px,6vw,80px) clamp(18px,4vw,40px) clamp(60px,9vw,110px); border-top:1px solid rgba(255,255,255,0.06);">
+    <div data-reveal style="margin-bottom:clamp(36px,5vw,56px); max-width:620px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#2fe39b; margin-bottom:16px;">How it works</div>
+      <h2 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(28px,4.4vw,50px); line-height:1.04; letter-spacing:-0.025em; margin:0; text-wrap:balance;">Drop it in. Get signal.</h2>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:clamp(16px,2.2vw,24px); counter-reset:step;">
+      <div data-reveal style="position:relative; background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:18px; padding:28px;">
+        <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:42px; color:rgba(47,227,155,0.22); line-height:1; margin-bottom:14px;">01</div>
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:19px; margin:0 0 10px;">Add it</h3>
+        <p style="font-size:14.5px; line-height:1.6; color:#a7b6bc; margin:0;">Two dev-dependencies and one <code style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e7eef0;">init</code> call. No mixins to add, nothing to extend, nothing to implement on your own types.</p>
+      </div>
+      <div data-reveal style="position:relative; background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:18px; padding:28px;">
+        <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:42px; color:rgba(90,209,230,0.22); line-height:1; margin-bottom:14px;">02</div>
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:19px; margin:0 0 10px;">Run &amp; analyze</h3>
+        <p style="font-size:14.5px; line-height:1.6; color:#a7b6bc; margin:0;">The lint flags leak-prone code as you type. The detector watches the live heap as you use the app — manually, periodically, or on every screen-pop.</p>
+      </div>
+      <div data-reveal style="position:relative; background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:18px; padding:28px;">
+        <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:42px; color:rgba(245,181,74,0.22); line-height:1; margin-bottom:14px;">03</div>
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:19px; margin:0 0 10px;">See leaks</h3>
+        <p style="font-size:14.5px; line-height:1.6; color:#a7b6bc; margin:0;">A draggable badge shows worst severity + count. Tap for findings: severity, growth sparklines, and lazily-fetched retaining paths from gc-root to object.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FEATURE BENTO ============ -->
+  <section id="features" data-screen-label="Features" style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(40px,6vw,80px) clamp(18px,4vw,40px) clamp(60px,9vw,110px);">
+    <div data-reveal style="margin-bottom:clamp(36px,5vw,56px); max-width:620px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#f5b54a; margin-bottom:16px;">What's inside</div>
+      <h2 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(28px,4.4vw,50px); line-height:1.04; letter-spacing:-0.025em; margin:0; text-wrap:balance;">A toolkit, not a checkbox.</h2>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(12,1fr); gap:clamp(12px,1.6vw,18px);">
+      <!-- big: zero-config -->
+      <div data-reveal style="grid-column:span 12; background:linear-gradient(135deg,#0c1413,#090c0d); border:1px solid rgba(47,227,155,0.18); border-radius:20px; padding:clamp(24px,3vw,36px); display:flex; flex-wrap:wrap; gap:28px; align-items:center; justify-content:space-between;">
+        <div style="flex:1 1 320px; min-width:260px;">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#2fe39b; letter-spacing:0.06em; margin-bottom:12px;">ZERO-CONFIG DETECTION</div>
+          <h3 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(22px,2.6vw,30px); margin:0 0 12px; letter-spacing:-0.02em;">It tracks instance growth so you don't have to.</h3>
+          <p style="font-size:15px; line-height:1.6; color:#a7b6bc; margin:0; max-width:480px;">Per-class live-instance counts across forced-GC captures. Screens, blocs, controllers, subscriptions, timers — anything that grows and never returns gets flagged, automatically.</p>
+        </div>
+        <div style="flex:0 0 auto; display:flex; align-items:flex-end; gap:7px; height:120px; padding:0 4px;">
+          <span style="width:18px; height:34%; background:rgba(47,227,155,0.25); border-radius:4px 4px 0 0; transform-origin:bottom; animation:lr-bar 1.2s ease-out;"></span>
+          <span style="width:18px; height:52%; background:rgba(47,227,155,0.4); border-radius:4px 4px 0 0; transform-origin:bottom; animation:lr-bar 1.2s ease-out .08s backwards;"></span>
+          <span style="width:18px; height:70%; background:rgba(47,227,155,0.6); border-radius:4px 4px 0 0; transform-origin:bottom; animation:lr-bar 1.2s ease-out .16s backwards;"></span>
+          <span style="width:18px; height:100%; background:#2fe39b; border-radius:4px 4px 0 0; box-shadow:0 0 18px rgba(47,227,155,0.4); transform-origin:bottom; animation:lr-bar 1.2s ease-out .24s backwards;"></span>
+        </div>
+      </div>
+
+      <!-- retaining paths -->
+      <div data-reveal style="grid-column:span 7; min-width:0; background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:20px; padding:clamp(22px,2.6vw,30px);">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5ad1e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7 7l4 4M13 13l4 4M11 11h2v2"/></svg>
+          <h3 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:18px; margin:0;">Retaining paths, on demand</h3>
+        </div>
+        <p style="font-size:14.5px; line-height:1.6; color:#a7b6bc; margin:0 0 16px;">Lazily fetched, so capture stays cheap. See exactly what's holding the reference — gc-root → field → … → object.</p>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:12px; line-height:1.9; color:#8fa0a6; background:#06090a; border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:14px 16px; overflow-x:auto;">
+          <div><span style="color:#5ad1e6;">GC root</span> <span style="color:#4a5a60;">(static)</span></div>
+          <div style="padding-left:14px;"><span style="color:#4a5a60;">└─</span> _ChatService.<span style="color:#c3e88d;">_active</span></div>
+          <div style="padding-left:28px;"><span style="color:#4a5a60;">└─</span> List&lt;<span style="color:#5ad1e6;">ChatRoomController</span>&gt;</div>
+          <div style="padding-left:42px;"><span style="color:#4a5a60;">└─</span> <span style="color:#ff5d6c;">ChatRoomController</span> <span style="color:#4a5a60;">← leaked</span></div>
+        </div>
+      </div>
+
+      <!-- auto triggers -->
+      <div data-reveal style="grid-column:span 5; min-width:0; background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:20px; padding:clamp(22px,2.6vw,30px); display:flex; flex-direction:column;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5"/></svg>
+          <h3 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:18px; margin:0;">Triggers that fit your flow</h3>
+        </div>
+        <p style="font-size:14.5px; line-height:1.6; color:#a7b6bc; margin:0 0 16px;">A <code style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e7eef0;">NavigatorObserver</code> scans on screen-pop — the natural "this should be gone now" checkpoint.</p>
+        <div style="margin-top:auto; display:flex; flex-wrap:wrap; gap:7px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#c4d0d4; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); padding:5px 10px; border-radius:7px;">Scan now</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#c4d0d4; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); padding:5px 10px; border-radius:7px;">Periodic</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#2fe39b; background:rgba(47,227,155,0.08); border:1px solid rgba(47,227,155,0.25); padding:5px 10px; border-radius:7px;">On screen-pop</span>
+        </div>
+      </div>
+
+      <!-- export -->
+      <div data-reveal style="grid-column:span 4; min-width:0; background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:20px; padding:clamp(22px,2.6vw,30px);">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f5b54a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 3v13M7 8l5-5 5 5"/></svg>
+          <h3 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:18px; margin:0;">Export &amp; share</h3>
+        </div>
+        <p style="font-size:14px; line-height:1.6; color:#a7b6bc; margin:0;">Findings as JSON or Markdown, shareable straight from the device — into a bug, a PR, a thread.</p>
+      </div>
+
+      <!-- heap snapshot -->
+      <div data-reveal style="grid-column:span 4; min-width:0; background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:20px; padding:clamp(22px,2.6vw,30px);">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5ad1e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12a0 0 0 0 1 0 0H4z"/><path d="M16 4v4h4M8 13h8M8 17h8"/></svg>
+          <h3 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:18px; margin:0;">Full heap snapshot</h3>
+        </div>
+        <p style="font-size:14px; line-height:1.6; color:#a7b6bc; margin:0;">Capture a real <code style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e7eef0;">.dartheap</code> to file for offline DevTools or standalone analysis.</p>
+      </div>
+
+      <!-- safety -->
+      <div data-reveal style="grid-column:span 4; min-width:0; background:linear-gradient(135deg,#0d1011,#090c0d); border:1px solid rgba(255,255,255,0.1); border-radius:20px; padding:clamp(22px,2.6vw,30px);">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5z"/><path d="M9 12l2 2 4-4"/></svg>
+          <h3 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:18px; margin:0;">Safe by construction</h3>
+        </div>
+        <p style="font-size:14px; line-height:1.6; color:#a7b6bc; margin:0;">Never throws into your app. Never measurably slows it. Fully tree-shaken out of release builds.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CODE SECTION ============ -->
+  <section style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(40px,6vw,80px) clamp(18px,4vw,40px) clamp(60px,9vw,110px); border-top:1px solid rgba(255,255,255,0.06);">
+    <div data-reveal style="margin-bottom:clamp(28px,4vw,44px); max-width:620px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#2fe39b; margin-bottom:16px;">Real code</div>
+      <h2 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(28px,4.4vw,50px); line-height:1.04; letter-spacing:-0.025em; margin:0; text-wrap:balance;">This is the whole integration.</h2>
+    </div>
+
+    <!-- tabs -->
+    <div data-reveal style="display:inline-flex; gap:4px; padding:4px; background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:11px; margin-bottom:20px;">
+      <button type="button" onClick="{{ setRuntime }}" style="{{ runtimeTabStyle }}">Runtime detector</button>
+      <button type="button" onClick="{{ setLint }}" style="{{ lintTabStyle }}">Lint diagnostic</button>
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:clamp(16px,2.2vw,24px); align-items:stretch;">
+      <!-- code editor pane -->
+      <div data-reveal style="flex:1 1 460px; min-width:300px; background:#06090a; border:1px solid rgba(255,255,255,0.1); border-radius:16px; overflow:hidden; box-shadow:0 30px 70px -30px rgba(0,0,0,0.7);">
+        <div style="display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.07); background:#0a0e0f;">
+          <span style="width:11px; height:11px; border-radius:50%; background:#ff5f57;"></span>
+          <span style="width:11px; height:11px; border-radius:50%; background:#febc2e;"></span>
+          <span style="width:11px; height:11px; border-radius:50%; background:#28c840;"></span>
+          <span style="margin-left:10px; font-family:'JetBrains Mono',monospace; font-size:12px; color:#5f7178;">{{ codeFile }}</span>
+        </div>
+
+        <sc-if value="{{ showRuntime }}" hint-placeholder-val="{{ true }}">
+        <pre style="margin:0; padding:20px 22px; font-family:'JetBrains Mono',monospace; font-size:13px; line-height:1.85; color:#cdd6da; overflow-x:auto; tab-size:2;"><code><span style="color:#5f7178;">// main.dart — one call, no base classes</span>
+<span style="color:#ff85a1;">import</span> <span style="color:#c3e88d;">'package:leak_radar/leak_radar.dart'</span>;
+
+<span style="color:#5ccfe6;">void</span> <span style="color:#82aaff;">main</span>() {
+  LeakRadar.<span style="color:#82aaff;">init</span>(
+    autoScan: AutoScan.<span style="color:#5ccfe6;">onScreenPop</span>,  <span style="color:#5f7178;">// scan when a route pops</span>
+    overlay: <span style="color:#f78c6c;">true</span>,                  <span style="color:#5f7178;">// draggable badge</span>
+    threshold: Severity.<span style="color:#5ccfe6;">warning</span>,
+  );
+  <span style="color:#82aaff;">runApp</span>(<span style="color:#ff85a1;">const</span> MyApp());
+}
+
+<span style="color:#5f7178;">// optional precise opt-in — two calls, that's it</span>
+LeakRadar.<span style="color:#82aaff;">track</span>(controller);
+LeakRadar.<span style="color:#82aaff;">markDisposed</span>(controller);</code></pre>
+        </sc-if>
+
+        <sc-if value="{{ showLint }}" hint-placeholder-val="{{ false }}">
+        <pre style="margin:0; padding:20px 22px; font-family:'JetBrains Mono',monospace; font-size:13px; line-height:1.85; color:#cdd6da; overflow-x:auto; tab-size:2;"><code><span style="color:#5f7178;">// chat_screen.dart</span>
+<span style="color:#ff85a1;">class</span> <span style="color:#5ccfe6;">_ChatScreenState</span> <span style="color:#ff85a1;">extends</span> <span style="color:#5ccfe6;">State</span>&lt;ChatScreen&gt; {
+  <span style="color:#ff85a1;">final</span> <span style="color:#ff5d6c; text-decoration:underline wavy #ff5d6c; text-decoration-thickness:1.5px; text-underline-offset:4px;">_controller</span> = <span style="color:#5ccfe6;">TextEditingController</span>();
+
+  <span style="color:#5f7178;">// 🛑 leak_radar: TextEditingController is never</span>
+  <span style="color:#5f7178;">//    disposed. Add dispose() or use auto-fix.</span>
+
+  @override
+  <span style="color:#5ccfe6;">Widget</span> <span style="color:#82aaff;">build</span>(<span style="color:#5ccfe6;">BuildContext</span> context) =&gt; <span style="color:#5f7178;">/* ... */</span>;
+}</code></pre>
+        </sc-if>
+      </div>
+
+      <!-- side detail pane -->
+      <div data-reveal style="flex:1 1 280px; min-width:260px; display:flex; flex-direction:column; gap:16px;">
+        <sc-if value="{{ showRuntime }}" hint-placeholder-val="{{ true }}">
+        <div style="background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:22px; flex:1;">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#2fe39b; letter-spacing:0.05em; margin-bottom:14px;">WHAT YOU SEE ON DEVICE</div>
+          <div style="display:inline-flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:600; color:#fff; background:rgba(245,181,74,0.14); border:1px solid rgba(245,181,74,0.45); padding:8px 13px; border-radius:999px; margin-bottom:16px;">
+            <span style="width:8px; height:8px; border-radius:50%; background:#f5b54a; box-shadow:0 0 10px #f5b54a;"></span>
+            2 leaks
+            <span style="opacity:.5;">⠿</span>
+          </div>
+          <p style="font-size:14px; line-height:1.6; color:#a7b6bc; margin:0;">The badge floats over your running app, draggable anywhere. Worst-severity color, live count. Tap to open the full findings screen.</p>
+        </div>
+        </sc-if>
+        <sc-if value="{{ showLint }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:22px; flex:1;">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5ad1e6; letter-spacing:0.05em; margin-bottom:14px;">QUICK FIX AVAILABLE</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.8; background:#06090a; border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:12px 14px; color:#8fa0a6; margin-bottom:14px;">
+            <div style="color:#2fe39b;">+ @override</div>
+            <div style="color:#2fe39b;">+ void dispose() {</div>
+            <div style="color:#2fe39b; padding-left:14px;">_controller.dispose();</div>
+            <div style="color:#2fe39b; padding-left:14px;">super.dispose();</div>
+            <div style="color:#2fe39b;">+ }</div>
+          </div>
+          <p style="font-size:14px; line-height:1.6; color:#a7b6bc; margin:0;">Every rule ships an auto-fix. Disposal placed in <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">dispose()</code>, one keystroke away.</p>
+        </div>
+        </sc-if>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ INSTALL ============ -->
+  <section id="install" data-screen-label="Install" style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(40px,6vw,80px) clamp(18px,4vw,40px) clamp(60px,9vw,110px); border-top:1px solid rgba(255,255,255,0.06);">
+    <div style="display:flex; flex-wrap:wrap; gap:clamp(28px,4vw,56px);">
+      <div data-reveal style="flex:1 1 300px; min-width:280px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#2fe39b; margin-bottom:16px;">Install</div>
+        <h2 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(28px,4.4vw,50px); line-height:1.04; letter-spacing:-0.025em; margin:0 0 18px; text-wrap:balance;">Three edits, then you're hunting.</h2>
+        <p style="font-size:15.5px; line-height:1.65; color:#a7b6bc; max-width:420px; margin:0 0 24px;">Both halves live in one project. Add the dependencies, enable the plugin, call <code style="font-family:'JetBrains Mono',monospace; font-size:14px; color:#e7eef0;">init</code>. It runs in debug &amp; profile and disappears entirely from release.</p>
+        <a href="#" style="display:inline-flex; align-items:center; gap:9px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px; color:#07090a; background:#2fe39b; text-decoration:none; padding:13px 22px; border-radius:11px;" style-hover="background:#52f0b0;">View on pub.dev <span style="font-family:'JetBrains Mono',monospace;">→</span></a>
+      </div>
+
+      <div data-reveal style="flex:1 1 440px; min-width:300px; display:grid; gap:14px;">
+        <div style="background:#06090a; border:1px solid rgba(255,255,255,0.1); border-radius:14px; overflow:hidden;">
+          <div style="padding:9px 15px; border-bottom:1px solid rgba(255,255,255,0.07); font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#5f7178; display:flex; justify-content:space-between;"><span>pubspec.yaml</span><span style="color:#3d4a4f;">1 / 3</span></div>
+          <pre style="margin:0; padding:15px 18px; font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.75; color:#cdd6da; overflow-x:auto;"><code><span style="color:#5ccfe6;">dev_dependencies</span>:
+  <span style="color:#c3e88d;">leak_radar</span>: ^1.0.0
+  <span style="color:#c3e88d;">custom_lint</span>: ^0.6.0</code></pre>
+        </div>
+        <div style="background:#06090a; border:1px solid rgba(255,255,255,0.1); border-radius:14px; overflow:hidden;">
+          <div style="padding:9px 15px; border-bottom:1px solid rgba(255,255,255,0.07); font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#5f7178; display:flex; justify-content:space-between;"><span>analysis_options.yaml</span><span style="color:#3d4a4f;">2 / 3</span></div>
+          <pre style="margin:0; padding:15px 18px; font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.75; color:#cdd6da; overflow-x:auto;"><code><span style="color:#5ccfe6;">analyzer</span>:
+  <span style="color:#5ccfe6;">plugins</span>:
+    - <span style="color:#c3e88d;">custom_lint</span></code></pre>
+        </div>
+        <div style="background:#06090a; border:1px solid rgba(255,255,255,0.1); border-radius:14px; overflow:hidden;">
+          <div style="padding:9px 15px; border-bottom:1px solid rgba(255,255,255,0.07); font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#5f7178; display:flex; justify-content:space-between;"><span>main.dart</span><span style="color:#3d4a4f;">3 / 3</span></div>
+          <pre style="margin:0; padding:15px 18px; font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.75; color:#cdd6da; overflow-x:auto;"><code>LeakRadar.<span style="color:#82aaff;">init</span>(overlay: <span style="color:#f78c6c;">true</span>);
+<span style="color:#82aaff;">runApp</span>(<span style="color:#ff85a1;">const</span> MyApp());</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer style="position:relative; z-index:1; border-top:1px solid rgba(255,255,255,0.07); background:#06090a;">
+    <div style="max-width:1240px; margin:0 auto; padding:clamp(44px,6vw,72px) clamp(18px,4vw,40px) clamp(32px,4vw,48px);">
+      <div style="display:flex; flex-wrap:wrap; gap:32px; justify-content:space-between; align-items:flex-start;">
+        <div style="flex:1 1 280px; min-width:260px;">
+          <div style="display:flex; align-items:center; gap:11px; margin-bottom:16px;">
+            <svg width="24" height="24" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="7" stroke="rgba(47,227,155,0.55)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+            <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16px;">Leak Radar</span>
+          </div>
+          <p style="font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.7; color:#5f7178; max-width:320px; margin:0;">Catch Flutter leaks twice — before they ship, and while they run. Runs in debug &amp; profile. A complete no-op in release.</p>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:clamp(40px,6vw,80px);">
+          <div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:#3d4a4f; margin-bottom:14px;">Project</div>
+            <div style="display:grid; gap:10px;">
+              <a href="#" style="color:#a7b6bc; text-decoration:none; font-size:14px;" style-hover="color:#2fe39b;">GitHub</a>
+              <a href="#" style="color:#a7b6bc; text-decoration:none; font-size:14px;" style-hover="color:#2fe39b;">pub.dev</a>
+              <a href="#" style="color:#a7b6bc; text-decoration:none; font-size:14px;" style-hover="color:#2fe39b;">Documentation</a>
+            </div>
+          </div>
+          <div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:#3d4a4f; margin-bottom:14px;">On this page</div>
+            <div style="display:grid; gap:10px;">
+              <a href="#how" style="color:#a7b6bc; text-decoration:none; font-size:14px;" style-hover="color:#2fe39b;">How it works</a>
+              <a href="#features" style="color:#a7b6bc; text-decoration:none; font-size:14px;" style-hover="color:#2fe39b;">Features</a>
+              <a href="#install" style="color:#a7b6bc; text-decoration:none; font-size:14px;" style-hover="color:#2fe39b;">Install</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:clamp(36px,5vw,56px); padding-top:24px; border-top:1px solid rgba(255,255,255,0.06); display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between; align-items:center;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#3d4a4f;">MIT licensed · open source</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#3d4a4f;">Built by someone who's hunted these leaks.</span>
+      </div>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;}}">
+class Component extends DCLogic {
+  state = { tab: 'runtime' };
+
+  componentDidMount() {
+    // prep draw-in paths
+    const setLen = (p) => {
+      try {
+        const len = p.getTotalLength();
+        p.style.strokeDasharray = len;
+        p.style.strokeDashoffset = len;
+      } catch (e) {}
+    };
+    const paths = document.querySelectorAll('[data-draw]');
+    paths.forEach(setLen);
+
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (!e.isIntersecting) return;
+        const el = e.target;
+        if (el.hasAttribute('data-reveal')) {
+          el.style.opacity = '1';
+          el.style.transform = 'none';
+        }
+        if (el.hasAttribute('data-draw')) {
+          el.style.transition = 'stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1)';
+          el.style.strokeDashoffset = '0';
+        }
+        io.unobserve(el);
+      });
+    }, { threshold: 0.18, rootMargin: '0px 0px -8% 0px' });
+
+    document.querySelectorAll('[data-reveal],[data-draw]').forEach((el) => io.observe(el));
+
+    // safety: reveal anything still hidden after a while
+    this._safety = setTimeout(() => {
+      document.querySelectorAll('[data-reveal]').forEach((el) => {
+        el.style.opacity = '1';
+        el.style.transform = 'none';
+      });
+    }, 4000);
+  }
+
+  componentWillUnmount() {
+    clearTimeout(this._safety);
+  }
+
+  renderVals() {
+    const isRuntime = this.state.tab === 'runtime';
+    const base = "font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:500; padding:8px 16px; border-radius:8px; border:0; cursor:pointer; transition:all .2s;";
+    const active = base + "background:#2fe39b; color:#07090a;";
+    const inactive = base + "background:transparent; color:#8fa0a6;";
+    return {
+      showRuntime: isRuntime,
+      showLint: !isRuntime,
+      codeFile: isRuntime ? 'main.dart' : 'chat_screen.dart',
+      runtimeTabStyle: isRuntime ? active : inactive,
+      lintTabStyle: isRuntime ? inactive : active,
+      setRuntime: () => this.setState({ tab: 'runtime' }),
+      setLint: () => this.setState({ tab: 'lint' }),
+    };
+  }
+}
+</script>
+</body>
+</html>

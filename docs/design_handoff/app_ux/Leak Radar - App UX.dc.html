@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#0b0e10; -webkit-font-smoothing:antialiased; }
+  ::selection { background:rgba(47,227,155,0.28); color:#eafff5; }
+  @keyframes lrx-blip { 0%,100% { opacity:.3; transform:scale(.7);} 45%{opacity:1; transform:scale(1.2);} }
+  @keyframes lrx-pulse { 0%{box-shadow:0 0 0 0 rgba(255,93,108,0.5);} 70%{box-shadow:0 0 0 12px rgba(255,93,108,0);} 100%{box-shadow:0 0 0 0 rgba(255,93,108,0);} }
+  .lrx-screen::-webkit-scrollbar { width:0; height:0; }
+  @media (prefers-reduced-motion: reduce){ *{ animation:none !important; } }
+</style>
+</helmet>
+
+<div style="min-height:100vh; background:radial-gradient(900px 600px at 80% -5%, rgba(47,227,155,0.06), transparent 60%), #0b0e10; color:#e7eef0; font-family:'Hanken Grotesk',system-ui,sans-serif; padding:clamp(20px,4vw,44px) clamp(16px,4vw,40px) 60px; box-sizing:border-box;">
+
+  <!-- header -->
+  <div style="max-width:1180px; margin:0 auto 26px; display:flex; flex-wrap:wrap; gap:18px 28px; align-items:flex-end; justify-content:space-between;">
+    <div>
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <svg width="22" height="22" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="7" stroke="rgba(47,227,155,0.55)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:0.14em; text-transform:uppercase; color:#2fe39b;">On-device UX · interactive prototype</span>
+      </div>
+      <h1 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(26px,3.4vw,38px); letter-spacing:-0.02em; margin:0; line-height:1.05;">What Leak Radar renders on the device</h1>
+      <p style="font-size:14.5px; color:#8fa0a6; margin:8px 0 0; max-width:560px; line-height:1.55;">Tap the badge, open a finding, inspect the retaining path, export, tune settings. This is the in-app surface — the spec to build the library against.</p>
+    </div>
+    <!-- screen switcher -->
+    <div style="display:flex; flex-wrap:wrap; gap:6px; padding:5px; background:#11171a; border:1px solid rgba(255,255,255,0.08); border-radius:12px;">
+      <button type="button" onClick="{{ goHost }}" style="{{ tabHost }}">Overlay badge</button>
+      <button type="button" onClick="{{ goFindings }}" style="{{ tabFindings }}">Findings</button>
+      <button type="button" onClick="{{ goDetail }}" style="{{ tabDetail }}">Finding detail</button>
+      <button type="button" onClick="{{ goSettings }}" style="{{ tabSettings }}">Settings</button>
+    </div>
+  </div>
+
+  <!-- phone stage -->
+  <div style="display:flex; justify-content:center; position:relative;">
+    <div style="position:relative;">
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dark="{{ true }}" width="412" height="858" hint-size="428px,874px">
+
+        <div style="position:relative; height:100%; background:#0a0d0e; font-family:'Hanken Grotesk',system-ui,sans-serif; color:#e7eef0;">
+
+          <!-- ============ SCREEN: HOST APP + BADGE ============ -->
+          <sc-if value="{{ isHost }}" hint-placeholder-val="{{ true }}">
+          <div class="lrx-screen" style="height:100%; overflow:auto; background:#0f1316; display:flex; flex-direction:column;">
+            <!-- host app bar -->
+            <div style="display:flex; align-items:center; gap:12px; padding:14px 16px; background:#141a1e; border-bottom:1px solid rgba(255,255,255,0.06);">
+              <span style="font-size:20px; color:#8fa0a6;">‹</span>
+              <div style="width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#2a6df4,#5ad1e6); display:flex; align-items:center; justify-content:center; font-weight:600; font-size:13px; color:#fff;">SC</div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-weight:600; font-size:15px;">Support · #general</div>
+                <div style="font-size:12px; color:#5fb98e;">14 online</div>
+              </div>
+              <span style="font-size:18px; color:#8fa0a6;">⋮</span>
+            </div>
+            <!-- chat messages (the host app being profiled) -->
+            <div style="flex:1; padding:16px; display:flex; flex-direction:column; gap:12px; background:#0f1316;">
+              <div style="align-self:flex-start; max-width:74%; background:#1b2227; padding:10px 13px; border-radius:14px 14px 14px 4px; font-size:13.5px; color:#cdd6da; line-height:1.45;">Heap's been climbing on the chat screen again 👀</div>
+              <div style="align-self:flex-end; max-width:74%; background:#234b3a; padding:10px 13px; border-radius:14px 14px 4px 14px; font-size:13.5px; color:#dcffef; line-height:1.45;">Same. Let me pop the route and rescan…</div>
+              <div style="align-self:flex-start; max-width:74%; background:#1b2227; padding:10px 13px; border-radius:14px 14px 14px 4px; font-size:13.5px; color:#cdd6da; line-height:1.45;">Radar already flagged the controller btw</div>
+              <div style="align-self:flex-end; max-width:60%; background:#234b3a; padding:10px 13px; border-radius:14px 14px 4px 14px; font-size:13.5px; color:#dcffef; line-height:1.45;">tapping the badge now</div>
+            </div>
+            <div style="padding:12px 16px; background:#141a1e; border-top:1px solid rgba(255,255,255,0.06); display:flex; gap:10px; align-items:center;">
+              <div style="flex:1; height:38px; background:#1b2227; border-radius:20px;"></div>
+              <div style="width:38px; height:38px; border-radius:50%; background:#2a6df4;"></div>
+            </div>
+
+            <!-- the draggable Leak Radar badge -->
+            <button type="button" onPointerDown="{{ onBadgeDown }}" onClick="{{ onBadgeTap }}" aria-label="Leak Radar: 3 leaks. Tap to open findings." style="position:absolute; left:0; top:0; transform:{{ badgeTransform }}; display:inline-flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:#fff; background:rgba(255,93,108,0.18); border:1px solid rgba(255,93,108,0.55); backdrop-filter:blur(8px); padding:9px 13px; border-radius:999px; cursor:grab; touch-action:none; box-shadow:0 10px 26px -8px rgba(255,93,108,0.5); animation:lrx-pulse 2.6s ease-out infinite; z-index:20;">
+              <svg width="15" height="15" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11" stroke="rgba(255,255,255,0.5)" stroke-width="1.4"/><circle cx="13" cy="13" r="2.6" fill="#fff"/></svg>
+              3 leaks
+              <span style="opacity:.55; font-size:11px;">⠿</span>
+            </button>
+
+            <!-- hint -->
+            <div style="position:absolute; left:50%; bottom:78px; transform:translateX(-50%); font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5f7178; background:rgba(0,0,0,0.4); padding:5px 10px; border-radius:7px; pointer-events:none;">drag the badge · tap to open</div>
+          </div>
+          </sc-if>
+
+          <!-- ============ SCREEN: FINDINGS ============ -->
+          <sc-if value="{{ isFindings }}" hint-placeholder-val="{{ false }}">
+          <div class="lrx-screen" style="height:100%; overflow:auto; background:#0a0d0e; display:flex; flex-direction:column;">
+            <!-- app bar -->
+            <div style="position:sticky; top:0; z-index:5; background:#0c1012; border-bottom:1px solid rgba(255,255,255,0.07); padding:14px 16px;">
+              <div style="display:flex; align-items:center; gap:11px;">
+                <svg width="18" height="18" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11" stroke="rgba(47,227,155,0.45)" stroke-width="1.4"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+                <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:17px; flex:1;">Leak Radar</span>
+                <button type="button" onClick="{{ openExport }}" aria-label="Export findings" style="width:34px; height:34px; border-radius:9px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.09); color:#a7b6bc; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 3v13M7 8l5-5 5 5"/></svg>
+                </button>
+                <button type="button" onClick="{{ goSettings }}" aria-label="Settings" style="width:34px; height:34px; border-radius:9px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.09); color:#a7b6bc; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                </button>
+              </div>
+              <!-- summary -->
+              <div style="display:flex; align-items:center; gap:14px; margin-top:12px; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#7d8e94;">
+                <span style="color:#ff5d6c;">● 2 critical</span>
+                <span style="color:#f5b54a;">● 2 warning</span>
+                <span style="color:#5ad1e6;">● 1 info</span>
+                <span style="margin-left:auto;">scan 14:32</span>
+              </div>
+            </div>
+
+            <!-- filter chips -->
+            <div style="display:flex; gap:7px; padding:12px 16px 4px; overflow-x:auto;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; white-space:nowrap; color:#0a0d0e; background:#2fe39b; padding:5px 11px; border-radius:8px; font-weight:600;">All · 5</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; white-space:nowrap; color:#c4d0d4; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); padding:5px 11px; border-radius:8px;">Growing</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; white-space:nowrap; color:#c4d0d4; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); padding:5px 11px; border-radius:8px;">Critical</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; white-space:nowrap; color:#c4d0d4; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); padding:5px 11px; border-radius:8px;">Tracked</span>
+            </div>
+
+            <!-- findings list -->
+            <div style="flex:1; padding:8px 12px 96px; display:flex; flex-direction:column; gap:8px;">
+              <sc-for list="{{ findings }}" as="f" hint-placeholder-count="5">
+                <button type="button" onClick="{{ f.open }}" style="text-align:left; cursor:pointer; display:flex; gap:12px; padding:13px 13px; border-radius:14px; background:{{ f.rowBg }}; border:1px solid {{ f.rowBorder }};">
+                  <span style="flex:0 0 auto; width:5px; border-radius:3px; background:{{ f.color }};"></span>
+                  <div style="flex:1; min-width:0;">
+                    <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px;">
+                      <span style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e7eef0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ f.name }}</span>
+                      <span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:{{ f.color }};">{{ f.delta }}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:9px; margin-top:8px;">
+                      <span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.05em; color:{{ f.color }}; background:{{ f.tagBg }}; padding:2px 7px; border-radius:5px;">{{ f.sevLabel }}</span>
+                      <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178;">{{ f.live }} live</span>
+                      <span style="margin-left:auto;"><svg width="76" height="22" viewBox="0 0 76 22" fill="none" style="display:block;" aria-hidden="true"><path d="{{ f.spark }}" stroke="{{ f.color }}" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                      <span style="color:#5f7178; font-size:16px;">›</span>
+                    </div>
+                  </div>
+                </button>
+              </sc-for>
+            </div>
+
+            <!-- bottom action bar -->
+            <div style="position:sticky; bottom:0; padding:12px 16px; background:linear-gradient(180deg, rgba(10,13,14,0), #0a0d0e 30%); display:flex; gap:10px; align-items:center;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178; flex:1;">5 classes · 80 instances</div>
+              <button type="button" onClick="{{ rescan }}" style="display:inline-flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:#0a0d0e; background:#2fe39b; border:0; padding:11px 18px; border-radius:12px; cursor:pointer; box-shadow:0 8px 22px -8px rgba(47,227,155,0.5);">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5"/></svg>
+                Scan now
+              </button>
+            </div>
+          </div>
+          </sc-if>
+
+          <!-- ============ SCREEN: FINDING DETAIL ============ -->
+          <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+          <div class="lrx-screen" style="height:100%; overflow:auto; background:#0a0d0e;">
+            <!-- app bar -->
+            <div style="position:sticky; top:0; z-index:5; background:#0c1012; border-bottom:1px solid rgba(255,255,255,0.07); padding:13px 14px; display:flex; align-items:center; gap:10px;">
+              <button type="button" onClick="{{ goFindings }}" aria-label="Back to findings" style="width:34px; height:34px; border-radius:9px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.09); color:#cdd6da; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:600; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ sel.name }}</span>
+              <button type="button" onClick="{{ openExport }}" aria-label="Export" style="width:34px; height:34px; border-radius:9px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.09); color:#a7b6bc; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 3v13M7 8l5-5 5 5"/></svg>
+              </button>
+            </div>
+
+            <div style="padding:16px 16px 90px; display:flex; flex-direction:column; gap:14px;">
+              <!-- severity + stats -->
+              <div style="display:flex; gap:10px; align-items:center;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.05em; color:{{ sel.color }}; background:{{ sel.tagBg }}; border:1px solid {{ sel.tagBorder }}; padding:4px 10px; border-radius:7px;">{{ sel.sevLabel }}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#7d8e94;">grew {{ sel.delta }} over {{ sel.captures }} captures</span>
+              </div>
+
+              <div style="display:flex; gap:8px;">
+                <div style="flex:1; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:13px; padding:13px 14px;">
+                  <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178;">Live now</div>
+                  <div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:24px; color:{{ sel.color }};">{{ sel.live }}</div>
+                </div>
+                <div style="flex:1; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:13px; padding:13px 14px;">
+                  <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178;">Net growth</div>
+                  <div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:24px; color:#e7eef0;">{{ sel.delta }}</div>
+                </div>
+                <div style="flex:1; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:13px; padding:13px 14px;">
+                  <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178;">First seen</div>
+                  <div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:24px; color:#e7eef0;">{{ sel.firstSeen }}</div>
+                </div>
+              </div>
+
+              <!-- growth chart -->
+              <div style="background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:15px; padding:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;">
+                  <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13.5px; color:#cdd6da;">Live instances / capture</span>
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:{{ sel.color }};">never returns ↑</span>
+                </div>
+                <div style="display:flex; align-items:flex-end; gap:6px; height:96px;">
+                  <sc-for list="{{ sel.bars }}" as="b" hint-placeholder-count="8">
+                    <div style="flex:1; height:{{ b.h }}; background:{{ b.bg }}; border-radius:4px 4px 0 0; min-height:6px;"></div>
+                  </sc-for>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#5f7178; margin-top:8px;">
+                  <span>14:09</span><span>forced GC between captures</span><span>14:32</span>
+                </div>
+              </div>
+
+              <!-- retaining path -->
+              <div style="background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:15px; padding:16px;">
+                <div style="display:flex; align-items:center; gap:9px; margin-bottom:12px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5ad1e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7 7l4 4M13 13l4 4M11 11h2v2"/></svg>
+                  <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13.5px; color:#cdd6da; flex:1;">Retaining path</span>
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#5f7178;">lazily fetched</span>
+                </div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; line-height:2; color:#8fa0a6; background:#06090a; border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:13px 14px; overflow-x:auto;">
+                  <div><span style="color:#5ad1e6;">GC root</span> <span style="color:#4a5a60;">(static field)</span></div>
+                  <div style="padding-left:14px;"><span style="color:#4a5a60;">└─</span> _ChatService.<span style="color:#c3e88d;">_activeRooms</span></div>
+                  <div style="padding-left:28px;"><span style="color:#4a5a60;">└─</span> _GrowableList <span style="color:#4a5a60;">[3]</span></div>
+                  <div style="padding-left:42px;"><span style="color:#4a5a60;">└─</span> <span style="color:{{ sel.color }};">{{ sel.name }}</span> <span style="color:#4a5a60;">← leaked</span></div>
+                </div>
+              </div>
+
+              <!-- tracking status + heap snapshot -->
+              <div style="display:flex; gap:8px;">
+                <div style="flex:1; display:flex; align-items:center; gap:9px; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:13px; padding:12px 13px;">
+                  <span style="width:8px; height:8px; border-radius:50%; background:#5f7178;"></span>
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#a7b6bc; line-height:1.3;">Heap-inspected<br><span style="color:#5f7178;">no opt-in needed</span></span>
+                </div>
+                <button type="button" onClick="{{ snapshot }}" style="flex:1; display:flex; align-items:center; gap:9px; background:rgba(90,209,230,0.06); border:1px solid rgba(90,209,230,0.25); border-radius:13px; padding:12px 13px; cursor:pointer; text-align:left;">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#5ad1e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4M8 13h8M8 17h6"/></svg>
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#5ad1e6; line-height:1.3;">Capture<br>.dartheap</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          </sc-if>
+
+          <!-- ============ SCREEN: SETTINGS ============ -->
+          <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+          <div class="lrx-screen" style="height:100%; overflow:auto; background:#0a0d0e;">
+            <div style="position:sticky; top:0; z-index:5; background:#0c1012; border-bottom:1px solid rgba(255,255,255,0.07); padding:13px 14px; display:flex; align-items:center; gap:10px;">
+              <button type="button" onClick="{{ goFindings }}" aria-label="Back" style="width:34px; height:34px; border-radius:9px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.09); color:#cdd6da; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
+              <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16px;">Settings</span>
+            </div>
+
+            <div style="padding:18px 16px 90px; display:flex; flex-direction:column; gap:22px;">
+              <!-- overlay toggle -->
+              <div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:#5f7178; margin-bottom:10px;">Overlay</div>
+                <button type="button" onClick="{{ toggleOverlay }}" style="width:100%; cursor:pointer; display:flex; align-items:center; gap:13px; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:13px; padding:14px 15px; text-align:left;">
+                  <div style="flex:1;">
+                    <div style="font-size:14.5px; color:#e7eef0;">Draggable badge</div>
+                    <div style="font-size:12.5px; color:#7d8e94; margin-top:2px;">Live worst-severity + count over your app</div>
+                  </div>
+                  <span style="width:44px; height:26px; border-radius:13px; background:{{ overlayTrackBg }}; position:relative; flex:0 0 auto; transition:background .2s;"><span style="position:absolute; top:3px; left:{{ overlayKnobLeft }}; width:20px; height:20px; border-radius:50%; background:#fff; transition:left .2s;"></span></span>
+                </button>
+              </div>
+
+              <!-- severity threshold -->
+              <div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:#5f7178; margin-bottom:10px;">Report threshold</div>
+                <div style="display:flex; gap:6px; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:13px; padding:5px;">
+                  <button type="button" onClick="{{ setThreshInfo }}" style="{{ threshInfoStyle }}">Info</button>
+                  <button type="button" onClick="{{ setThreshWarn }}" style="{{ threshWarnStyle }}">Warning</button>
+                  <button type="button" onClick="{{ setThreshCrit }}" style="{{ threshCritStyle }}">Critical</button>
+                </div>
+                <div style="font-size:12px; color:#7d8e94; margin-top:8px; line-height:1.5;">{{ threshHint }}</div>
+              </div>
+
+              <!-- auto-scan mode -->
+              <div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:#5f7178; margin-bottom:10px;">Auto-scan</div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <button type="button" onClick="{{ setScanOff }}" style="cursor:pointer; display:flex; align-items:center; gap:12px; background:#0e1316; border:1px solid {{ scanOffBorder }}; border-radius:12px; padding:13px 14px; text-align:left;">
+                    <span style="{{ scanOffDot }}"></span>
+                    <div style="flex:1;"><div style="font-size:14px; color:#e7eef0;">Manual only</div><div style="font-size:12px; color:#7d8e94;">Scan when you tap “Scan now”</div></div>
+                  </button>
+                  <button type="button" onClick="{{ setScanPeriodic }}" style="cursor:pointer; display:flex; align-items:center; gap:12px; background:#0e1316; border:1px solid {{ scanPeriodicBorder }}; border-radius:12px; padding:13px 14px; text-align:left;">
+                    <span style="{{ scanPeriodicDot }}"></span>
+                    <div style="flex:1;"><div style="font-size:14px; color:#e7eef0;">Periodic · every 30s</div><div style="font-size:12px; color:#7d8e94;">Background heap captures on a timer</div></div>
+                  </button>
+                  <button type="button" onClick="{{ setScanPop }}" style="cursor:pointer; display:flex; align-items:center; gap:12px; background:#0e1316; border:1px solid {{ scanPopBorder }}; border-radius:12px; padding:13px 14px; text-align:left;">
+                    <span style="{{ scanPopDot }}"></span>
+                    <div style="flex:1;"><div style="font-size:14px; color:#e7eef0;">On screen-pop <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#2fe39b; background:rgba(47,227,155,0.1); padding:1px 6px; border-radius:4px; margin-left:4px;">RECOMMENDED</span></div><div style="font-size:12px; color:#7d8e94;">NavigatorObserver scans when a route pops</div></div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- precise tracking -->
+              <div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:#5f7178; margin-bottom:10px;">Precision</div>
+                <button type="button" onClick="{{ togglePrecise }}" style="width:100%; cursor:pointer; display:flex; align-items:center; gap:13px; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:13px; padding:14px 15px; text-align:left;">
+                  <div style="flex:1;">
+                    <div style="font-size:14.5px; color:#e7eef0;">Precise opt-in tracking</div>
+                    <div style="font-size:12.5px; color:#7d8e94; margin-top:2px;">Honor <span style="font-family:'JetBrains Mono',monospace; color:#a7b6bc;">track()</span> / <span style="font-family:'JetBrains Mono',monospace; color:#a7b6bc;">markDisposed()</span> calls</div>
+                  </div>
+                  <span style="width:44px; height:26px; border-radius:13px; background:{{ preciseTrackBg }}; position:relative; flex:0 0 auto; transition:background .2s;"><span style="position:absolute; top:3px; left:{{ preciseKnobLeft }}; width:20px; height:20px; border-radius:50%; background:#fff; transition:left .2s;"></span></span>
+                </button>
+              </div>
+
+              <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#3d4a4f; text-align:center; line-height:1.6; margin-top:4px;">Debug &amp; profile only · no-op in release<br>Never throws · never measurably slows the host</div>
+            </div>
+          </div>
+          </sc-if>
+
+          <!-- ============ EXPORT SHEET (overlay) ============ -->
+          <sc-if value="{{ sheetOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute; inset:0; z-index:40; background:rgba(0,0,0,0.55); display:flex; flex-direction:column; justify-content:flex-end;">
+            <button type="button" onClick="{{ closeExport }}" aria-label="Close" style="flex:1; background:transparent; border:0; cursor:pointer;"></button>
+            <div style="background:#0e1316; border-top:1px solid rgba(255,255,255,0.1); border-radius:22px 22px 0 0; padding:8px 18px 24px;">
+              <div style="width:38px; height:4px; border-radius:2px; background:rgba(255,255,255,0.18); margin:8px auto 16px;"></div>
+              <div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:18px; margin-bottom:4px;">Export findings</div>
+              <div style="font-size:13px; color:#7d8e94; margin-bottom:16px;">Share straight from the device — into a bug, a PR, a thread.</div>
+              <!-- format toggle -->
+              <div style="display:flex; gap:6px; background:#0a0d0e; border:1px solid rgba(255,255,255,0.08); border-radius:11px; padding:5px; margin-bottom:14px;">
+                <button type="button" onClick="{{ setJson }}" style="{{ jsonStyle }}">JSON</button>
+                <button type="button" onClick="{{ setMarkdown }}" style="{{ mdStyle }}">Markdown</button>
+              </div>
+              <pre style="margin:0 0 16px; background:#06090a; border:1px solid rgba(255,255,255,0.06); border-radius:11px; padding:14px 15px; font-family:'JetBrains Mono',monospace; font-size:11.5px; line-height:1.7; color:#cdd6da; overflow:auto; max-height:150px;">{{ exportPreview }}</pre>
+              <button type="button" onClick="{{ closeExport }}" style="width:100%; display:flex; align-items:center; justify-content:center; gap:9px; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:600; color:#0a0d0e; background:#2fe39b; border:0; padding:14px; border-radius:13px; cursor:pointer;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 3v13M7 8l5-5 5 5"/></svg>
+                Share {{ exportLabel }}
+              </button>
+            </div>
+          </div>
+          </sc-if>
+
+          <!-- toast -->
+          <sc-if value="{{ toastOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute; left:50%; bottom:96px; transform:translateX(-50%); z-index:60; font-family:'JetBrains Mono',monospace; font-size:12px; color:#0a0d0e; background:#2fe39b; padding:9px 15px; border-radius:10px; box-shadow:0 10px 30px -8px rgba(0,0,0,0.6); white-space:nowrap;">{{ toastMsg }}</div>
+          </sc-if>
+
+        </div>
+      </x-import>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    screen: 'host',          // host | findings | detail | settings
+    sheet: false,
+    selIdx: 0,
+    badge: { x: 300, y: 470 },
+    dragging: false,
+    overlay: true,
+    precise: false,
+    thresh: 'warning',       // info | warning | critical
+    scan: 'pop',             // off | periodic | pop
+    fmt: 'markdown',         // json | markdown
+    toast: '',
+  };
+
+  _data() {
+    // name, sev, live, delta, captures, firstSeen, spark path, bars heights
+    return [
+      { name: 'ChatRoomController', sev: 'critical', live: 48, delta: '+48', captures: 8, firstSeen: '14:09', spark: 'M2 19 L13 18 L24 15 L35 12 L46 8 L57 5 L74 2', bars: [10,18,26,38,52,66,82,100] },
+      { name: 'HeartbeatTimer', sev: 'critical', live: 7, delta: '+5', captures: 6, firstSeen: '14:18', spark: 'M2 18 L15 17 L28 14 L41 13 L57 8 L74 4', bars: [22,30,40,55,72,100] },
+      { name: 'VideoPlayerController', sev: 'warning', live: 12, delta: '+6', captures: 7, firstSeen: '14:12', spark: 'M2 16 L14 17 L27 13 L40 14 L53 10 L74 7', bars: [40,46,42,58,64,78,100] },
+      { name: 'DashboardBloc', sev: 'warning', live: 4, delta: '+2', captures: 5, firstSeen: '14:21', spark: 'M2 15 L18 16 L34 12 L50 13 L74 9', bars: [50,58,54,72,100] },
+      { name: '_PresenceSubscription', sev: 'info', live: 9, delta: '+3', captures: 6, firstSeen: '14:15', spark: 'M2 14 L15 13 L28 14 L41 11 L57 12 L74 10', bars: [62,70,66,78,74,100] },
+    ];
+  }
+
+  _sevColor(s) {
+    return s === 'critical' ? '#ff5d6c' : s === 'warning' ? '#f5b54a' : '#5ad1e6';
+  }
+  _sevTagBg(s) {
+    return s === 'critical' ? 'rgba(255,93,108,0.12)' : s === 'warning' ? 'rgba(245,181,74,0.12)' : 'rgba(90,209,230,0.12)';
+  }
+  _sevTagBorder(s) {
+    return s === 'critical' ? 'rgba(255,93,108,0.3)' : s === 'warning' ? 'rgba(245,181,74,0.3)' : 'rgba(90,209,230,0.3)';
+  }
+  _sevLabel(s) { return s.toUpperCase(); }
+
+  _toast(msg) {
+    clearTimeout(this._t);
+    this.setState({ toast: msg });
+    this._t = setTimeout(() => this.setState({ toast: '' }), 1900);
+  }
+
+  // ---- badge drag ----
+  onBadgeDown = (e) => {
+    const startX = e.clientX, startY = e.clientY;
+    const orig = { ...this.state.badge };
+    this._moved = false;
+    const move = (ev) => {
+      const dx = ev.clientX - startX, dy = ev.clientY - startY;
+      if (Math.abs(dx) + Math.abs(dy) > 4) this._moved = true;
+      let nx = orig.x + dx, ny = orig.y + dy;
+      nx = Math.max(6, Math.min(300, nx));
+      ny = Math.max(8, Math.min(700, ny));
+      this.setState({ badge: { x: nx, y: ny } });
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  onBadgeTap = () => {
+    if (this._moved) { this._moved = false; return; }
+    this.setState({ screen: 'findings' });
+  };
+
+  renderVals() {
+    const s = this.state;
+    const data = this._data();
+    const tabBase = "font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:500; padding:8px 14px; border-radius:8px; border:0; cursor:pointer; white-space:nowrap;";
+    const tabOn = tabBase + 'background:#2fe39b; color:#0a0d0e;';
+    const tabOff = tabBase + 'background:transparent; color:#8fa0a6;';
+
+    const findings = data.map((d, i) => ({
+      name: d.name,
+      delta: d.delta,
+      live: d.live,
+      sevLabel: this._sevLabel(d.sev),
+      color: this._sevColor(d.sev),
+      tagBg: this._sevTagBg(d.sev),
+      rowBg: d.sev === 'critical' ? 'rgba(255,93,108,0.05)' : 'rgba(255,255,255,0.018)',
+      rowBorder: d.sev === 'critical' ? 'rgba(255,93,108,0.18)' : 'rgba(255,255,255,0.06)',
+      spark: d.spark,
+      open: () => this.setState({ screen: 'detail', selIdx: i }),
+    }));
+
+    const d = data[s.selIdx] || data[0];
+    const sel = {
+      name: d.name,
+      sevLabel: this._sevLabel(d.sev),
+      color: this._sevColor(d.sev),
+      tagBg: this._sevTagBg(d.sev),
+      tagBorder: this._sevTagBorder(d.sev),
+      live: d.live,
+      delta: d.delta,
+      captures: d.captures,
+      firstSeen: d.firstSeen,
+      bars: d.bars.map((h, i) => ({
+        h: h + '%',
+        bg: i === d.bars.length - 1 ? this._sevColor(d.sev) : 'rgba(255,255,255,0.12)',
+      })),
+    };
+
+    // settings styles
+    const segBase = "flex:1; font-family:'JetBrains Mono',monospace; font-size:12.5px; padding:9px; border-radius:9px; border:0; cursor:pointer;";
+    const seg = (on, color) => segBase + (on ? `background:${color}; color:#0a0d0e; font-weight:600;` : 'background:transparent; color:#8fa0a6;');
+    const dot = (on, color) => `width:16px;height:16px;border-radius:50%;border:2px solid ${on?color:'#3d4a4f'};background:${on?color:'transparent'};box-shadow:${on?'inset 0 0 0 2px #0e1316':'none'};flex:0 0 auto;`;
+    const threshHints = {
+      info: 'Report everything, including small or expected growth.',
+      warning: 'Report classes growing past the warning band (default).',
+      critical: 'Only surface runaway growth that never returns.',
+    };
+
+    // export preview
+    const md = '# Leak Radar — 5 findings\n\n' +
+      '| Class | Severity | Live | Growth |\n' +
+      '|---|---|---|---|\n' +
+      '| ChatRoomController | critical | 48 | +48 |\n' +
+      '| HeartbeatTimer | critical | 7 | +5 |\n' +
+      '| VideoPlayerController | warning | 12 | +6 |';
+    const json = '{\n  "scan": "14:32",\n  "findings": [\n    {\n      "class": "ChatRoomController",\n      "severity": "critical",\n      "live": 48,\n      "growth": 48\n    }\n  ]\n}';
+
+    return {
+      // screen flags
+      isHost: s.screen === 'host',
+      isFindings: s.screen === 'findings',
+      isDetail: s.screen === 'detail',
+      isSettings: s.screen === 'settings',
+      sheetOpen: s.sheet,
+      toastOpen: !!s.toast,
+      toastMsg: s.toast,
+
+      // nav
+      goHost: () => this.setState({ screen: 'host', sheet: false }),
+      goFindings: () => this.setState({ screen: 'findings', sheet: false }),
+      goDetail: () => this.setState({ screen: 'detail', sheet: false }),
+      goSettings: () => this.setState({ screen: 'settings', sheet: false }),
+      tabHost: s.screen === 'host' ? tabOn : tabOff,
+      tabFindings: s.screen === 'findings' ? tabOn : tabOff,
+      tabDetail: s.screen === 'detail' ? tabOn : tabOff,
+      tabSettings: s.screen === 'settings' ? tabOn : tabOff,
+
+      // badge
+      onBadgeDown: this.onBadgeDown,
+      onBadgeTap: this.onBadgeTap,
+      badgeTransform: `translate(${s.badge.x}px, ${s.badge.y}px)`,
+
+      // lists
+      findings,
+      sel,
+
+      // actions
+      rescan: () => this._toast('Heap captured · 5 findings'),
+      snapshot: () => this._toast('Saved leak_radar_14-32.dartheap'),
+      openExport: () => this.setState({ sheet: true }),
+      closeExport: () => this.setState({ sheet: false }),
+
+      // settings: overlay
+      toggleOverlay: () => this.setState({ overlay: !s.overlay }),
+      overlayTrackBg: s.overlay ? '#2fe39b' : 'rgba(255,255,255,0.14)',
+      overlayKnobLeft: s.overlay ? '21px' : '3px',
+      togglePrecise: () => this.setState({ precise: !s.precise }),
+      preciseTrackBg: s.precise ? '#2fe39b' : 'rgba(255,255,255,0.14)',
+      preciseKnobLeft: s.precise ? '21px' : '3px',
+
+      // settings: threshold
+      setThreshInfo: () => this.setState({ thresh: 'info' }),
+      setThreshWarn: () => this.setState({ thresh: 'warning' }),
+      setThreshCrit: () => this.setState({ thresh: 'critical' }),
+      threshInfoStyle: seg(s.thresh === 'info', '#5ad1e6'),
+      threshWarnStyle: seg(s.thresh === 'warning', '#f5b54a'),
+      threshCritStyle: seg(s.thresh === 'critical', '#ff5d6c'),
+      threshHint: threshHints[s.thresh],
+
+      // settings: scan mode
+      setScanOff: () => this.setState({ scan: 'off' }),
+      setScanPeriodic: () => this.setState({ scan: 'periodic' }),
+      setScanPop: () => this.setState({ scan: 'pop' }),
+      scanOffBorder: s.scan === 'off' ? 'rgba(47,227,155,0.5)' : 'rgba(255,255,255,0.07)',
+      scanPeriodicBorder: s.scan === 'periodic' ? 'rgba(47,227,155,0.5)' : 'rgba(255,255,255,0.07)',
+      scanPopBorder: s.scan === 'pop' ? 'rgba(47,227,155,0.5)' : 'rgba(255,255,255,0.07)',
+      scanOffDot: dot(s.scan === 'off', '#2fe39b'),
+      scanPeriodicDot: dot(s.scan === 'periodic', '#2fe39b'),
+      scanPopDot: dot(s.scan === 'pop', '#2fe39b'),
+
+      // export
+      setJson: () => this.setState({ fmt: 'json' }),
+      setMarkdown: () => this.setState({ fmt: 'markdown' }),
+      jsonStyle: seg(s.fmt === 'json', '#2fe39b'),
+      mdStyle: seg(s.fmt === 'markdown', '#2fe39b'),
+      exportPreview: s.fmt === 'json' ? json : md,
+      exportLabel: s.fmt === 'json' ? '.json' : '.md',
+    };
+  }
+
+  componentWillUnmount() { clearTimeout(this._t); }
+}
+</script>
+</body>
+</html>
