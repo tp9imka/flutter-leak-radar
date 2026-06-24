@@ -1,6 +1,5 @@
 // lib/src/ui/settings_screen.dart
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../config/leak_radar_config.dart';
 import '../leak_radar.dart';
@@ -69,7 +68,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: GoogleFonts.jetBrainsMono(
+      style: monoFont(
         fontSize: 10,
         fontWeight: FontWeight.w500,
         color: LeakRadarColors.text40,
@@ -156,10 +155,7 @@ class _ThresholdSection extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             hint,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
-              color: LeakRadarColors.text40,
-            ),
+            style: monoFont(fontSize: 10, color: LeakRadarColors.text40),
           ),
         ],
       ),
@@ -209,7 +205,7 @@ class _SegmentButton extends StatelessWidget {
         alignment: Alignment.center,
         child: Text(
           label,
-          style: GoogleFonts.jetBrainsMono(
+          style: monoFont(
             fontSize: 11,
             fontWeight: FontWeight.w500,
             color: active ? LeakRadarColors.pageBg : LeakRadarColors.text40,
@@ -321,7 +317,7 @@ class _RadioRow extends StatelessWidget {
                     children: [
                       Text(
                         label,
-                        style: GoogleFonts.jetBrainsMono(
+                        style: monoFont(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                           color: LeakRadarColors.text100,
@@ -336,7 +332,7 @@ class _RadioRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: GoogleFonts.jetBrainsMono(
+                    style: monoFont(
                       fontSize: 11,
                       color: LeakRadarColors.text40,
                     ),
@@ -400,7 +396,7 @@ class _RecommendedTag extends StatelessWidget {
       ),
       child: Text(
         'RECOMMENDED',
-        style: GoogleFonts.jetBrainsMono(
+        style: monoFont(
           fontSize: 9,
           fontWeight: FontWeight.w600,
           color: LeakRadarColors.accent,
@@ -460,7 +456,7 @@ class _ToggleRow extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: GoogleFonts.jetBrainsMono(
+                style: monoFont(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: LeakRadarColors.text100,
@@ -469,10 +465,7 @@ class _ToggleRow extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
-                  color: LeakRadarColors.text40,
-                ),
+                style: monoFont(fontSize: 11, color: LeakRadarColors.text40),
               ),
             ],
           ),

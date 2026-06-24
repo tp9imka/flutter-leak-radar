@@ -1,30 +1,12 @@
 // test/ui/theme/theme_test.dart
-//
-// google_fonts cannot fetch fonts from the network in test environments.
-// TextStyle getters fire an async font-load side-effect; we drain the async
-// queue inside testWidgets so the load error is caught by the tester's error
-// handler (which we suppress), preventing "test failed after completion".
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'package:flutter_leak_radar/flutter_leak_radar.dart' show LeakSeverity;
 import 'package:flutter_leak_radar/src/ui/theme/theme.dart';
 
-// Suppresses google_fonts async font-load errors in tests.
-bool _isGoogleFontsError(Object e) =>
-    e.toString().contains('google_fonts') ||
-    e.toString().contains('GoogleFonts') ||
-    e.toString().contains('allowRuntimeFetching') ||
-    e.toString().contains('Failed to load font');
-
 void main() {
-  setUpAll(() {
-    // Prevents google_fonts from attempting HTTP requests in test environments.
-    GoogleFonts.config.allowRuntimeFetching = false;
-  });
-
   // ── SeverityTokens ──────────────────────────────────────────────────────────
 
   group('SeverityTokens', () {
@@ -91,16 +73,9 @@ void main() {
   });
 
   // ── LeakRadarText ───────────────────────────────────────────────────────────
-  //
-  // testWidgets is used so we can call pumpEventQueue() to drain the async
-  // font-load microtasks before the test ends; errors are suppressed via the
-  // tester's FlutterError handler.
 
   group('LeakRadarText', () {
     testWidgets('title has bold weight and correct colour', (tester) async {
-      tester.binding.platformDispatcher.onError = (error, _) {
-        return _isGoogleFontsError(error);
-      };
       final style = LeakRadarText.title;
       expect(style.fontWeight, equals(FontWeight.w700));
       expect(style.color, equals(LeakRadarColors.text100));
@@ -108,40 +83,30 @@ void main() {
     });
 
     testWidgets('metric has semibold weight', (tester) async {
-      tester.binding.platformDispatcher.onError = (error, _) =>
-          _isGoogleFontsError(error);
       final style = LeakRadarText.metric;
       expect(style.fontWeight, equals(FontWeight.w600));
       await tester.pumpAndSettle();
     });
 
     testWidgets('mono has regular weight', (tester) async {
-      tester.binding.platformDispatcher.onError = (error, _) =>
-          _isGoogleFontsError(error);
       final style = LeakRadarText.mono;
       expect(style.fontWeight, equals(FontWeight.w400));
       await tester.pumpAndSettle();
     });
 
     testWidgets('label has medium weight', (tester) async {
-      tester.binding.platformDispatcher.onError = (error, _) =>
-          _isGoogleFontsError(error);
       final style = LeakRadarText.label;
       expect(style.fontWeight, equals(FontWeight.w500));
       await tester.pumpAndSettle();
     });
 
     testWidgets('body has regular weight', (tester) async {
-      tester.binding.platformDispatcher.onError = (error, _) =>
-          _isGoogleFontsError(error);
       final style = LeakRadarText.body;
       expect(style.fontWeight, equals(FontWeight.w400));
       await tester.pumpAndSettle();
     });
 
     testWidgets('severityTag has medium weight', (tester) async {
-      tester.binding.platformDispatcher.onError = (error, _) =>
-          _isGoogleFontsError(error);
       final style = LeakRadarText.severityTag;
       expect(style.fontWeight, equals(FontWeight.w500));
       await tester.pumpAndSettle();

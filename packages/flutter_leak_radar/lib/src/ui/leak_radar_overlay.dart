@@ -3,7 +3,6 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../config/leak_radar_config.dart';
 import '../model/leak_kind.dart';
@@ -181,7 +180,7 @@ class _LeakRadarOverlayState extends State<LeakRadarOverlay>
               const SizedBox(width: 8),
               Text(
                 '$count leaks',
-                style: GoogleFonts.jetBrainsMono(
+                style: monoFont(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
@@ -190,7 +189,7 @@ class _LeakRadarOverlayState extends State<LeakRadarOverlay>
               const SizedBox(width: 8),
               Text(
                 '⣿',
-                style: GoogleFonts.jetBrainsMono(
+                style: monoFont(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: Colors.white.withValues(alpha: 0.55),

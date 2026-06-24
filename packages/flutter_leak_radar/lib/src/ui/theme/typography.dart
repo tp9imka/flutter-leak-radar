@@ -1,9 +1,92 @@
 // lib/src/ui/theme/typography.dart
 
-import 'package:flutter/painting.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/widgets.dart';
 
 import 'colors.dart';
+
+const String _fontPkg = 'flutter_leak_radar';
+
+TextStyle _font(
+  String family, {
+  double? fontSize,
+  FontWeight? fontWeight,
+  Color? color,
+  double? height,
+  double? letterSpacing,
+  FontStyle? fontStyle,
+  TextDecoration? decoration,
+}) {
+  final w = fontWeight ?? FontWeight.w400;
+  return TextStyle(
+    fontFamily: family,
+    package: _fontPkg,
+    fontSize: fontSize,
+    fontWeight: w,
+    fontVariations: [FontVariation('wght', w.value.toDouble())],
+    color: color,
+    height: height,
+    letterSpacing: letterSpacing,
+    fontStyle: fontStyle,
+    decoration: decoration,
+  );
+}
+
+TextStyle monoFont({
+  double? fontSize,
+  FontWeight? fontWeight,
+  Color? color,
+  double? height,
+  double? letterSpacing,
+  FontStyle? fontStyle,
+  TextDecoration? decoration,
+}) => _font(
+  'JetBrainsMono',
+  fontSize: fontSize,
+  fontWeight: fontWeight,
+  color: color,
+  height: height,
+  letterSpacing: letterSpacing,
+  fontStyle: fontStyle,
+  decoration: decoration,
+);
+
+TextStyle displayFont({
+  double? fontSize,
+  FontWeight? fontWeight,
+  Color? color,
+  double? height,
+  double? letterSpacing,
+  FontStyle? fontStyle,
+  TextDecoration? decoration,
+}) => _font(
+  'SpaceGrotesk',
+  fontSize: fontSize,
+  fontWeight: fontWeight,
+  color: color,
+  height: height,
+  letterSpacing: letterSpacing,
+  fontStyle: fontStyle,
+  decoration: decoration,
+);
+
+TextStyle bodyFont({
+  double? fontSize,
+  FontWeight? fontWeight,
+  Color? color,
+  double? height,
+  double? letterSpacing,
+  FontStyle? fontStyle,
+  TextDecoration? decoration,
+}) => _font(
+  'HankenGrotesk',
+  fontSize: fontSize,
+  fontWeight: fontWeight,
+  color: color,
+  height: height,
+  letterSpacing: letterSpacing,
+  fontStyle: fontStyle,
+  decoration: decoration,
+);
 
 /// Brand typography for the LeakRadar in-app UX.
 ///
@@ -12,16 +95,14 @@ import 'colors.dart';
 abstract final class LeakRadarText {
   // ── Space Grotesk ─────────────────────────────────────────────────────────
 
-  /// Section / card titles — Space Grotesk Bold.
-  static TextStyle get title => GoogleFonts.spaceGrotesk(
+  static TextStyle get title => displayFont(
     fontWeight: FontWeight.w700,
     color: LeakRadarColors.text100,
     fontSize: 16,
     height: 1.25,
   );
 
-  /// Numeric metric displays — Space Grotesk SemiBold.
-  static TextStyle get metric => GoogleFonts.spaceGrotesk(
+  static TextStyle get metric => displayFont(
     fontWeight: FontWeight.w600,
     color: LeakRadarColors.text100,
     fontSize: 28,
@@ -30,28 +111,23 @@ abstract final class LeakRadarText {
 
   // ── JetBrains Mono ────────────────────────────────────────────────────────
 
-  /// Code / class-name snippets — JetBrains Mono Regular.
-  static TextStyle get mono => GoogleFonts.jetBrainsMono(
+  static TextStyle get mono => monoFont(
     fontWeight: FontWeight.w400,
     color: LeakRadarColors.text80,
     fontSize: 13,
     height: 1.5,
   );
 
-  /// Uppercase labels and section dividers — JetBrains Mono Medium.
-  ///
-  /// Apply `toUpperCase()` on the string side; letter-spacing mimics the
-  /// all-caps feel without a CSS `text-transform` equivalent.
-  static TextStyle get label => GoogleFonts.jetBrainsMono(
+  /// Apply `toUpperCase()` on the string side; letter-spacing mimics all-caps feel.
+  static TextStyle get label => monoFont(
     fontWeight: FontWeight.w500,
     color: LeakRadarColors.text40,
     fontSize: 11,
-    letterSpacing: 0.08 * 11, // ≈ 0.08em
+    letterSpacing: 0.08 * 11,
     height: 1.4,
   );
 
-  /// Small severity pill text — JetBrains Mono Medium.
-  static TextStyle get severityTag => GoogleFonts.jetBrainsMono(
+  static TextStyle get severityTag => monoFont(
     fontWeight: FontWeight.w500,
     color: LeakRadarColors.text100,
     fontSize: 10,
@@ -61,8 +137,7 @@ abstract final class LeakRadarText {
 
   // ── Hanken Grotesk ────────────────────────────────────────────────────────
 
-  /// Body / description copy — Hanken Grotesk Regular.
-  static TextStyle get body => GoogleFonts.hankenGrotesk(
+  static TextStyle get body => bodyFont(
     fontWeight: FontWeight.w400,
     color: LeakRadarColors.text80,
     fontSize: 14,

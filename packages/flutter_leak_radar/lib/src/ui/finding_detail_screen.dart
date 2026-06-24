@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../leak_radar.dart';
 import '../model/leak_finding.dart';
@@ -97,7 +96,7 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
     elevation: 0,
     title: Text(
       widget.finding.className,
-      style: GoogleFonts.jetBrainsMono(
+      style: monoFont(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: LeakRadarColors.text100,
@@ -125,10 +124,7 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
               ? 'still live after disposal'
               : 'grew +$_growth over '
                     '${widget.finding.series.length} captures',
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 12,
-            color: LeakRadarColors.text40,
-          ),
+          style: monoFont(fontSize: 12, color: LeakRadarColors.text40),
         ),
       ],
     ),
@@ -197,10 +193,7 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
             const SizedBox(height: 4),
             RichText(
               text: TextSpan(
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
-                  color: LeakRadarColors.text40,
-                ),
+                style: monoFont(fontSize: 11, color: LeakRadarColors.text40),
                 children: [
                   const TextSpan(text: 'never returns '),
                   TextSpan(
@@ -227,16 +220,13 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
               children: [
                 Text(
                   firstLabel,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9.5,
-                    color: LeakRadarColors.text25,
-                  ),
+                  style: monoFont(fontSize: 9.5, color: LeakRadarColors.text25),
                 ),
                 Flexible(
                   child: Text(
                     'forced GC between captures',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.jetBrainsMono(
+                    style: monoFont(
                       fontSize: 9.5,
                       color: LeakRadarColors.text25,
                     ),
@@ -244,10 +234,7 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
                 ),
                 Text(
                   lastLabel,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9.5,
-                    color: LeakRadarColors.text25,
-                  ),
+                  style: monoFont(fontSize: 9.5, color: LeakRadarColors.text25),
                 ),
               ],
             ),
@@ -278,7 +265,7 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
             'Confirmed still live after disposal via WeakReference '
             'tracking. Precise findings carry no capture history — the '
             'retaining path below explains what holds the object.',
-            style: GoogleFonts.jetBrainsMono(
+            style: monoFont(
               fontSize: 11.5,
               height: 1.5,
               color: LeakRadarColors.text40,
@@ -407,7 +394,7 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
                     widget.finding.tag != null
                         ? 'Tracked'
                         : 'Heap-inspected · no opt-in needed',
-                    style: GoogleFonts.jetBrainsMono(
+                    style: monoFont(
                       fontSize: 11,
                       color: LeakRadarColors.text80,
                     ),
@@ -448,7 +435,7 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
                       const SizedBox(width: 6),
                       Text(
                         'Capture .dartheap',
-                        style: GoogleFonts.jetBrainsMono(
+                        style: monoFont(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: LeakRadarColors.severityInfo,
@@ -565,15 +552,12 @@ class _StatCard extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 11,
-            color: LeakRadarColors.text25,
-          ),
+          style: monoFont(fontSize: 11, color: LeakRadarColors.text25),
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: GoogleFonts.spaceGrotesk(
+          style: displayFont(
             fontSize: 24,
             fontWeight: FontWeight.w600,
             color: valueColor,
@@ -604,18 +588,12 @@ class _PathLine extends StatelessWidget {
         if (connector.isNotEmpty) ...[
           Text(
             connector,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 12,
-              color: LeakRadarColors.text15,
-            ),
+            style: monoFont(fontSize: 12, color: LeakRadarColors.text15),
           ),
           const SizedBox(width: 4),
         ],
         Expanded(
-          child: Text(
-            label,
-            style: GoogleFonts.jetBrainsMono(fontSize: 12, color: labelColor),
-          ),
+          child: Text(label, style: monoFont(fontSize: 12, color: labelColor)),
         ),
       ],
     ),
