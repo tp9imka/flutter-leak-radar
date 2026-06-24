@@ -65,11 +65,9 @@ final class ShortestRetainingPaths {
     var current = nodeId;
     while (_parent.containsKey(current)) {
       final edge = _parentEdge[current]!;
-      links.add(PathLink(
-        nodeId: current,
-        field: edge.field,
-        index: edge.index,
-      ));
+      links.add(
+        PathLink(nodeId: current, field: edge.field, index: edge.index),
+      );
       current = _parent[current]!;
     }
     return links.reversed.toList();

@@ -4,8 +4,7 @@ import 'package:leak_graph/leak_graph.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test('loads a real heap snapshot and exposes nodes + reachable root',
-      () async {
+  test('loads a real heap snapshot and exposes nodes + reachable root', () async {
     final dir = Directory.systemTemp.createTempSync('leak_graph_test');
     final path = '${dir.path}/test_heap.data';
     try {

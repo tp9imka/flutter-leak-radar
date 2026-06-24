@@ -4,12 +4,12 @@ import 'package:test/test.dart';
 import '../support/in_memory_heap_graph.dart';
 
 HeapNode _node(int id, List<HeapEdge> edges) => HeapNode(
-      id: id,
-      className: 'C$id',
-      libraryUri: Uri.parse('package:test/test.dart'),
-      shallowSize: 0,
-      edges: edges,
-    );
+  id: id,
+  className: 'C$id',
+  libraryUri: Uri.parse('package:test/test.dart'),
+  shallowSize: 0,
+  edges: edges,
+);
 
 void main() {
   group('ShortestRetainingPaths', () {

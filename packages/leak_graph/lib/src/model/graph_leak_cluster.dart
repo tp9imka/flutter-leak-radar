@@ -39,24 +39,24 @@ final class GraphLeakCluster {
 
   @override
   int get hashCode => Object.hash(
-        className,
-        libraryUri,
-        instanceCount,
-        retainedShallowBytes,
-        representativePath,
-        rootKind,
-        confidence,
-        signature,
-      );
+    className,
+    libraryUri,
+    instanceCount,
+    retainedShallowBytes,
+    representativePath,
+    rootKind,
+    confidence,
+    signature,
+  );
 
   Map<String, Object?> toJson() => {
-        'className': className,
-        if (libraryUri != null) 'libraryUri': libraryUri.toString(),
-        'instanceCount': instanceCount,
-        'retainedShallowBytes': retainedShallowBytes,
-        'representativePath': representativePath.toJson(),
-        'rootKind': rootKind.name,
-        'confidence': confidence.name,
-        'signature': signature,
-      };
+    'className': className,
+    if (libraryUri != null) 'libraryUri': libraryUri.toString(),
+    'instanceCount': instanceCount,
+    'retainedShallowBytes': retainedShallowBytes,
+    'representativePath': representativePath.toJson(),
+    'rootKind': rootKind.name,
+    'confidence': confidence.name,
+    'signature': signature,
+  };
 }

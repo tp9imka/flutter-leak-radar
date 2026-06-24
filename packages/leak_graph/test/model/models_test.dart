@@ -23,13 +23,22 @@ void main() {
 
   test('GraphLeakCluster carries count, bytes, confidence, signature', () {
     const path = GraphRetainingPath(
-        hops: [GraphHop(className: '_Timer'), GraphHop(className: 'HomeState')],
-        rootKind: RootKind.timer);
+      hops: [
+        GraphHop(className: '_Timer'),
+        GraphHop(className: 'HomeState'),
+      ],
+      rootKind: RootKind.timer,
+    );
     const c = GraphLeakCluster(
-        className: 'HomeState', libraryUri: null, instanceCount: 3,
-        retainedShallowBytes: 480, representativePath: path,
-        rootKind: RootKind.timer, confidence: LeakConfidence.heuristic,
-        signature: '_Timer>HomeState');
+      className: 'HomeState',
+      libraryUri: null,
+      instanceCount: 3,
+      retainedShallowBytes: 480,
+      representativePath: path,
+      rootKind: RootKind.timer,
+      confidence: LeakConfidence.heuristic,
+      signature: '_Timer>HomeState',
+    );
     expect(c.instanceCount, 3);
     expect(c.confidence, LeakConfidence.heuristic);
     expect(c.toJson()['signature'], '_Timer>HomeState');

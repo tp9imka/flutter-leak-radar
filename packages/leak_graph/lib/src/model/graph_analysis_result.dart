@@ -31,22 +31,22 @@ final class GraphAnalysisStats {
 
   @override
   int get hashCode => Object.hash(
-        totalObjects,
-        reachableObjects,
-        leakCandidates,
-        clusters,
-        suppressedByAppFilter,
-        Object.hashAll(warnings),
-      );
+    totalObjects,
+    reachableObjects,
+    leakCandidates,
+    clusters,
+    suppressedByAppFilter,
+    Object.hashAll(warnings),
+  );
 
   Map<String, Object?> toJson() => {
-        'totalObjects': totalObjects,
-        'reachableObjects': reachableObjects,
-        'leakCandidates': leakCandidates,
-        'clusters': clusters,
-        'suppressedByAppFilter': suppressedByAppFilter,
-        'warnings': [...warnings],
-      };
+    'totalObjects': totalObjects,
+    'reachableObjects': reachableObjects,
+    'leakCandidates': leakCandidates,
+    'clusters': clusters,
+    'suppressedByAppFilter': suppressedByAppFilter,
+    'warnings': [...warnings],
+  };
 }
 
 /// Top-level output of a heap analysis: detected clusters and run statistics.
@@ -67,9 +67,9 @@ final class GraphAnalysisResult {
   int get hashCode => Object.hash(stats, Object.hashAll(clusters));
 
   Map<String, Object?> toJson() => {
-        'clusters': [for (final c in clusters) c.toJson()],
-        'stats': stats.toJson(),
-      };
+    'clusters': [for (final c in clusters) c.toJson()],
+    'stats': stats.toJson(),
+  };
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {

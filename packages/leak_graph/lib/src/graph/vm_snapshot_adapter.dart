@@ -22,7 +22,9 @@ final class VmSnapshotGraphView implements HeapGraphView {
   @override
   HeapNode node(int id) {
     if (id < 0 || id >= _graph.objects.length) {
-      throw StateError('Node id $id out of range [0, ${_graph.objects.length})');
+      throw StateError(
+        'Node id $id out of range [0, ${_graph.objects.length})',
+      );
     }
     final obj = _graph.objects[id];
     final klass = obj.klass;
@@ -35,10 +37,7 @@ final class VmSnapshotGraphView implements HeapGraphView {
     );
   }
 
-  List<HeapEdge> _buildEdges(
-    HeapSnapshotObject obj,
-    HeapSnapshotClass klass,
-  ) {
+  List<HeapEdge> _buildEdges(HeapSnapshotObject obj, HeapSnapshotClass klass) {
     final refs = obj.references;
     if (refs.isEmpty) return const [];
 

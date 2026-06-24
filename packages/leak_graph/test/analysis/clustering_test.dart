@@ -4,8 +4,7 @@ import 'package:test/test.dart';
 void main() {
   final timerHop = const GraphHop(className: '_Timer');
   final listHop = const GraphHop(className: 'List', index: 4);
-  final stateHop =
-      const GraphHop(className: 'HomeState', field: 'state');
+  final stateHop = const GraphHop(className: 'HomeState', field: 'state');
 
   group('pathSignature', () {
     test('normalizes fields and array indices', () {
@@ -32,10 +31,7 @@ void main() {
     });
 
     test('truncates to last maxDepth hops', () {
-      final hops = List.generate(
-        15,
-        (i) => GraphHop(className: 'C$i'),
-      );
+      final hops = List.generate(15, (i) => GraphHop(className: 'C$i'));
       final sig = pathSignature(hops, maxDepth: 3);
       expect(sig, 'C12>C13>C14');
     });

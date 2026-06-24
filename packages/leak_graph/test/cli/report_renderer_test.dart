@@ -56,7 +56,10 @@ void main() {
       );
 
       const path = GraphRetainingPath(
-        hops: [GraphHop(className: '_Timer'), GraphHop(className: 'LeakedObj')],
+        hops: [
+          GraphHop(className: '_Timer'),
+          GraphHop(className: 'LeakedObj'),
+        ],
         rootKind: RootKind.timer,
       );
 

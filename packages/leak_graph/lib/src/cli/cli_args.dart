@@ -40,10 +40,7 @@ final _parser = ArgParser()
     defaultsTo: '50',
     help: 'Maximum number of clusters to display in the report.',
   )
-  ..addOption(
-    'json',
-    help: 'Write full JSON output to this file path.',
-  );
+  ..addOption('json', help: 'Write full JSON output to this file path.');
 
 /// Parses [argv] into a [CliConfig].
 ///
@@ -54,7 +51,9 @@ CliConfig parseCliArgs(List<String> argv) {
   try {
     results = _parser.parse(argv);
   } on ArgParserException catch (e) {
-    throw FormatException('${e.message}\n\nUsage: analyze <dump.data> [options]\n${_parser.usage}');
+    throw FormatException(
+      '${e.message}\n\nUsage: analyze <dump.data> [options]\n${_parser.usage}',
+    );
   }
 
   final rest = results.rest;

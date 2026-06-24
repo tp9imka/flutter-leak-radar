@@ -16,10 +16,7 @@ final class InMemoryHeapGraph implements HeapGraphView {
   /// Constructs a graph from a map of [nodes] keyed by their [HeapNode.id].
   ///
   /// [rootId] defaults to 0, matching the most common synthetic fixture shape.
-  factory InMemoryHeapGraph.of(
-    Map<int, HeapNode> nodes, {
-    int rootId = 0,
-  }) =>
+  factory InMemoryHeapGraph.of(Map<int, HeapNode> nodes, {int rootId = 0}) =>
       InMemoryHeapGraph._(Map.unmodifiable(nodes), rootId);
 
   @override

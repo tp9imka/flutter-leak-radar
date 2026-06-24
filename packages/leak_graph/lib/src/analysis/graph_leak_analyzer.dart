@@ -61,8 +61,8 @@ final class GraphLeakAnalyzer {
     final appSet = options.disableAppFilter
         ? null
         : (options.appPackages.isEmpty
-            ? AppPackageSet.autoDetect(allLibraryUris)
-            : AppPackageSet.from(options.appPackages));
+              ? AppPackageSet.autoDetect(allLibraryUris)
+              : AppPackageSet.from(options.appPackages));
 
     var reachableObjects = 0;
     final leakRecords = <LeakRecord>[];
@@ -110,18 +110,22 @@ final class GraphLeakAnalyzer {
       }).toList();
 
       final path = GraphRetainingPath(hops: hops, rootKind: rootKind);
-      final signature =
-          pathSignature(hops, maxDepth: options.maxSignatureDepth);
+      final signature = pathSignature(
+        hops,
+        maxDepth: options.maxSignatureDepth,
+      );
 
-      leakRecords.add(LeakRecord(
-        className: node.className,
-        libraryUri: node.libraryUri,
-        shallowSize: node.shallowSize,
-        path: path,
-        pathLibraries: pathLibraries,
-        rootKind: rootKind,
-        signature: signature,
-      ));
+      leakRecords.add(
+        LeakRecord(
+          className: node.className,
+          libraryUri: node.libraryUri,
+          shallowSize: node.shallowSize,
+          path: path,
+          pathLibraries: pathLibraries,
+          rootKind: rootKind,
+          signature: signature,
+        ),
+      );
     }
 
     final leakCandidates = leakRecords.length;
@@ -134,7 +138,8 @@ final class GraphLeakAnalyzer {
         kept.add(record);
         continue;
       }
-      final inApp = appSet.contains(record.libraryUri) ||
+      final inApp =
+          appSet.contains(record.libraryUri) ||
           record.pathLibraries.any(appSet.contains);
       if (inApp) {
         kept.add(record);
@@ -143,8 +148,7 @@ final class GraphLeakAnalyzer {
       }
     }
 
-    final clusters =
-        clusterLeaks(kept, minClusterSize: options.minClusterSize);
+    final clusters = clusterLeaks(kept, minClusterSize: options.minClusterSize);
 
     return GraphAnalysisResult(
       clusters: clusters,

@@ -21,10 +21,10 @@ final class GraphHop {
   int get hashCode => Object.hash(className, field, index);
 
   Map<String, Object?> toJson() => {
-        'className': className,
-        if (field != null) 'field': field,
-        if (index != null) 'index': index,
-      };
+    'className': className,
+    if (field != null) 'field': field,
+    if (index != null) 'index': index,
+  };
 }
 
 /// The chain of objects from a GC root down to the suspected leaked object.
@@ -45,9 +45,9 @@ final class GraphRetainingPath {
   int get hashCode => Object.hash(rootKind, Object.hashAll(hops));
 
   Map<String, Object?> toJson() => {
-        'rootKind': rootKind.name,
-        'hops': [for (final h in hops) h.toJson()],
-      };
+    'rootKind': rootKind.name,
+    'hops': [for (final h in hops) h.toJson()],
+  };
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {

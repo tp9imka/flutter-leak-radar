@@ -5,95 +5,95 @@ import '../support/in_memory_heap_graph.dart';
 
 // root(0) -> _Timer(1) -> List(2) -> HomeState(3), HomeState(4)
 InMemoryHeapGraph _timerGraph() => InMemoryHeapGraph.of({
-      0: HeapNode(
-        id: 0,
-        className: 'Root',
-        libraryUri: Uri.parse('dart:core'),
-        shallowSize: 0,
-        edges: const [HeapEdge(targetId: 1)],
-      ),
-      1: HeapNode(
-        id: 1,
-        className: '_Timer',
-        libraryUri: Uri.parse('dart:async'),
-        shallowSize: 64,
-        edges: const [HeapEdge(targetId: 2, field: '_list')],
-      ),
-      2: HeapNode(
-        id: 2,
-        className: 'List',
-        libraryUri: Uri.parse('dart:core'),
-        shallowSize: 32,
-        edges: const [
-          HeapEdge(targetId: 3, index: 0),
-          HeapEdge(targetId: 4, index: 1),
-        ],
-      ),
-      3: HeapNode(
-        id: 3,
-        className: 'HomeState',
-        libraryUri: Uri.parse('package:my_app/src/home.dart'),
-        shallowSize: 128,
-        edges: const [],
-      ),
-      4: HeapNode(
-        id: 4,
-        className: 'HomeState',
-        libraryUri: Uri.parse('package:my_app/src/home.dart'),
-        shallowSize: 128,
-        edges: const [],
-      ),
-    });
+  0: HeapNode(
+    id: 0,
+    className: 'Root',
+    libraryUri: Uri.parse('dart:core'),
+    shallowSize: 0,
+    edges: const [HeapEdge(targetId: 1)],
+  ),
+  1: HeapNode(
+    id: 1,
+    className: '_Timer',
+    libraryUri: Uri.parse('dart:async'),
+    shallowSize: 64,
+    edges: const [HeapEdge(targetId: 2, field: '_list')],
+  ),
+  2: HeapNode(
+    id: 2,
+    className: 'List',
+    libraryUri: Uri.parse('dart:core'),
+    shallowSize: 32,
+    edges: const [
+      HeapEdge(targetId: 3, index: 0),
+      HeapEdge(targetId: 4, index: 1),
+    ],
+  ),
+  3: HeapNode(
+    id: 3,
+    className: 'HomeState',
+    libraryUri: Uri.parse('package:my_app/src/home.dart'),
+    shallowSize: 128,
+    edges: const [],
+  ),
+  4: HeapNode(
+    id: 4,
+    className: 'HomeState',
+    libraryUri: Uri.parse('package:my_app/src/home.dart'),
+    shallowSize: 128,
+    edges: const [],
+  ),
+});
 
 // root(0) -> SomeWidget(1) -> SomeState(2): RootKind.other
 InMemoryHeapGraph _nonLeakProneGraph() => InMemoryHeapGraph.of({
-      0: HeapNode(
-        id: 0,
-        className: 'Root',
-        libraryUri: Uri.parse('dart:core'),
-        shallowSize: 0,
-        edges: const [HeapEdge(targetId: 1)],
-      ),
-      1: HeapNode(
-        id: 1,
-        className: 'SomeWidget',
-        libraryUri: Uri.parse('package:flutter/src/widgets.dart'),
-        shallowSize: 48,
-        edges: const [HeapEdge(targetId: 2, field: 'state')],
-      ),
-      2: HeapNode(
-        id: 2,
-        className: 'SomeState',
-        libraryUri: Uri.parse('package:my_app/src/some.dart'),
-        shallowSize: 96,
-        edges: const [],
-      ),
-    });
+  0: HeapNode(
+    id: 0,
+    className: 'Root',
+    libraryUri: Uri.parse('dart:core'),
+    shallowSize: 0,
+    edges: const [HeapEdge(targetId: 1)],
+  ),
+  1: HeapNode(
+    id: 1,
+    className: 'SomeWidget',
+    libraryUri: Uri.parse('package:flutter/src/widgets.dart'),
+    shallowSize: 48,
+    edges: const [HeapEdge(targetId: 2, field: 'state')],
+  ),
+  2: HeapNode(
+    id: 2,
+    className: 'SomeState',
+    libraryUri: Uri.parse('package:my_app/src/some.dart'),
+    shallowSize: 96,
+    edges: const [],
+  ),
+});
 
 // _Timer -> FrameworkClass in package:flutter only (no app packages)
 InMemoryHeapGraph _flutterOnlyLeakGraph() => InMemoryHeapGraph.of({
-      0: HeapNode(
-        id: 0,
-        className: 'Root',
-        libraryUri: Uri.parse('dart:core'),
-        shallowSize: 0,
-        edges: const [HeapEdge(targetId: 1)],
-      ),
-      1: HeapNode(
-        id: 1,
-        className: '_Timer',
-        libraryUri: Uri.parse('dart:async'),
-        shallowSize: 64,
-        edges: const [HeapEdge(targetId: 2, field: '_callback')],
-      ),
-      2: HeapNode(
-        id: 2,
-        className: 'FrameworkClass',
-        libraryUri: Uri.parse('package:flutter/src/widgets.dart'),
-        shallowSize: 80,
-        edges: const [],
-      ),
-    });
+  0: HeapNode(
+    id: 0,
+    className: 'Root',
+    libraryUri: Uri.parse('dart:core'),
+    shallowSize: 0,
+    edges: const [HeapEdge(targetId: 1)],
+  ),
+  1: HeapNode(
+    id: 1,
+    className: '_Timer',
+    libraryUri: Uri.parse('dart:async'),
+    shallowSize: 64,
+    edges: const [HeapEdge(targetId: 2, field: '_callback')],
+  ),
+  2: HeapNode(
+    id: 2,
+    className: 'FrameworkClass',
+    libraryUri: Uri.parse('package:flutter/src/widgets.dart'),
+    shallowSize: 80,
+    edges: const [],
+  ),
+});
 
 void main() {
   const analyzer = GraphLeakAnalyzer();
@@ -142,10 +142,7 @@ void main() {
       final graph = _flutterOnlyLeakGraph();
       final result = analyzer.analyze(
         graph,
-        const GraphAnalysisOptions(
-          disableAppFilter: true,
-          minClusterSize: 1,
-        ),
+        const GraphAnalysisOptions(disableAppFilter: true, minClusterSize: 1),
       );
 
       // Both _Timer (the retainer) and FrameworkClass (the retained) are

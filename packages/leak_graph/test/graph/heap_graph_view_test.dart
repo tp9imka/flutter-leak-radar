@@ -9,32 +9,29 @@ void main() {
 
     setUp(() {
       // 3-node graph: root(0) → node(1) → node(2)
-      graph = InMemoryHeapGraph.of(
-        {
-          0: HeapNode(
-            id: 0,
-            className: 'Root',
-            libraryUri: Uri.parse('dart:core'),
-            shallowSize: 0,
-            edges: [const HeapEdge(targetId: 1, field: 'child')],
-          ),
-          1: HeapNode(
-            id: 1,
-            className: 'Middle',
-            libraryUri: Uri.parse('package:app/src/middle.dart'),
-            shallowSize: 64,
-            edges: [const HeapEdge(targetId: 2, field: 'leaf')],
-          ),
-          2: HeapNode(
-            id: 2,
-            className: 'Leaf',
-            libraryUri: Uri.parse('package:app/src/leaf.dart'),
-            shallowSize: 32,
-            edges: [],
-          ),
-        },
-        rootId: 0,
-      );
+      graph = InMemoryHeapGraph.of({
+        0: HeapNode(
+          id: 0,
+          className: 'Root',
+          libraryUri: Uri.parse('dart:core'),
+          shallowSize: 0,
+          edges: [const HeapEdge(targetId: 1, field: 'child')],
+        ),
+        1: HeapNode(
+          id: 1,
+          className: 'Middle',
+          libraryUri: Uri.parse('package:app/src/middle.dart'),
+          shallowSize: 64,
+          edges: [const HeapEdge(targetId: 2, field: 'leaf')],
+        ),
+        2: HeapNode(
+          id: 2,
+          className: 'Leaf',
+          libraryUri: Uri.parse('package:app/src/leaf.dart'),
+          shallowSize: 32,
+          edges: [],
+        ),
+      }, rootId: 0);
     });
 
     test('nodeCount equals number of nodes', () {

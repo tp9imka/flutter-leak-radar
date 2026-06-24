@@ -14,7 +14,9 @@ String renderReport(GraphAnalysisResult result, {int top = 20}) {
   final suppressed = total - shown;
 
   final buf = StringBuffer();
-  buf.writeln('Leak clusters: $total found${suppressed > 0 ? ', $suppressed suppressed by --top limit' : ''}');
+  buf.writeln(
+    'Leak clusters: $total found${suppressed > 0 ? ', $suppressed suppressed by --top limit' : ''}',
+  );
   buf.writeln();
 
   for (var i = 0; i < shown; i++) {

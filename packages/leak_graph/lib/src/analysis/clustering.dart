@@ -28,7 +28,9 @@ final class LeakRecord {
 /// Takes the last [maxDepth] hops and joins them as `Class[.field]`,
 /// collapsing numeric array indices to `[]`.
 String pathSignature(List<GraphHop> hops, {int maxDepth = 12}) {
-  final tail = hops.length > maxDepth ? hops.sublist(hops.length - maxDepth) : hops;
+  final tail = hops.length > maxDepth
+      ? hops.sublist(hops.length - maxDepth)
+      : hops;
   final parts = tail.map((h) {
     if (h.index != null) return '${h.className}[]';
     if (h.field != null) return '${h.className}.${h.field}';
@@ -57,16 +59,18 @@ List<GraphLeakCluster> clusterLeaks(
     if (group.length < minClusterSize) continue;
     final first = group.first;
     final totalBytes = group.fold(0, (sum, r) => sum + r.shallowSize);
-    clusters.add(GraphLeakCluster(
-      className: first.className,
-      libraryUri: first.libraryUri,
-      instanceCount: group.length,
-      retainedShallowBytes: totalBytes,
-      representativePath: first.path,
-      rootKind: first.rootKind,
-      confidence: LeakConfidence.heuristic,
-      signature: entry.key,
-    ));
+    clusters.add(
+      GraphLeakCluster(
+        className: first.className,
+        libraryUri: first.libraryUri,
+        instanceCount: group.length,
+        retainedShallowBytes: totalBytes,
+        representativePath: first.path,
+        rootKind: first.rootKind,
+        confidence: LeakConfidence.heuristic,
+        signature: entry.key,
+      ),
+    );
   }
 
   clusters.sort((a, b) {

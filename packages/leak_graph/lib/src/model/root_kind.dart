@@ -10,19 +10,19 @@ enum RootKind {
 
   /// True when this root is a common source of accidental retention.
   bool get isLeakProne => switch (this) {
-        timer || stream || staticOrGlobal || closure || finalizer => true,
-        liveTree || other => false,
-      };
+    timer || stream || staticOrGlobal || closure || finalizer => true,
+    liveTree || other => false,
+  };
 
   String get label => switch (this) {
-        liveTree => 'LiveTree',
-        timer => 'Timer',
-        stream => 'Stream',
-        staticOrGlobal => 'Static/Global',
-        closure => 'Closure',
-        finalizer => 'Finalizer',
-        other => 'Other',
-      };
+    liveTree => 'LiveTree',
+    timer => 'Timer',
+    stream => 'Stream',
+    staticOrGlobal => 'Static/Global',
+    closure => 'Closure',
+    finalizer => 'Finalizer',
+    other => 'Other',
+  };
 }
 
 /// Confidence level of a detected leak cluster.
