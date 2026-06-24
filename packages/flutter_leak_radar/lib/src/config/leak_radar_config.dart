@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import '../model/leak_kind.dart';
 import '../util/rate_limited_logger.dart';
+import 'graph_scan.dart';
 import 'leak_rule.dart';
 import 'suspect_set.dart';
 
@@ -75,6 +76,7 @@ final class LeakRadarConfig {
     this.showOverlay = true,
     this.reportThreshold = LeakSeverity.info,
     this.preciseTracking = true,
+    this.graphScan,
   });
 
   /// Recommended constructor for production apps.
@@ -90,6 +92,7 @@ final class LeakRadarConfig {
     int maxSnapshots = 20,
     int gcCyclesForPreciseLeak = 3,
     Duration disposalGrace = const Duration(seconds: 2),
+    GraphScan? graphScan,
   }) => LeakRadarConfig(
     enabled: kDebugMode || kProfileMode,
     autoScan: autoScan,
@@ -98,6 +101,7 @@ final class LeakRadarConfig {
     maxSnapshots: maxSnapshots,
     gcCyclesForPreciseLeak: gcCyclesForPreciseLeak,
     disposalGrace: disposalGrace,
+    graphScan: graphScan,
   );
 
   /// Master on/off switch. When false the engine is never started and every
@@ -150,6 +154,9 @@ final class LeakRadarConfig {
   /// is cleared. Defaults to `true`.
   final bool preciseTracking;
 
+  /// Optional live object-graph analysis config. Null disables graph scanning.
+  final GraphScan? graphScan;
+
   LeakRadarConfig copyWith({
     bool? enabled,
     AutoScan? autoScan,
@@ -163,6 +170,7 @@ final class LeakRadarConfig {
     bool? showOverlay,
     LeakSeverity? reportThreshold,
     bool? preciseTracking,
+    GraphScan? graphScan,
   }) => LeakRadarConfig(
     enabled: enabled ?? this.enabled,
     autoScan: autoScan ?? this.autoScan,
@@ -178,6 +186,7 @@ final class LeakRadarConfig {
     showOverlay: showOverlay ?? this.showOverlay,
     reportThreshold: reportThreshold ?? this.reportThreshold,
     preciseTracking: preciseTracking ?? this.preciseTracking,
+    graphScan: graphScan ?? this.graphScan,
   );
 
   @override
@@ -194,7 +203,8 @@ final class LeakRadarConfig {
       other.logLevel == logLevel &&
       other.showOverlay == showOverlay &&
       other.reportThreshold == reportThreshold &&
-      other.preciseTracking == preciseTracking;
+      other.preciseTracking == preciseTracking &&
+      other.graphScan == graphScan;
 
   @override
   int get hashCode => Object.hash(
@@ -210,5 +220,6 @@ final class LeakRadarConfig {
     showOverlay,
     reportThreshold,
     preciseTracking,
+    graphScan,
   );
 }
