@@ -181,7 +181,9 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
                             onDismissed: (_) => setState(
                               () => _dismissed.add(f.className),
                             ),
-                            background: const _DismissBackground(),
+                            background: const SizedBox.shrink(),
+                            secondaryBackground:
+                                const _DismissBackground(),
                             child: _FindingRow(finding: f),
                           );
                         },
@@ -277,7 +279,10 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
               case _HeapMenuAction.clearLeaks:
                 LeakRadar.clearLeaks();
                 if (mounted) {
-                  setState(() => _report = LeakRadar.latest);
+                  setState(() {
+                    _dismissed.clear();
+                    _report = LeakRadar.latest;
+                  });
                 }
             }
           },
