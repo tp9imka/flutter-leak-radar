@@ -32,4 +32,21 @@ void main() {
       expect(base.hashCode == changed.hashCode, isFalse);
     });
   });
+
+  group('LeakRadarConfig.standard precise tuning', () {
+    test('defaults match production values', () {
+      final c = LeakRadarConfig.standard();
+      expect(c.gcCyclesForPreciseLeak, 3);
+      expect(c.disposalGrace, const Duration(seconds: 2));
+    });
+
+    test('forwards gcCyclesForPreciseLeak and disposalGrace', () {
+      final c = LeakRadarConfig.standard(
+        gcCyclesForPreciseLeak: 1,
+        disposalGrace: const Duration(seconds: 1),
+      );
+      expect(c.gcCyclesForPreciseLeak, 1);
+      expect(c.disposalGrace, const Duration(seconds: 1));
+    });
+  });
 }

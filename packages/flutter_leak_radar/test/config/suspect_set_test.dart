@@ -42,5 +42,11 @@ void main() {
       expect(s.ruleFor('OtherBloc')?.mode, LeakDetectionMode.maxLive);
       expect(s.ruleFor('OtherBloc')?.maxLive, 1);
     });
+
+    test('defaults() *Timer matches the VM private _Timer impl class', () {
+      final s = SuspectSet.defaults();
+      expect(s.ruleFor('_Timer')?.mode, LeakDetectionMode.growth);
+      expect(s.ruleFor('Timer')?.mode, LeakDetectionMode.growth);
+    });
   });
 }

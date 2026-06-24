@@ -475,7 +475,7 @@ class _Chip extends StatelessWidget {
             fontSize: 11.5,
             fontWeight: FontWeight.w500,
             color: active
-                ? LeakRadarColors.pageBg
+                ? LeakRadarColors.text100
                 : LeakRadarColors.text40,
           ),
         ),

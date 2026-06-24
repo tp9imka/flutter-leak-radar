@@ -81,12 +81,16 @@ final class LeakRadarConfig {
   /// Recommended constructor for production apps.
   ///
   /// Sets [enabled] to `kDebugMode || kProfileMode`, uses
-  /// [SuspectSet.defaults], and applies [rules] on top.
+  /// [SuspectSet.defaults], and applies [rules] on top. [gcCyclesForPreciseLeak]
+  /// and [disposalGrace] tune how quickly [LeakRadar.markDisposed] objects are
+  /// reported; the production defaults trade latency for fewer false positives.
   factory LeakRadarConfig.standard({
     AutoScan autoScan = const AutoScan(),
     List<LeakRule> rules = const <LeakRule>[],
     SuspectSet? suspects,
     int maxSnapshots = 20,
+    int gcCyclesForPreciseLeak = 3,
+    Duration disposalGrace = const Duration(seconds: 2),
   }) =>
       LeakRadarConfig(
         enabled: kDebugMode || kProfileMode,
@@ -94,6 +98,8 @@ final class LeakRadarConfig {
         suspects: suspects ?? SuspectSet.defaults(),
         rules: rules,
         maxSnapshots: maxSnapshots,
+        gcCyclesForPreciseLeak: gcCyclesForPreciseLeak,
+        disposalGrace: disposalGrace,
       );
 
   /// Master on/off switch. When false the engine is never started and every

@@ -18,12 +18,18 @@ Future<void> main() async {
   await LeakRadar.init(LeakRadarConfig.standard(
     autoScan: const AutoScan(
       onNavigation: true,
-      period: Duration(seconds: 20),
+      period: Duration(seconds: 8),
     ),
+    // Surface precise (track + markDisposed) leaks quickly in the demo:
+    // 1 GC cycle + 1s grace, instead of the 3-cycle / 2s production defaults.
+    // This is why popping a leaky screen once flags it within a scan or two.
+    gcCyclesForPreciseLeak: 1,
+    disposalGrace: const Duration(seconds: 1),
     rules: const [
-      // Flag _LeakyScreenState if more than 1 instance is live at once.
+      // Heap-growth rules. These need REPEATED visits to trip: maxLive fires
+      // only when >1 _LeakyScreenState is live at once, and growth needs
+      // LeakyCubit's instance count to climb across >=2 scans.
       LeakRule.maxLive('_LeakyScreenState', 1),
-      // Flag LeakyCubit on any growth (it should be gone after pop).
       LeakRule.growth('LeakyCubit'),
     ],
   ));

@@ -21,10 +21,12 @@ final class SuspectSet {
   /// Curated defaults for common Flutter/Dart leak-prone types.
   ///
   /// Covers `*State`, `*Screen`, `*Bloc`, `*Cubit`, `*Controller`,
-  /// `*Notifier`, `*StreamSubscription`, `*StreamController`, and `Timer`.
+  /// `*Notifier`, `*StreamSubscription`, `*StreamController`, and `*Timer`.
   ///
-  /// (`*State` rather than `State` so concrete subclasses like
-  /// `_HomeScreenState` match — refines the spec's `State` entry.)
+  /// (Suffix globs rather than exact names so concrete subclasses and the VM's
+  /// private implementation classes match — e.g. `*State` catches
+  /// `_HomeScreenState`, and `*Timer` catches the `_Timer` instance returned by
+  /// `Timer.periodic`, which an exact `Timer` rule would miss.)
   factory SuspectSet.defaults() => const SuspectSet(<LeakRule>[
         LeakRule.growth('*State'),
         LeakRule.growth('*Screen'),
@@ -34,7 +36,7 @@ final class SuspectSet {
         LeakRule.growth('*Notifier'),
         LeakRule.growth('*StreamSubscription'),
         LeakRule.growth('*StreamController'),
-        LeakRule.growth('Timer'),
+        LeakRule.growth('*Timer'),
       ]);
 
   /// The ordered list of rules in this set.
