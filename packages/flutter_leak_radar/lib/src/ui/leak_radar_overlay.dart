@@ -14,6 +14,11 @@ import 'theme/theme.dart';
 
 /// Wraps [child] and floats a draggable pill badge showing the current worst
 /// severity and finding count. Returns [child] unchanged when [show] is false.
+///
+/// Safe to place ABOVE [MaterialApp] — the overlay owns its own
+/// [Directionality] and opens the inspector via a self-contained nested
+/// [MaterialApp] layer, so it never calls [Navigator.of] on a context that
+/// has no Navigator ancestor.
 class LeakRadarOverlay extends StatefulWidget {
   const LeakRadarOverlay({
     super.key,
@@ -42,6 +47,9 @@ class _LeakRadarOverlayState extends State<LeakRadarOverlay>
 
   LeakReport? _report;
   StreamSubscription<LeakReport>? _sub;
+
+  /// Whether the full-screen inspector layer is visible.
+  bool _inspectorOpen = false;
 
   late final AnimationController _pulseController;
   late final Animation<double> _scaleAnim;
@@ -98,6 +106,20 @@ class _LeakRadarOverlayState extends State<LeakRadarOverlay>
           ),
       };
 
+  /// Dark [ThemeData] for the self-contained inspector [MaterialApp].
+  ThemeData _buildInspectorTheme() => ThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: LeakRadarColors.pageBg,
+        colorScheme: const ColorScheme.dark(
+          primary: LeakRadarColors.accent,
+          surface: LeakRadarColors.cardBg,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: LeakRadarColors.appBarBg,
+          elevation: 0,
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     if (!widget.show) return widget.child;
@@ -117,7 +139,10 @@ class _LeakRadarOverlayState extends State<LeakRadarOverlay>
     final hasFindings = count > 0;
     final severity = hasFindings ? report?.worstSeverity : null;
     final colors = _badgeColors(severity);
-    final animationsDisabled = MediaQuery.disableAnimationsOf(context);
+
+    // MediaQuery may not be available when placed above MaterialApp — guard.
+    final animationsDisabled =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
     if (hasFindings && !animationsDisabled) {
       if (!_pulseController.isAnimating) _pulseController.repeat();
@@ -209,36 +234,52 @@ class _LeakRadarOverlayState extends State<LeakRadarOverlay>
       badgeContent = pill;
     }
 
-    return Stack(
-      children: [
-        widget.child,
-        Positioned(
-          right: _right,
-          bottom: _bottom,
-          child: GestureDetector(
-            key: const Key('leak_radar_badge'),
-            onPanUpdate: (details) {
-              setState(() {
-                _right =
-                    (_right - details.delta.dx).clamp(0, double.infinity);
-                _bottom =
-                    (_bottom - details.delta.dy).clamp(0, double.infinity);
-              });
-            },
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const LeakRadarScreen(),
+    // Directionality is required by Stack/Text when placed above MaterialApp.
+    // The host MaterialApp supplies its own Directionality internally —
+    // wrapping it here does not affect the host app tree.
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Stack(
+        children: [
+          widget.child,
+          // Full-screen inspector layer — self-contained with its own
+          // MaterialApp so Navigator / Theme / ScaffoldMessenger are available
+          // for the entire inspector flow (sub-routes, sheets, snackbars).
+          if (_inspectorOpen)
+            Positioned.fill(
+              child: MaterialApp(
+                debugShowCheckedModeBanner: false,
+                theme: _buildInspectorTheme(),
+                home: LeakRadarScreen(
+                  onClose: () => setState(() => _inspectorOpen = false),
                 ),
-              );
-            },
-            onLongPress: () {
-              LeakRadar.scan();
-            },
-            child: badgeContent,
-          ),
-        ),
-      ],
+              ),
+            ),
+          // Badge is hidden while the inspector is open so it does not float
+          // above the full-screen layer.
+          if (!_inspectorOpen)
+            Positioned(
+              right: _right,
+              bottom: _bottom,
+              child: GestureDetector(
+                key: const Key('leak_radar_badge'),
+                onPanUpdate: (details) {
+                  setState(() {
+                    _right = (_right - details.delta.dx)
+                        .clamp(0, double.infinity);
+                    _bottom = (_bottom - details.delta.dy)
+                        .clamp(0, double.infinity);
+                  });
+                },
+                onTap: () => setState(() => _inspectorOpen = true),
+                onLongPress: () {
+                  LeakRadar.scan();
+                },
+                child: badgeContent,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

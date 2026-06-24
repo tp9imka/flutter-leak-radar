@@ -250,4 +250,76 @@ void main() {
       expect(find.byKey(const Key('leak_radar_pulse')), findsNothing);
     });
   });
+
+  group('LeakRadarOverlay above MaterialApp (real-usage shape)', () {
+    testWidgets(
+        'renders without exception above MaterialApp (real-usage shape)',
+        (tester) async {
+      await tester.pumpWidget(
+        LeakRadarOverlay(
+          show: true,
+          initialReport: LeakReport(
+            findings: const [],
+            capturedAt: DateTime.now(),
+            trigger: 'test',
+            status: LeakRadarStatus.active,
+          ),
+          child: MaterialApp(home: Scaffold(body: Text('app'))),
+        ),
+      );
+      await tester.pump();
+      expect(find.byKey(const Key('leak_radar_badge')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('tapping badge opens LeakRadarScreen above MaterialApp',
+        (tester) async {
+      await tester.pumpWidget(
+        LeakRadarOverlay(
+          show: true,
+          initialReport: LeakReport(
+            findings: const [],
+            capturedAt: DateTime.now(),
+            trigger: 'test',
+            status: LeakRadarStatus.active,
+          ),
+          child: MaterialApp(home: Scaffold(body: Text('app'))),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('leak_radar_badge')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Leak Radar'), findsOneWidget);
+    });
+
+    testWidgets('inspector closes when onClose is triggered', (tester) async {
+      await tester.pumpWidget(
+        LeakRadarOverlay(
+          show: true,
+          initialReport: LeakReport(
+            findings: const [],
+            capturedAt: DateTime.now(),
+            trigger: 'test',
+            status: LeakRadarStatus.active,
+          ),
+          child: MaterialApp(home: Scaffold(body: Text('app'))),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('leak_radar_badge')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Leak Radar'), findsOneWidget);
+
+      // Close via the leading close button.
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('leak_radar_badge')), findsOneWidget);
+      expect(find.text('Leak Radar'), findsNothing);
+    });
+  });
 }
