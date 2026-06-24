@@ -9,6 +9,7 @@ import '../model/leak_report.dart';
 import '../leak_radar.dart';
 import 'finding_detail_screen.dart';
 import 'growth_sparkline.dart';
+import 'settings_screen.dart';
 import 'theme/theme.dart';
 
 /// Brand-themed results screen. Push it from anywhere:
@@ -234,13 +235,7 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
           tooltip: 'Settings',
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => Scaffold(
-                backgroundColor: LeakRadarColors.pageBg,
-                appBar: AppBar(
-                  title: const Text('Settings'),
-                  backgroundColor: LeakRadarColors.appBarBg,
-                ),
-              ),
+              builder: (_) => const SettingsScreen(),
             ),
           ),
         ),
