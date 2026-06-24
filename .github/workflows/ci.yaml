@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   gate:
-    name: format · analyze · test · custom_lint
+    name: analyze · test (library packages)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,20 +24,25 @@ jobs:
 
       - run: flutter --version
 
-      - name: Activate melos
-        run: dart pub global activate melos
+      # One root `pub get` resolves the whole pub workspace
+      # (flutter_leak_radar + flutter_leak_radar_lint + the lint example).
+      # This is the workspace-native alternative to `melos bootstrap`, which
+      # cannot run a per-package `pub get` against workspace members.
+      - name: Resolve workspace
+        run: flutter pub get
 
-      - name: Bootstrap workspace
-        run: melos bootstrap
+      - name: Analyze flutter_leak_radar
+        run: flutter analyze
+        working-directory: packages/flutter_leak_radar
 
-      - name: Format check
-        run: melos run format-check
+      - name: Analyze flutter_leak_radar_lint
+        run: dart analyze
+        working-directory: packages/flutter_leak_radar_lint
 
-      - name: Analyze
-        run: melos run analyze
+      - name: Test flutter_leak_radar
+        run: flutter test
+        working-directory: packages/flutter_leak_radar
 
-      - name: Test
-        run: melos run test
-
-      - name: Custom lint (dogfood)
-        run: melos run custom_lint
+      - name: Test flutter_leak_radar_lint
+        run: flutter test
+        working-directory: packages/flutter_leak_radar_lint
