@@ -1,6 +1,8 @@
 // test/ui/leak_radar_overlay_test.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_leak_radar/src/config/leak_radar_config.dart';
+import 'package:flutter_leak_radar/src/leak_radar.dart';
 import 'package:flutter_leak_radar/src/ui/leak_radar_overlay.dart';
 import 'package:flutter_leak_radar/src/model/leak_kind.dart';
 import 'package:flutter_leak_radar/src/model/leak_finding.dart';
@@ -112,6 +114,100 @@ void main() {
       expect(find.byKey(const Key('leak_radar_badge')), findsOneWidget);
       // Badge shows count "1 leaks".
       expect(find.text('1 leaks'), findsOneWidget);
+    });
+
+    testWidgets(
+        'toggling showOverlay off hides badge on a mounted overlay',
+        (tester) async {
+      // LeakRadar.updateConfig updates _configNotifier even without an engine.
+      await LeakRadar.dispose();
+      LeakRadar.updateConfig(
+        const LeakRadarConfig(showOverlay: true),
+      );
+
+      final report = LeakReport(
+        findings: [
+          const LeakFinding(
+            className: 'HomeBloc',
+            kind: LeakKind.growth,
+            severity: LeakSeverity.critical,
+            liveCount: 2,
+            growth: 1,
+          ),
+        ],
+        capturedAt: DateTime.now(),
+        trigger: 'manual',
+        status: LeakRadarStatus.active,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LeakRadarOverlay(
+            show: true,
+            initialReport: report,
+            child: const Scaffold(body: SizedBox()),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byKey(const Key('leak_radar_badge')), findsOneWidget);
+
+      LeakRadar.updateConfig(
+        const LeakRadarConfig(showOverlay: false),
+      );
+      await tester.pump();
+
+      expect(find.byKey(const Key('leak_radar_badge')), findsNothing);
+
+      // Restore default state so other tests are unaffected.
+      await LeakRadar.dispose();
+    });
+
+    testWidgets(
+        'toggling showOverlay on shows badge on a mounted overlay',
+        (tester) async {
+      await LeakRadar.dispose();
+      LeakRadar.updateConfig(
+        const LeakRadarConfig(showOverlay: false),
+      );
+
+      final report = LeakReport(
+        findings: [
+          const LeakFinding(
+            className: 'HomeBloc',
+            kind: LeakKind.growth,
+            severity: LeakSeverity.warning,
+            liveCount: 1,
+            growth: 1,
+          ),
+        ],
+        capturedAt: DateTime.now(),
+        trigger: 'manual',
+        status: LeakRadarStatus.active,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LeakRadarOverlay(
+            show: true,
+            initialReport: report,
+            child: const Scaffold(body: SizedBox()),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byKey(const Key('leak_radar_badge')), findsNothing);
+
+      LeakRadar.updateConfig(
+        const LeakRadarConfig(showOverlay: true),
+      );
+      await tester.pump();
+
+      expect(find.byKey(const Key('leak_radar_badge')), findsOneWidget);
+
+      await LeakRadar.dispose();
     });
 
     testWidgets(

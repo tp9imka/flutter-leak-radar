@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../config/leak_radar_config.dart';
 import '../model/leak_kind.dart';
 import '../model/leak_report.dart';
 import '../leak_radar.dart';
@@ -101,6 +102,16 @@ class _LeakRadarOverlayState extends State<LeakRadarOverlay>
   Widget build(BuildContext context) {
     if (!widget.show) return widget.child;
 
+    return ValueListenableBuilder<LeakRadarConfig>(
+      valueListenable: LeakRadar.configListenable,
+      builder: (context, config, _) {
+        if (!config.showOverlay) return widget.child;
+        return _buildOverlay(context);
+      },
+    );
+  }
+
+  Widget _buildOverlay(BuildContext context) {
     final report = _report;
     final count = report?.findings.length ?? 0;
     final hasFindings = count > 0;
