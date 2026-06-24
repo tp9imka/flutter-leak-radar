@@ -116,24 +116,16 @@ void main() {
       expect(find.byTooltip('Settings'), findsOneWidget);
     });
 
-    testWidgets(
-        'Export button calls exportToFile and shows snackbar',
-        (tester) async {
-      await LeakRadar.scan();
-
+    testWidgets('Export button opens LeakExportSheet', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(home: LeakRadarScreen()),
       );
       await tester.pump();
 
-      await tester.runAsync(() async {
-        await tester.tap(find.byTooltip('Export'));
-        await Future<void>.delayed(const Duration(milliseconds: 200));
-      });
-      await tester.pump();
+      await tester.tap(find.byTooltip('Export'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(LeakExportSheet), findsOneWidget);
     });
 
     testWidgets('empty state is shown when no findings', (tester) async {
