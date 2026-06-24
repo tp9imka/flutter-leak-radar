@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flutter Leak Radar — Catch leaks twice</title>
+  <meta name="description" content="A static custom_lint plugin plus an on-device runtime detector. Catch Flutter memory leaks before they ship and while they run.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Ambient backdrop -->
+  <div class="backdrop-glow" aria-hidden="true"></div>
+  <div class="backdrop-grid" aria-hidden="true"></div>
+
+  <!-- ============ NAV ============ -->
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a href="#top" class="nav-brand">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+          <circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/>
+          <circle cx="13" cy="13" r="7" stroke="rgba(47,227,155,0.55)" stroke-width="1"/>
+          <circle cx="13" cy="13" r="2.4" fill="#2fe39b"/>
+          <path d="M13 13 L13 1.5 A11.5 11.5 0 0 1 22.6 8 Z" fill="rgba(47,227,155,0.22)"/>
+        </svg>
+        <span class="nav-wordmark">Leak&nbsp;Radar</span>
+        <span class="nav-pill">FLUTTER</span>
+      </a>
+      <div class="nav-links">
+        <a href="#how" class="nav-link">How it works</a>
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#install" class="nav-link">Install</a>
+        <a href="https://github.com/tp9imka/flutter-leak-radar" class="btn-github" target="_blank" rel="noopener">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============ HERO ============ -->
+  <header id="top" class="hero-section">
+    <div class="container">
+      <div class="hero-layout">
+
+        <!-- Left column -->
+        <div class="hero-left">
+          <div class="eyebrow-pill" data-reveal>
+            <span class="eyebrow-dot"></span>
+            Open-source memory-leak toolkit
+          </div>
+
+          <h1 class="hero-h1" data-reveal>
+            Catch Flutter<br>
+            leaks <span class="hero-accent">twice<svg class="squiggle" width="100%" height="9" viewBox="0 0 120 9" preserveAspectRatio="none" aria-hidden="true"><path d="M2 5 Q 30 1 60 5 T 118 4" stroke="#2fe39b" stroke-width="2.4" fill="none" stroke-linecap="round" opacity="0.7"/></svg></span>.
+          </h1>
+
+          <p class="hero-sub" data-reveal>
+            Before they ship, and while they run. A static lint that stops leak-prone code at analysis time — plus an on-device detector that finds the leaks that slip through. <span class="hero-emphasis">Zero config. No mixins. A complete no-op in release.</span>
+          </p>
+
+          <div class="hero-cta" data-reveal>
+            <a href="#install" class="btn-primary">Get started <span class="mono-arrow">→</span></a>
+            <a href="#how" class="btn-ghost">See how it works</a>
+          </div>
+
+          <div class="install-chip" data-reveal>
+            <span class="chip-dollar">$</span>
+            <span><span class="chip-cyan">flutter</span> pub add <span class="chip-green">dev:flutter_leak_radar</span></span>
+            <span class="chip-divider"></span>
+            <span class="chip-muted">debug + profile only</span>
+          </div>
+        </div>
+
+        <!-- Right column: radar + device card -->
+        <div class="hero-right">
+
+          <!-- Radar instrument -->
+          <div class="radar-instrument" aria-hidden="true">
+            <div class="radar-ring radar-ring-1"></div>
+            <div class="radar-ring radar-ring-2"></div>
+            <div class="radar-ring radar-ring-3"></div>
+            <div class="radar-ring radar-ring-4"></div>
+            <div class="radar-crosshair-h"></div>
+            <div class="radar-crosshair-v"></div>
+            <div class="radar-sweep" data-sweep></div>
+            <div class="radar-pulse" data-ring-pulse></div>
+            <div class="radar-blip blip-critical" data-blip></div>
+            <div class="radar-blip blip-warning" data-blip></div>
+            <div class="radar-blip blip-info" data-blip></div>
+          </div>
+
+          <!-- Findings device card -->
+          <div class="findings-card" data-reveal>
+            <div class="findings-header">
+              <div class="findings-title">
+                <svg width="15" height="15" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+                  <circle cx="13" cy="13" r="11" stroke="rgba(47,227,155,0.45)" stroke-width="1.4"/>
+                  <circle cx="13" cy="13" r="2.4" fill="#2fe39b"/>
+                </svg>
+                <span class="findings-label">Leak findings</span>
+              </div>
+              <span class="findings-timestamp">scan 14:32</span>
+            </div>
+
+            <div class="findings-rows">
+              <!-- CRITICAL -->
+              <div class="finding-row row-critical">
+                <span class="finding-bar bar-critical"></span>
+                <div class="finding-content">
+                  <div class="finding-top">
+                    <span class="finding-class">ChatRoomController</span>
+                    <span class="finding-delta delta-critical">+48</span>
+                  </div>
+                  <div class="finding-bottom">
+                    <span class="severity-tag tag-critical">CRITICAL</span>
+                    <svg width="74" height="20" viewBox="0 0 74 20" fill="none" style="overflow:visible;" aria-hidden="true">
+                      <path data-draw d="M1 18 L13 17 L25 14 L37 11 L49 7 L61 4 L73 1.5" stroke="#ff5d6c" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <!-- WARNING -->
+              <div class="finding-row">
+                <span class="finding-bar bar-warning"></span>
+                <div class="finding-content">
+                  <div class="finding-top">
+                    <span class="finding-class finding-class-dim">VideoPlayerController</span>
+                    <span class="finding-delta delta-warning">+6</span>
+                  </div>
+                  <div class="finding-bottom">
+                    <span class="severity-tag tag-warning">WARNING</span>
+                    <svg width="74" height="20" viewBox="0 0 74 20" fill="none" style="overflow:visible;" aria-hidden="true">
+                      <path data-draw d="M1 16 L13 17 L25 13 L37 14 L49 10 L61 9 L73 6" stroke="#f5b54a" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <!-- INFO -->
+              <div class="finding-row">
+                <span class="finding-bar bar-info"></span>
+                <div class="finding-content">
+                  <div class="finding-top">
+                    <span class="finding-class finding-class-dim">_PresenceSubscription</span>
+                    <span class="finding-delta delta-info">+3</span>
+                  </div>
+                  <div class="finding-bottom">
+                    <span class="severity-tag tag-info">INFO</span>
+                    <svg width="74" height="20" viewBox="0 0 74 20" fill="none" style="overflow:visible;" aria-hidden="true">
+                      <path data-draw d="M1 15 L13 14 L25 15 L37 12 L49 13 L61 11 L73 10" stroke="#5ad1e6" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="findings-footer">
+              <span class="findings-count">3 classes · 57 instances</span>
+              <span class="findings-scan-now">Scan now ↺</span>
+            </div>
+          </div>
+
+          <!-- Draggable overlay badge -->
+          <div class="overlay-badge" data-float aria-label="3 leaks detected">
+            <span class="badge-dot"></span>
+            3 leaks
+            <span class="badge-drag">⠿</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Duality strip -->
+      <div class="duality-strip" data-reveal>
+        <div class="duality-cell">
+          <span class="duality-tag tag-cyan">BEFORE SHIP</span>
+          <p class="duality-text"><span class="duality-strong">Static lint.</span> 7 rules with auto-fixes catch leak-prone code in your editor, at analysis time.</p>
+        </div>
+        <div class="duality-cell">
+          <span class="duality-tag tag-green">WHILE RUNNING</span>
+          <p class="duality-text"><span class="duality-strong">Runtime detector.</span> Inspects the live heap on a real device and brings the signal to you.</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ PROBLEM ============ -->
+  <section id="problem" class="section">
+    <div class="container">
+      <div class="problem-layout">
+        <div class="problem-left">
+          <div class="eyebrow amber" data-reveal>The problem</div>
+          <h2 class="section-h2" data-reveal>Memory growth is invisible — until it isn't.</h2>
+          <p class="body-text" data-reveal>Leaks don't crash on commit. They accumulate. A controller here, a subscription there, a screen that quietly never lets go. Hours later your real-time app is sluggish and OOM-killed in the field — and the trace points at nothing.</p>
+          <p class="body-text muted" data-reveal>DevTools can find it, if you know to go looking. Most teams don't — until a user does.</p>
+        </div>
+
+        <div class="heap-chart-card" data-reveal>
+          <div class="heap-chart-header">
+            <span class="heap-chart-title">Heap usage · 90 min session</span>
+            <span class="heap-chart-delta">↑ 312 MB</span>
+          </div>
+          <svg viewBox="0 0 420 180" width="100%" height="auto" fill="none" preserveAspectRatio="none"
+               aria-label="Chart showing heap memory steadily growing over a 90-minute session, culminating in an out-of-memory kill"
+               style="overflow:visible;">
+            <line x1="0" y1="45" x2="420" y2="45" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+            <line x1="0" y1="90" x2="420" y2="90" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+            <line x1="0" y1="135" x2="420" y2="135" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+            <path data-draw d="M0 165 L30 158 L48 168 L70 150 L92 160 L116 138 L140 148 L168 122 L190 132 L214 104 L240 114 L268 84 L292 94 L320 62 L346 72 L372 40 L398 50 L420 22"
+                  stroke="#ff5d6c" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="heap-chart-labels">
+            <span>00:00</span><span>app feels fine →</span><span>OOM</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TWO HALVES ============ -->
+  <section class="section section-two-halves">
+    <div class="container">
+      <div class="two-halves-header" data-reveal>
+        <div class="eyebrow green">Catch leaks twice</div>
+        <h2 class="section-h2 centered">Two halves of the same fix.</h2>
+      </div>
+
+      <div class="two-halves-layout">
+        <!-- LINT card -->
+        <div class="half-card half-lint" data-reveal>
+          <div class="half-card-deco" aria-hidden="true"></div>
+          <div class="half-card-icon-row">
+            <div class="icon-tile icon-tile-cyan">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#5ad1e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 12l2 2 4-4"/>
+                <path d="M21 12c.55 0 1-.45.97-1A10 10 0 0 0 12 2"/>
+                <circle cx="12" cy="12" r="10"/>
+              </svg>
+            </div>
+            <div>
+              <div class="half-label cyan">STATIC · custom_lint</div>
+              <h3 class="half-h3">Stop it before it ships</h3>
+            </div>
+          </div>
+          <p class="body-text">7 rules with auto-fixes flag the classics right in your editor — and they're false-positive-disciplined, so they understand idiomatic disposal.</p>
+          <ul class="rule-list">
+            <li><span class="rule-arrow cyan">›</span> Undisposed controllers</li>
+            <li><span class="rule-arrow cyan">›</span> Uncancelled <code>StreamSubscription</code> &amp; <code>Timer</code></li>
+            <li><span class="rule-arrow cyan">›</span> Unclosed <code>StreamController</code></li>
+            <li><span class="rule-arrow cyan">›</span> Discarded <code>.listen()</code> results &amp; missing <code>removeListener</code></li>
+            <li><span class="rule-arrow cyan">›</span> Bloc subscriptions never cancelled in <code>close()</code></li>
+          </ul>
+          <div class="half-footer">Understands <span class="code-inline">if</span> / <span class="code-inline">try</span> disposal, injected fields &amp; locals.</div>
+        </div>
+
+        <!-- Center connector -->
+        <div class="connector-node" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="1.6" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"/>
+            <circle cx="12" cy="12" r="7.5" opacity="0.5"/>
+          </svg>
+        </div>
+
+        <!-- RUNTIME card -->
+        <div class="half-card half-runtime" data-reveal>
+          <div class="half-card-deco" aria-hidden="true"></div>
+          <div class="half-card-icon-row">
+            <div class="icon-tile icon-tile-green">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+              </svg>
+            </div>
+            <div>
+              <div class="half-label green">RUNTIME · on-device</div>
+              <h3 class="half-h3">Catch what slips through</h3>
+            </div>
+          </div>
+          <p class="body-text">Inspects the live heap via the Dart VM service. Tracks per-class live-instance growth across forced-GC captures and flags classes that grow and never return.</p>
+          <ul class="rule-list">
+            <li><span class="rule-arrow green">›</span> One <code>LeakRadar.init(...)</code> — no mixins, no interfaces</li>
+            <li><span class="rule-arrow green">›</span> Draggable badge: live worst-severity + count</li>
+            <li><span class="rule-arrow green">›</span> Findings with sparklines &amp; retaining paths</li>
+            <li><span class="rule-arrow green">›</span> Scan now, periodic, or auto on screen-pop</li>
+            <li><span class="rule-arrow green">›</span> Export findings as JSON / Markdown</li>
+          </ul>
+          <div class="half-footer">Precise opt-in: <span class="code-inline">track(obj)</span> / <span class="code-inline">markDisposed(obj)</span>.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HOW IT WORKS ============ -->
+  <section id="how" class="section section-bordered">
+    <div class="container">
+      <div class="section-intro" data-reveal>
+        <div class="eyebrow green">How it works</div>
+        <h2 class="section-h2">Drop it in. Get signal.</h2>
+      </div>
+
+      <div class="how-grid">
+        <div class="how-card" data-reveal>
+          <div class="how-number green-tint">01</div>
+          <h3 class="how-h3">Add it</h3>
+          <p class="body-text">Two dev-dependencies and one <code>init</code> call. No mixins to add, nothing to extend, nothing to implement on your own types.</p>
+        </div>
+        <div class="how-card" data-reveal>
+          <div class="how-number cyan-tint">02</div>
+          <h3 class="how-h3">Run &amp; analyze</h3>
+          <p class="body-text">The lint flags leak-prone code as you type. The detector watches the live heap as you use the app — manually, periodically, or on every screen-pop.</p>
+        </div>
+        <div class="how-card" data-reveal>
+          <div class="how-number amber-tint">03</div>
+          <h3 class="how-h3">See leaks</h3>
+          <p class="body-text">A draggable badge shows worst severity + count. Tap for findings: severity, growth sparklines, and lazily-fetched retaining paths from gc-root to object.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FEATURE BENTO ============ -->
+  <section id="features" class="section">
+    <div class="container">
+      <div class="section-intro" data-reveal>
+        <div class="eyebrow amber">What's inside</div>
+        <h2 class="section-h2">A toolkit, not a checkbox.</h2>
+      </div>
+
+      <div class="bento-grid">
+
+        <!-- Zero-config: full width -->
+        <div class="bento-card bento-full bento-zero-config" data-reveal>
+          <div class="bento-zero-left">
+            <div class="bento-label green">ZERO-CONFIG DETECTION</div>
+            <h3 class="bento-h3">It tracks instance growth so you don't have to.</h3>
+            <p class="body-text">Per-class live-instance counts across forced-GC captures. Screens, blocs, controllers, subscriptions, timers — anything that grows and never returns gets flagged, automatically.</p>
+          </div>
+          <div class="bar-chart" aria-hidden="true">
+            <span class="bar bar-1"></span>
+            <span class="bar bar-2"></span>
+            <span class="bar bar-3"></span>
+            <span class="bar bar-4 bar-peak"></span>
+          </div>
+        </div>
+
+        <!-- Retaining paths: span 7 -->
+        <div class="bento-card bento-7" data-reveal>
+          <div class="bento-card-header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5ad1e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/>
+              <path d="M7 7l4 4M13 13l4 4M11 11h2v2"/>
+            </svg>
+            <h3 class="bento-h3-sm">Retaining paths, on demand</h3>
+          </div>
+          <p class="body-text">Lazily fetched, so capture stays cheap. See exactly what's holding the reference — gc-root → field → … → object.</p>
+          <div class="retaining-path-block">
+            <div><span class="path-cyan">GC root</span> <span class="path-faint">(static)</span></div>
+            <div class="path-indent-1"><span class="path-faint">└─</span> _ChatService.<span class="path-green">_active</span></div>
+            <div class="path-indent-2"><span class="path-faint">└─</span> List&lt;<span class="path-cyan">ChatRoomController</span>&gt;</div>
+            <div class="path-indent-3"><span class="path-faint">└─</span> <span class="path-red">ChatRoomController</span> <span class="path-faint">← leaked</span></div>
+          </div>
+        </div>
+
+        <!-- Triggers: span 5 -->
+        <div class="bento-card bento-5" data-reveal>
+          <div class="bento-card-header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5"/>
+            </svg>
+            <h3 class="bento-h3-sm">Triggers that fit your flow</h3>
+          </div>
+          <p class="body-text">A <code>NavigatorObserver</code> scans on screen-pop — the natural "this should be gone now" checkpoint.</p>
+          <div class="trigger-chips">
+            <span class="trigger-chip">Scan now</span>
+            <span class="trigger-chip">Periodic</span>
+            <span class="trigger-chip trigger-chip-active">On screen-pop</span>
+          </div>
+        </div>
+
+        <!-- Export: span 4 -->
+        <div class="bento-card bento-4" data-reveal>
+          <div class="bento-card-header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f5b54a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/>
+              <path d="M12 3v13M7 8l5-5 5 5"/>
+            </svg>
+            <h3 class="bento-h3-sm">Export &amp; share</h3>
+          </div>
+          <p class="body-text">Findings as JSON or Markdown, shareable straight from the device — into a bug, a PR, a thread.</p>
+        </div>
+
+        <!-- Heap snapshot: span 4 -->
+        <div class="bento-card bento-4" data-reveal>
+          <div class="bento-card-header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5ad1e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 4h12l4 4v12a0 0 0 0 1 0 0H4z"/>
+              <path d="M16 4v4h4M8 13h8M8 17h8"/>
+            </svg>
+            <h3 class="bento-h3-sm">Full heap snapshot</h3>
+          </div>
+          <p class="body-text">Capture a real <code>.dartheap</code> to file for offline DevTools or standalone analysis.</p>
+        </div>
+
+        <!-- Safe by construction: span 4 -->
+        <div class="bento-card bento-4 bento-safe" data-reveal>
+          <div class="bento-card-header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5z"/>
+              <path d="M9 12l2 2 4-4"/>
+            </svg>
+            <h3 class="bento-h3-sm">Safe by construction</h3>
+          </div>
+          <p class="body-text">Never throws into your app. Never measurably slows it. Fully tree-shaken out of release builds.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ REAL CODE ============ -->
+  <section class="section section-bordered">
+    <div class="container">
+      <div class="section-intro" data-reveal>
+        <div class="eyebrow green">Real code</div>
+        <h2 class="section-h2">This is the whole integration.</h2>
+      </div>
+
+      <!-- Tab toggle -->
+      <div class="tab-bar" data-reveal role="tablist" aria-label="Code example tabs">
+        <button type="button" class="tab-btn tab-active" id="tab-runtime" role="tab" aria-selected="true" aria-controls="panel-runtime">Runtime detector</button>
+        <button type="button" class="tab-btn" id="tab-lint" role="tab" aria-selected="false" aria-controls="panel-lint">Lint diagnostic</button>
+      </div>
+
+      <div class="code-layout" data-reveal>
+
+        <!-- Editor pane -->
+        <div class="code-editor-pane" role="tabpanel" id="panel-runtime" aria-labelledby="tab-runtime">
+          <div class="editor-titlebar">
+            <span class="traffic-dot td-red"></span>
+            <span class="traffic-dot td-yellow"></span>
+            <span class="traffic-dot td-green"></span>
+            <span class="editor-filename" id="code-filename">main.dart</span>
+          </div>
+
+          <!-- Runtime tab code -->
+          <pre class="code-block" id="code-runtime"><code><span class="c-comment">// main.dart — one call, no base classes</span>
+<span class="c-kw">import</span> <span class="c-str">'package:flutter_leak_radar/flutter_leak_radar.dart'</span>;
+
+<span class="c-type">Future</span>&lt;<span class="c-type">void</span>&gt; <span class="c-fn">main</span>() <span class="c-kw">async</span> {
+  <span class="c-type">WidgetsFlutterBinding</span>.<span class="c-fn">ensureInitialized</span>();
+  <span class="c-kw">await</span> <span class="c-type">LeakRadar</span>.<span class="c-fn">init</span>(<span class="c-type">LeakRadarConfig</span>.<span class="c-fn">standard</span>(
+    autoScan: <span class="c-kw">const</span> <span class="c-type">AutoScan</span>(
+      onNavigation: <span class="c-bool">true</span>,             <span class="c-comment">// scan when a route pops</span>
+      period: <span class="c-type">Duration</span>(seconds: <span class="c-bool">20</span>),
+    ),
+    suspects: <span class="c-type">SuspectSet</span>.<span class="c-fn">defaults</span>(),
+  ));
+  <span class="c-fn">runApp</span>(<span class="c-kw">const</span> _<span class="c-type">App</span>());
+}
+
+<span class="c-comment">// In your widget tree:</span>
+<span class="c-type">LeakRadar</span>.<span class="c-fn">overlay</span>(child: <span class="c-kw">const</span> <span class="c-type">MyApp</span>())
+<span class="c-comment">// NavigatorObserver:</span>
+navigatorObservers: [<span class="c-type">LeakRadar</span>.navigatorObserver]
+
+<span class="c-comment">// optional precise opt-in — two calls, that's it</span>
+<span class="c-type">LeakRadar</span>.<span class="c-fn">track</span>(controller, tag: <span class="c-str">'ChatRoom'</span>);
+<span class="c-type">LeakRadar</span>.<span class="c-fn">markDisposed</span>(controller);</code></pre>
+
+          <!-- Lint tab code (hidden initially) -->
+          <pre class="code-block hidden" id="code-lint"><code><span class="c-comment">// chat_screen.dart</span>
+<span class="c-kw">class</span> <span class="c-type">_ChatScreenState</span> <span class="c-kw">extends</span> <span class="c-type">State</span>&lt;<span class="c-type">ChatScreen</span>&gt; {
+  <span class="c-kw">final</span> <span class="c-leaked">_controller</span> = <span class="c-type">TextEditingController</span>();
+
+  <span class="c-comment">// 🛑 leak_radar: TextEditingController is never</span>
+  <span class="c-comment">//    disposed. Add dispose() or use auto-fix.</span>
+
+  @override
+  <span class="c-type">Widget</span> <span class="c-fn">build</span>(<span class="c-type">BuildContext</span> context) =&gt; <span class="c-comment">/* ... */</span>;
+}</code></pre>
+        </div>
+
+        <!-- Side detail pane -->
+        <div class="code-side-pane" data-reveal>
+          <!-- Runtime side -->
+          <div class="side-card" id="side-runtime">
+            <div class="side-label green">WHAT YOU SEE ON DEVICE</div>
+            <div class="badge-demo amber-badge">
+              <span class="badge-dot amber-dot"></span>
+              2 leaks
+              <span class="badge-drag-sm">⠿</span>
+            </div>
+            <p class="body-text">The badge floats over your running app, draggable anywhere. Worst-severity color, live count. Tap to open the full findings screen.</p>
+          </div>
+          <!-- Lint side (hidden initially) -->
+          <div class="side-card hidden" id="side-lint">
+            <div class="side-label cyan">QUICK FIX AVAILABLE</div>
+            <div class="diff-block">
+              <div class="diff-line diff-add">+ @override</div>
+              <div class="diff-line diff-add">+ void dispose() {</div>
+              <div class="diff-line diff-add diff-indent">_controller.dispose();</div>
+              <div class="diff-line diff-add diff-indent">super.dispose();</div>
+              <div class="diff-line diff-add">+ }</div>
+            </div>
+            <p class="body-text">Every rule ships an auto-fix. Disposal placed in <code>dispose()</code>, one keystroke away.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ INSTALL ============ -->
+  <section id="install" class="section section-bordered">
+    <div class="container">
+      <div class="install-layout">
+
+        <div class="install-left" data-reveal>
+          <div class="eyebrow green">Install</div>
+          <h2 class="section-h2">Three edits, then you're hunting.</h2>
+          <p class="body-text">Both halves live in one project. Add the dependencies, enable the plugin, call <code>init</code>. It runs in debug &amp; profile and disappears entirely from release.</p>
+          <a href="https://pub.dev/packages/flutter_leak_radar" class="btn-primary" target="_blank" rel="noopener">View on pub.dev <span class="mono-arrow">→</span></a>
+        </div>
+
+        <div class="install-right" data-reveal>
+
+          <div class="install-card">
+            <div class="install-card-header">
+              <span>pubspec.yaml</span><span class="install-card-num">1 / 3</span>
+            </div>
+            <pre class="code-block-sm"><code><span class="c-type">dev_dependencies</span>:
+  <span class="c-str">flutter_leak_radar</span>: ^0.0.1
+  <span class="c-str">flutter_leak_radar_lint</span>: ^0.0.1
+  <span class="c-str">custom_lint</span>: ^0.8.1</code></pre>
+          </div>
+
+          <div class="install-card">
+            <div class="install-card-header">
+              <span>analysis_options.yaml</span><span class="install-card-num">2 / 3</span>
+            </div>
+            <pre class="code-block-sm"><code><span class="c-type">analyzer</span>:
+  <span class="c-type">plugins</span>:
+    - <span class="c-str">custom_lint</span></code></pre>
+          </div>
+
+          <div class="install-card">
+            <div class="install-card-header">
+              <span>main.dart</span><span class="install-card-num">3 / 3</span>
+            </div>
+            <pre class="code-block-sm"><code><span class="c-kw">await</span> <span class="c-type">LeakRadar</span>.<span class="c-fn">init</span>(<span class="c-type">LeakRadarConfig</span>.<span class="c-fn">standard</span>(
+  autoScan: <span class="c-kw">const</span> <span class="c-type">AutoScan</span>(onNavigation: <span class="c-bool">true</span>),
+  suspects: <span class="c-type">SuspectSet</span>.<span class="c-fn">defaults</span>(),
+));
+<span class="c-fn">runApp</span>(<span class="c-type">LeakRadar</span>.<span class="c-fn">overlay</span>(child: <span class="c-kw">const</span> <span class="c-type">MyApp</span>()));</code></pre>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-main">
+        <div class="footer-brand">
+          <div class="footer-logo">
+            <svg width="24" height="24" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+              <circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/>
+              <circle cx="13" cy="13" r="7" stroke="rgba(47,227,155,0.55)" stroke-width="1"/>
+              <circle cx="13" cy="13" r="2.4" fill="#2fe39b"/>
+            </svg>
+            <span class="footer-wordmark">Leak Radar</span>
+          </div>
+          <p class="footer-tagline">Catch Flutter leaks twice — before they ship, and while they run. Runs in debug &amp; profile. A complete no-op in release.</p>
+        </div>
+
+        <div class="footer-links">
+          <div class="footer-link-group">
+            <div class="footer-link-heading">Project</div>
+            <a href="https://github.com/tp9imka/flutter-leak-radar" class="footer-link" target="_blank" rel="noopener">GitHub</a>
+            <a href="https://pub.dev/packages/flutter_leak_radar" class="footer-link" target="_blank" rel="noopener">pub.dev</a>
+            <a href="https://github.com/tp9imka/flutter-leak-radar#readme" class="footer-link" target="_blank" rel="noopener">Documentation</a>
+          </div>
+          <div class="footer-link-group">
+            <div class="footer-link-heading">On this page</div>
+            <a href="#how" class="footer-link">How it works</a>
+            <a href="#features" class="footer-link">Features</a>
+            <a href="#install" class="footer-link">Install</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <span class="footer-meta">MIT licensed · open source</span>
+        <span class="footer-meta">Built by someone who's hunted these leaks.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>
