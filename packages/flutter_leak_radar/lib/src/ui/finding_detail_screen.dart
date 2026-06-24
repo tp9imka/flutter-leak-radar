@@ -80,7 +80,9 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
         children: [
           _buildSeverityStrip(),
           _buildStatCards(),
-          _buildBarChart(),
+          widget.finding.series.isEmpty
+              ? _buildPrecisePanel()
+              : _buildBarChart(),
           _buildRetainingPath(),
           _buildBottomRow(),
         ],
@@ -116,8 +118,10 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
             _SeverityTag(severity: widget.finding.severity),
             const SizedBox(width: 8),
             Text(
-              'grew +$_growth over '
-              '${widget.finding.series.length} captures',
+              widget.finding.series.isEmpty
+                  ? 'still live after disposal'
+                  : 'grew +$_growth over '
+                      '${widget.finding.series.length} captures',
               style: GoogleFonts.jetBrainsMono(
                 fontSize: 12,
                 color: LeakRadarColors.text40,
@@ -145,7 +149,7 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
               Expanded(
                 child: _StatCard(
                   label: 'NET GROWTH',
-                  value: '+$_growth',
+                  value: widget.finding.series.isEmpty ? '—' : '+$_growth',
                   valueColor: LeakRadarColors.text100,
                 ),
               ),
@@ -248,6 +252,38 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
       ),
     );
   }
+
+  Widget _buildPrecisePanel() => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Container(
+          decoration: BoxDecoration(
+            color: LeakRadarColors.cardBg,
+            border: Border.all(color: LeakRadarColors.border08),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Precise tracking',
+                style: LeakRadarText.title.copyWith(fontSize: 14),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Confirmed still live after disposal via WeakReference '
+                'tracking. Precise findings carry no capture history — the '
+                'retaining path below explains what holds the object.',
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 11.5,
+                  height: 1.5,
+                  color: LeakRadarColors.text40,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 
   Widget _buildRetainingPath() => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

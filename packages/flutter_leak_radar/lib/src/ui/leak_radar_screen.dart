@@ -690,7 +690,7 @@ class _BottomBar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             children: [
-              Flexible(
+              Expanded(
                 child: Text(
                   '${filteredFindings.length} classes · $instanceTotal instances',
                   overflow: TextOverflow.ellipsis,
