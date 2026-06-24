@@ -5,6 +5,7 @@ import '../model/leak_finding.dart';
 import 'export_sheet.dart';
 import '../model/leak_kind.dart';
 import '../model/retaining_path.dart';
+import 'leak_kind_label.dart';
 import 'theme/theme.dart';
 
 /// Detail screen for a single [LeakFinding].
@@ -118,15 +119,29 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
   Widget _buildSeverityStrip() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SeverityTag(severity: widget.finding.severity),
         const SizedBox(width: 8),
-        Text(
-          widget.finding.series.isEmpty
-              ? 'still live after disposal'
-              : 'grew +$_growth over '
-                    '${widget.finding.series.length} captures',
-          style: monoFont(fontSize: 12, color: LeakRadarColors.text40),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.finding.kind.label,
+                style: monoFont(fontSize: 12, color: LeakRadarColors.text80),
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                widget.finding.series.isEmpty
+                    ? 'still live after disposal'
+                    : 'grew +$_growth over '
+                          '${widget.finding.series.length} captures',
+                style: monoFont(fontSize: 11, color: LeakRadarColors.text40),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ],
     ),
