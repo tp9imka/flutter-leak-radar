@@ -221,6 +221,7 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
   AppBar _buildAppBar() {
     return AppBar(
       backgroundColor: LeakRadarColors.appBarBg,
+      foregroundColor: LeakRadarColors.text100,
       elevation: 0,
       leading: widget.onClose != null
           ? IconButton(

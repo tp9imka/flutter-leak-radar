@@ -92,12 +92,14 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
 
   AppBar _buildAppBar() => AppBar(
         backgroundColor: LeakRadarColors.appBarBg,
+        foregroundColor: LeakRadarColors.text100,
         elevation: 0,
         title: Text(
           widget.finding.className,
           style: GoogleFonts.jetBrainsMono(
             fontSize: 14,
             fontWeight: FontWeight.w600,
+            color: LeakRadarColors.text100,
           ),
           overflow: TextOverflow.ellipsis,
         ),
