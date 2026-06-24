@@ -252,6 +252,11 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
                 if (!_scanning && !_collectingHeap) _collectHeapSnapshot();
               case _HeapMenuAction.share:
                 if (!_scanning) _showExportSheet(context);
+              case _HeapMenuAction.clearLeaks:
+                LeakRadar.clearLeaks();
+                if (mounted) {
+                  setState(() => _report = LeakRadar.latest);
+                }
             }
           },
           itemBuilder: (_) => [
@@ -273,6 +278,15 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
                 ),
               ),
             ),
+            PopupMenuItem(
+              value: _HeapMenuAction.clearLeaks,
+              child: Text(
+                'Clear leaks',
+                style: LeakRadarText.label.copyWith(
+                  color: LeakRadarColors.text100,
+                ),
+              ),
+            ),
           ],
         ),
         const SizedBox(width: 4),
@@ -281,7 +295,7 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
   }
 }
 
-enum _HeapMenuAction { heapSnapshot, share }
+enum _HeapMenuAction { heapSnapshot, share, clearLeaks }
 
 // ── Icon button ───────────────────────────────────────────────────────────────
 

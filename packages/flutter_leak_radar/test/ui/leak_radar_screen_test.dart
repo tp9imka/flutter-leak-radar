@@ -258,6 +258,47 @@ void main() {
     });
   });
 
+  // ── Clear leaks ───────────────────────────────────────────────────────────
+
+  group('Clear leaks', () {
+    testWidgets(
+      'tapping Clear leaks in overflow menu empties the list',
+      (tester) async {
+        final probe = FakeHeapProbe([
+          snap({'HomeBloc': 1}),
+          snap({'HomeBloc': 2}),
+          snap({'HomeBloc': 3}),
+        ]);
+        final engine = LeakEngine(
+          probe: probe,
+          analyzer: const LeakAnalyzer(
+            SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+          ),
+        );
+        await LeakRadar.debugInstall(engine);
+        await LeakRadar.scan();
+        await LeakRadar.scan();
+        await LeakRadar.scan();
+
+        await tester.pumpWidget(
+          const MaterialApp(home: LeakRadarScreen()),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('HomeBloc'), findsOneWidget);
+
+        await tester.tap(find.byTooltip('More'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Clear leaks'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('HomeBloc'), findsNothing);
+        expect(find.text('No leaks detected'), findsOneWidget);
+      },
+    );
+  });
+
   // ── Summary row ───────────────────────────────────────────────────────────
 
   group('summary row', () {

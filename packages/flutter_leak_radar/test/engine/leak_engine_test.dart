@@ -1,6 +1,7 @@
 // test/engine/leak_engine_test.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_leak_radar/src/analysis/leak_analyzer.dart';
+import 'package:flutter_leak_radar/src/analysis/sample_history.dart';
 import 'package:flutter_leak_radar/src/config/leak_radar_config.dart';
 import 'package:flutter_leak_radar/src/config/leak_rule.dart';
 import 'package:flutter_leak_radar/src/config/suspect_set.dart';
@@ -184,6 +185,57 @@ void main() {
   //                growth >= 1 (non-monotonic) → warning
   //   Produce warning: snapshots [2, 1, 3] on *Bloc → non-monotonic, growth=2 → warning
   //   Produce critical: snapshots [1, 2, 3] on *Bloc → monotonic, growth=2 → critical
+  group('LeakEngine.clearLeaks', () {
+    test(
+      'clearLeaks empties registry and history, emits empty report',
+      () async {
+        final probe = FakeHeapProbe([
+          snap({'HomeBloc': 1}, 1),
+          snap({'HomeBloc': 2}, 2),
+          snap({'HomeBloc': 3}, 3),
+        ]);
+        final engine = engineWith(probe);
+        await engine.start();
+
+        final emitted = <LeakReport>[];
+        final sub = engine.reports.listen(emitted.add);
+
+        await engine.scan();
+        await engine.scan();
+        await engine.scan();
+
+        engine.clearLeaks();
+        // Two microtask yields let the broadcast stream deliver the event.
+        await Future<void>.value();
+        await Future<void>.value();
+
+        expect(emitted.last.findings, isEmpty);
+        expect(emitted.last.trigger, 'clear');
+
+        await sub.cancel();
+        await engine.stop();
+      },
+    );
+
+    test('SampleHistory.clear empties snapshots', () {
+      final history = SampleHistory();
+      history.add(
+        HeapSnapshot(
+          capturedAt: DateTime(2026),
+          samples: const [],
+        ),
+      );
+      expect(history.length, 1);
+      history.clear();
+      expect(history.length, 0);
+    });
+
+    test('LeakRadar.clearLeaks is no-op when engine is null', () async {
+      await LeakRadar.dispose();
+      expect(() => LeakRadar.clearLeaks(), returnsNormally);
+    });
+  });
+
   group('reportThreshold filtering', () {
     // Helper: engine configured with the given threshold.
     LeakEngine engineWithThreshold(
