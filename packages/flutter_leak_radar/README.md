@@ -143,6 +143,44 @@ Glob: `*X` = ends with X, `X*` = starts with X, `*X*` = contains X,
 
 ---
 
+## Manual heap snapshot
+
+Capture a full binary heap snapshot at any point during a debug or profile run:
+
+```dart
+final path = await LeakRadar.captureHeapSnapshotToFile();
+if (path != null) {
+  print('Heap snapshot written to: $path');
+}
+```
+
+The file is named `leak_radar_heap_<timestamp>.data` and is written to
+`Directory.systemTemp` by default. Pass a `directory` argument to write
+elsewhere:
+
+```dart
+final dir = Directory('/path/to/output');
+final path = await LeakRadar.captureHeapSnapshotToFile(directory: dir);
+```
+
+The `.data` file is a `dartheap` binary snapshot that can be loaded into:
+
+- **Flutter DevTools** — open the Memory tab, click *Import*, and select the
+  file to inspect the object graph interactively.
+- **The repository's standalone heap analyser** — see `tools/heap_analyzer/`
+  for CLI-based diffing and class-level summaries.
+
+No VM-service connection is required — the snapshot is written directly via
+`dart:developer`'s `NativeRuntime.writeHeapSnapshotToFile`. The method returns
+`null` (never throws) when the platform does not support it (release builds,
+web, non-standalone VM).
+
+`LeakRadarScreen` also exposes a **Collect heap snapshot** button (memory chip
+icon) in its app bar that writes the snapshot and offers a Share sheet to send
+the file directly from the device.
+
+---
+
 ## Debug/profile-only guarantee
 
 The engine starts only when `kDebugMode || kProfileMode` is true (via

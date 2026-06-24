@@ -9,6 +9,7 @@ import 'analysis/leak_analyzer.dart';
 import 'analysis/sample_history.dart';
 import 'config/leak_radar_config.dart';
 import 'engine/heap_probe.dart';
+import 'engine/heap_snapshot_file.dart';
 import 'engine/leak_engine.dart';
 import 'engine/vm_heap_probe.dart';
 import 'model/leak_kind.dart';
@@ -223,6 +224,31 @@ abstract final class LeakRadar {
         await file.writeAsString(content);
         return file.path;
       }, fallback: null, logger: _logger);
+
+  /// Writes a binary heap snapshot to a file and returns the absolute path.
+  ///
+  /// The snapshot is written using `dart:developer`'s
+  /// [NativeRuntime.writeHeapSnapshotToFile] — no VM-service connection is
+  /// required. The file is named `leak_radar_heap_<timestamp>.data` and can
+  /// be opened with Flutter DevTools (Memory › Import) or with the repository's
+  /// standalone heap analyser.
+  ///
+  /// Returns `null` when:
+  /// - the engine is disabled or not initialised,
+  /// - the platform does not support heap snapshots (product mode, web,
+  ///   non-standalone VM),
+  /// - any other error occurs (always swallowed — never throws into the host).
+  ///
+  /// [directory] overrides the destination; it defaults to
+  /// [Directory.systemTemp] when omitted.
+  static Future<String?> captureHeapSnapshotToFile({Directory? directory}) {
+    if (!kEngineEnabled || _engine == null) return Future.value(null);
+    return runSafelyAsync<String?>(
+      () => writeHeapSnapshotFile(directory: directory),
+      fallback: null,
+      logger: _logger,
+    );
+  }
 
   /// Stops the engine and releases all resources.
   ///
