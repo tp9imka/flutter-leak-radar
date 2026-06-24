@@ -23,21 +23,22 @@ class SampleHistory {
   int get length => _snapshots.length;
 
   Set<String> get classNames => {
-        for (final s in _snapshots)
-          for (final sample in s.samples) sample.className,
-      };
+    for (final s in _snapshots)
+      for (final sample in s.samples) sample.className,
+  };
 
   /// Live-instance counts oldest→newest; 0 where the class is absent.
   List<int> seriesFor(String className) => [
-        for (final s in _snapshots) _countIn(s, className),
-      ];
+    for (final s in _snapshots) _countIn(s, className),
+  ];
 
   int latestCountFor(String className) =>
       _snapshots.isEmpty ? 0 : _countIn(_snapshots.last, className);
 
   /// [capturedAt] timestamps oldest→newest, parallel to [seriesFor].
-  List<DateTime> get captureTimestamps =>
-      [for (final s in _snapshots) s.capturedAt];
+  List<DateTime> get captureTimestamps => [
+    for (final s in _snapshots) s.capturedAt,
+  ];
 
   int _countIn(HeapSnapshot s, String className) {
     for (final sample in s.samples) {

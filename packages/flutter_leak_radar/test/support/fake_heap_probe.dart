@@ -32,8 +32,7 @@ class FakeHeapProbe implements HeapProbe {
   Future<RetainingPathView?> retainingPath(
     String className, {
     int maxInstances = 10,
-  }) async =>
-      path;
+  }) async => path;
 
   @override
   Future<void> dispose() async {}

@@ -9,8 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'package:flutter_leak_radar/flutter_leak_radar.dart'
-    show LeakSeverity;
+import 'package:flutter_leak_radar/flutter_leak_radar.dart' show LeakSeverity;
 import 'package:flutter_leak_radar/src/ui/theme/theme.dart';
 
 // Suppresses google_fonts async font-load errors in tests.
@@ -47,16 +46,22 @@ void main() {
     test('all severity variants have non-zero alpha tag background', () {
       for (final sev in LeakSeverity.values) {
         final tokens = severityTokens(sev);
-        expect(tokens.tagBg.a, greaterThan(0),
-            reason: '$sev tagBg should have some opacity');
+        expect(
+          tokens.tagBg.a,
+          greaterThan(0),
+          reason: '$sev tagBg should have some opacity',
+        );
       }
     });
 
     test('all severity variants have non-zero alpha row background', () {
       for (final sev in LeakSeverity.values) {
         final tokens = severityTokens(sev);
-        expect(tokens.rowBg.a, greaterThan(0),
-            reason: '$sev rowBg should have some opacity');
+        expect(
+          tokens.rowBg.a,
+          greaterThan(0),
+          reason: '$sev rowBg should have some opacity',
+        );
       }
     });
   });
@@ -149,9 +154,7 @@ void main() {
     testWidgets('renders without throwing at default size', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: Center(child: RadarGlyph()),
-          ),
+          home: Scaffold(body: Center(child: RadarGlyph())),
         ),
       );
       expect(find.byType(RadarGlyph), findsOneWidget);
@@ -160,9 +163,7 @@ void main() {
     testWidgets('renders at custom size 48', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: Center(child: RadarGlyph(size: 48)),
-          ),
+          home: Scaffold(body: Center(child: RadarGlyph(size: 48))),
         ),
       );
       expect(find.byType(RadarGlyph), findsOneWidget);

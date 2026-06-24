@@ -43,33 +43,41 @@ class LeakAnalyzer {
         final baseline = series.reduce((a, b) => a < b ? a : b);
         growth = liveCount - baseline;
         tripped = switch (rule.mode) {
-          LeakDetectionMode.maxLive => rule.maxLive != null && liveCount > rule.maxLive!,
+          LeakDetectionMode.maxLive =>
+            rule.maxLive != null && liveCount > rule.maxLive!,
           LeakDetectionMode.ignore => false,
           LeakDetectionMode.growth => false, // handled above
         };
       }
       if (!tripped) continue;
 
-      findings.add(LeakFinding(
-        className: className,
-        kind: LeakKind.growth,
-        severity: computeSeverity(
-          mode: rule.mode,
-          growth: growth,
+      findings.add(
+        LeakFinding(
+          className: className,
+          kind: LeakKind.growth,
+          severity: computeSeverity(
+            mode: rule.mode,
+            growth: growth,
+            liveCount: liveCount,
+            maxLive: rule.maxLive,
+            monotonic: monotonic,
+            hint: rule.severityHint,
+          ),
           liveCount: liveCount,
-          maxLive: rule.maxLive,
-          monotonic: monotonic,
-          hint: rule.severityHint,
+          growth: growth,
+          series: series,
+          captureTimes: history.captureTimestamps,
         ),
-        liveCount: liveCount,
-        growth: growth,
-        series: series,
-        captureTimes: history.captureTimestamps,
-      ));
+      );
     }
 
     findings.sort((a, b) => b.severity.index.compareTo(a.severity.index));
-    return LeakReport(findings: findings, capturedAt: DateTime.now(), trigger: trigger, status: status);
+    return LeakReport(
+      findings: findings,
+      capturedAt: DateTime.now(),
+      trigger: trigger,
+      status: status,
+    );
   }
 
   static bool _isMonotonic(List<int> series) {

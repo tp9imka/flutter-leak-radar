@@ -48,9 +48,10 @@ class _LeakyScreenState extends State<LeakyScreen> {
     LeakRadar.track(this, tag: 'LeakyScreen');
 
     // Pattern 2: assign subscription to field, never cancel it.
-    _subscription = Stream.periodic(const Duration(seconds: 1), (i) => i).listen((_) {
-      _onStream();
-    });
+    _subscription = Stream.periodic(const Duration(seconds: 1), (i) => i)
+        .listen((_) {
+          _onStream();
+        });
 
     // Pattern 3: start periodic timer, never cancel it.
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {

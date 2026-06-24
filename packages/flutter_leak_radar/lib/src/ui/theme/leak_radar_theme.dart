@@ -50,10 +50,6 @@ abstract final class LeakRadarTheme {
 
   // ── Elevation / shadow ───────────────────────────────────────────────────────
   static const List<BoxShadow> cardShadow = [
-    BoxShadow(
-      color: Color(0x33000000),
-      blurRadius: 16,
-      offset: Offset(0, 4),
-    ),
+    BoxShadow(color: Color(0x33000000), blurRadius: 16, offset: Offset(0, 4)),
   ];
 }

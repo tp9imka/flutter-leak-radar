@@ -30,8 +30,8 @@ class LeakRadarNavigatorObserver extends NavigatorObserver {
   LeakRadarNavigatorObserver({
     required Future<void> Function() onScan,
     Duration debounce = const Duration(milliseconds: 500),
-  })  : _onScan = onScan,
-        _debounce = debounce;
+  }) : _onScan = onScan,
+       _debounce = debounce;
 
   final Future<void> Function() _onScan;
   final Duration _debounce;

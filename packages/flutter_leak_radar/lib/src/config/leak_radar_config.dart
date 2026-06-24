@@ -38,12 +38,11 @@ final class AutoScan {
     bool? onNavigation,
     Duration? period,
     Duration? navigationDebounce,
-  }) =>
-      AutoScan(
-        onNavigation: onNavigation ?? this.onNavigation,
-        period: period ?? this.period,
-        navigationDebounce: navigationDebounce ?? this.navigationDebounce,
-      );
+  }) => AutoScan(
+    onNavigation: onNavigation ?? this.onNavigation,
+    period: period ?? this.period,
+    navigationDebounce: navigationDebounce ?? this.navigationDebounce,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -91,16 +90,15 @@ final class LeakRadarConfig {
     int maxSnapshots = 20,
     int gcCyclesForPreciseLeak = 3,
     Duration disposalGrace = const Duration(seconds: 2),
-  }) =>
-      LeakRadarConfig(
-        enabled: kDebugMode || kProfileMode,
-        autoScan: autoScan,
-        suspects: suspects ?? SuspectSet.defaults(),
-        rules: rules,
-        maxSnapshots: maxSnapshots,
-        gcCyclesForPreciseLeak: gcCyclesForPreciseLeak,
-        disposalGrace: disposalGrace,
-      );
+  }) => LeakRadarConfig(
+    enabled: kDebugMode || kProfileMode,
+    autoScan: autoScan,
+    suspects: suspects ?? SuspectSet.defaults(),
+    rules: rules,
+    maxSnapshots: maxSnapshots,
+    gcCyclesForPreciseLeak: gcCyclesForPreciseLeak,
+    disposalGrace: disposalGrace,
+  );
 
   /// Master on/off switch. When false the engine is never started and every
   /// [LeakRadar] call is a no-op.
@@ -165,23 +163,22 @@ final class LeakRadarConfig {
     bool? showOverlay,
     LeakSeverity? reportThreshold,
     bool? preciseTracking,
-  }) =>
-      LeakRadarConfig(
-        enabled: enabled ?? this.enabled,
-        autoScan: autoScan ?? this.autoScan,
-        suspects: suspects ?? this.suspects,
-        rules: rules ?? this.rules,
-        maxSnapshots: maxSnapshots ?? this.maxSnapshots,
-        gcCyclesForPreciseLeak:
-            gcCyclesForPreciseLeak ?? this.gcCyclesForPreciseLeak,
-        disposalGrace: disposalGrace ?? this.disposalGrace,
-        maxRetainingPathRequests:
-            maxRetainingPathRequests ?? this.maxRetainingPathRequests,
-        logLevel: logLevel ?? this.logLevel,
-        showOverlay: showOverlay ?? this.showOverlay,
-        reportThreshold: reportThreshold ?? this.reportThreshold,
-        preciseTracking: preciseTracking ?? this.preciseTracking,
-      );
+  }) => LeakRadarConfig(
+    enabled: enabled ?? this.enabled,
+    autoScan: autoScan ?? this.autoScan,
+    suspects: suspects ?? this.suspects,
+    rules: rules ?? this.rules,
+    maxSnapshots: maxSnapshots ?? this.maxSnapshots,
+    gcCyclesForPreciseLeak:
+        gcCyclesForPreciseLeak ?? this.gcCyclesForPreciseLeak,
+    disposalGrace: disposalGrace ?? this.disposalGrace,
+    maxRetainingPathRequests:
+        maxRetainingPathRequests ?? this.maxRetainingPathRequests,
+    logLevel: logLevel ?? this.logLevel,
+    showOverlay: showOverlay ?? this.showOverlay,
+    reportThreshold: reportThreshold ?? this.reportThreshold,
+    preciseTracking: preciseTracking ?? this.preciseTracking,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -201,17 +198,17 @@ final class LeakRadarConfig {
 
   @override
   int get hashCode => Object.hash(
-        enabled,
-        autoScan,
-        suspects,
-        Object.hashAll(rules),
-        maxSnapshots,
-        gcCyclesForPreciseLeak,
-        disposalGrace,
-        maxRetainingPathRequests,
-        logLevel,
-        showOverlay,
-        reportThreshold,
-        preciseTracking,
-      );
+    enabled,
+    autoScan,
+    suspects,
+    Object.hashAll(rules),
+    maxSnapshots,
+    gcCyclesForPreciseLeak,
+    disposalGrace,
+    maxRetainingPathRequests,
+    logLevel,
+    showOverlay,
+    reportThreshold,
+    preciseTracking,
+  );
 }

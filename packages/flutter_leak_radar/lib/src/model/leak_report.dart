@@ -47,12 +47,12 @@ final class LeakReport {
   }
 
   Map<String, Object?> toJson() => {
-        'capturedAt': capturedAt.toIso8601String(),
-        'trigger': trigger,
-        'status': status.name,
-        if (heapBytes != null) 'heapBytes': heapBytes,
-        'findings': findings.map((f) => f.toJson()).toList(),
-      };
+    'capturedAt': capturedAt.toIso8601String(),
+    'trigger': trigger,
+    'status': status.name,
+    if (heapBytes != null) 'heapBytes': heapBytes,
+    'findings': findings.map((f) => f.toJson()).toList(),
+  };
 
   String toMarkdown() {
     final b = StringBuffer()
@@ -62,7 +62,9 @@ final class LeakReport {
       ..writeln('| Class | Kind | Severity | Live | Growth |')
       ..writeln('|---|---|---|---:|---:|');
     for (final f in findings) {
-      b.writeln('| ${f.className} | ${f.kind.name} | ${f.severity.name} | ${f.liveCount} | ${f.growth} |');
+      b.writeln(
+        '| ${f.className} | ${f.kind.name} | ${f.severity.name} | ${f.liveCount} | ${f.growth} |',
+      );
     }
     return b.toString();
   }
@@ -77,7 +79,13 @@ final class LeakReport {
       _listEq(other.findings, findings);
 
   @override
-  int get hashCode => Object.hash(capturedAt, trigger, status, heapBytes, Object.hashAll(findings));
+  int get hashCode => Object.hash(
+    capturedAt,
+    trigger,
+    status,
+    heapBytes,
+    Object.hashAll(findings),
+  );
 }
 
 bool _listEq(List<LeakFinding> a, List<LeakFinding> b) {

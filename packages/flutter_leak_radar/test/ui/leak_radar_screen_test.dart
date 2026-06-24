@@ -12,17 +12,17 @@ import '../support/fake_heap_probe.dart';
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 HeapSnapshot snap(Map<String, int> c) => HeapSnapshot(
-      capturedAt: DateTime(2026),
-      samples: [
-        for (final e in c.entries)
-          ClassSample(
-            className: e.key,
-            instancesCurrent: e.value,
-            bytesCurrent: 0,
-            timestamp: DateTime(2026),
-          ),
-      ],
-    );
+  capturedAt: DateTime(2026),
+  samples: [
+    for (final e in c.entries)
+      ClassSample(
+        className: e.key,
+        instancesCurrent: e.value,
+        bytesCurrent: 0,
+        timestamp: DateTime(2026),
+      ),
+  ],
+);
 
 /// Finds the Scan now button by its stable key.
 Finder get _scanBtn => find.byKey(const Key('leak_radar_scan_btn'));
@@ -108,18 +108,14 @@ void main() {
     });
 
     testWidgets('shows Export and Settings action buttons', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(home: LeakRadarScreen()),
-      );
+      await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
       await tester.pump();
       expect(find.byTooltip('Export'), findsOneWidget);
       expect(find.byTooltip('Settings'), findsOneWidget);
     });
 
     testWidgets('Export button opens LeakExportSheet', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(home: LeakRadarScreen()),
-      );
+      await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
       await tester.pump();
 
       await tester.tap(find.byTooltip('Export'));
@@ -129,17 +125,13 @@ void main() {
     });
 
     testWidgets('empty state is shown when no findings', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(home: LeakRadarScreen()),
-      );
+      await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
       await tester.pump();
       expect(find.text('No leaks detected'), findsOneWidget);
     });
 
     testWidgets('scan now button does not throw', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(home: LeakRadarScreen()),
-      );
+      await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
       await tester.pump();
 
       await tester.tap(_scanBtn);
@@ -148,12 +140,10 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets(
-        'Scan now button shows snackbar with Heap captured text',
-        (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(home: LeakRadarScreen()),
-      );
+    testWidgets('Scan now button shows snackbar with Heap captured text', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
       await tester.pump();
 
       await tester.tap(_scanBtn);
@@ -197,9 +187,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets(
-        'Critical filter with real findings shows only matching rows',
-        (tester) async {
+    testWidgets('Critical filter with real findings shows only matching rows', (
+      tester,
+    ) async {
       final probe = FakeHeapProbe([
         snap({'CriticalBloc': 1}),
         snap({'CriticalBloc': 3}),
@@ -226,9 +216,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets(
-        'Growing filter shows findings with growth > 0',
-        (tester) async {
+    testWidgets('Growing filter shows findings with growth > 0', (
+      tester,
+    ) async {
       final probe = FakeHeapProbe([
         snap({'GrowingBloc': 1}),
         snap({'GrowingBloc': 2}),
@@ -261,143 +251,125 @@ void main() {
   // ── Clear leaks ───────────────────────────────────────────────────────────
 
   group('Clear leaks', () {
-    testWidgets(
-      'tapping Clear leaks in overflow menu empties the list',
-      (tester) async {
-        final probe = FakeHeapProbe([
-          snap({'HomeBloc': 1}),
-          snap({'HomeBloc': 2}),
-          snap({'HomeBloc': 3}),
-        ]);
-        final engine = LeakEngine(
-          probe: probe,
-          analyzer: const LeakAnalyzer(
-            SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
-          ),
-        );
-        await LeakRadar.debugInstall(engine);
-        await LeakRadar.scan();
-        await LeakRadar.scan();
-        await LeakRadar.scan();
+    testWidgets('tapping Clear leaks in overflow menu empties the list', (
+      tester,
+    ) async {
+      final probe = FakeHeapProbe([
+        snap({'HomeBloc': 1}),
+        snap({'HomeBloc': 2}),
+        snap({'HomeBloc': 3}),
+      ]);
+      final engine = LeakEngine(
+        probe: probe,
+        analyzer: const LeakAnalyzer(
+          SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+        ),
+      );
+      await LeakRadar.debugInstall(engine);
+      await LeakRadar.scan();
+      await LeakRadar.scan();
+      await LeakRadar.scan();
 
-        await tester.pumpWidget(
-          const MaterialApp(home: LeakRadarScreen()),
-        );
-        await tester.pumpAndSettle();
+      await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
+      await tester.pumpAndSettle();
 
-        expect(find.text('HomeBloc'), findsOneWidget);
+      expect(find.text('HomeBloc'), findsOneWidget);
 
-        await tester.tap(find.byTooltip('More'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('More'));
+      await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Clear leaks'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Clear leaks'));
+      await tester.pumpAndSettle();
 
-        expect(find.text('HomeBloc'), findsNothing);
-        expect(find.text('No leaks detected'), findsOneWidget);
-      },
-    );
+      expect(find.text('HomeBloc'), findsNothing);
+      expect(find.text('No leaks detected'), findsOneWidget);
+    });
   });
 
   // ── Swipe-to-dismiss ─────────────────────────────────────────────────────
 
   group('swipe-to-dismiss', () {
-    testWidgets(
-      'swiping a finding row removes it from the displayed list',
-      (tester) async {
-        final probe = FakeHeapProbe([
-          snap({'HomeBloc': 1}),
-          snap({'HomeBloc': 2}),
-          snap({'HomeBloc': 3}),
-        ]);
-        final engine = LeakEngine(
-          probe: probe,
-          analyzer: const LeakAnalyzer(
-            SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
-          ),
-        );
-        await LeakRadar.debugInstall(engine);
-        await LeakRadar.scan();
-        await LeakRadar.scan();
-        await LeakRadar.scan();
+    testWidgets('swiping a finding row removes it from the displayed list', (
+      tester,
+    ) async {
+      final probe = FakeHeapProbe([
+        snap({'HomeBloc': 1}),
+        snap({'HomeBloc': 2}),
+        snap({'HomeBloc': 3}),
+      ]);
+      final engine = LeakEngine(
+        probe: probe,
+        analyzer: const LeakAnalyzer(
+          SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+        ),
+      );
+      await LeakRadar.debugInstall(engine);
+      await LeakRadar.scan();
+      await LeakRadar.scan();
+      await LeakRadar.scan();
 
-        await tester.pumpWidget(
-          const MaterialApp(home: LeakRadarScreen()),
-        );
-        await tester.pumpAndSettle();
+      await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
+      await tester.pumpAndSettle();
 
-        expect(find.text('HomeBloc'), findsOneWidget);
+      expect(find.text('HomeBloc'), findsOneWidget);
 
-        await tester.drag(
-          find.text('HomeBloc'),
-          const Offset(-500, 0),
-        );
-        await tester.pumpAndSettle();
+      await tester.drag(find.text('HomeBloc'), const Offset(-500, 0));
+      await tester.pumpAndSettle();
 
-        expect(find.text('HomeBloc'), findsNothing);
-        expect(
-          find.text('No findings match this filter'),
-          findsOneWidget,
-        );
-      },
-    );
+      expect(find.text('HomeBloc'), findsNothing);
+      expect(find.text('No findings match this filter'), findsOneWidget);
+    });
 
-    testWidgets(
-      'a new scan re-adds a dismissed finding if still leaking',
-      (tester) async {
-        // 3 snapshots: 2 pre-seeded, 1 consumed by button tap.
-        // FakeHeapProbe repeats the last snapshot, so a second button tap
-        // also produces a growth finding.
-        final probe = FakeHeapProbe([
-          snap({'HomeBloc': 1}),
-          snap({'HomeBloc': 2}),
-          snap({'HomeBloc': 3}),
-        ]);
-        final engine = LeakEngine(
-          probe: probe,
-          analyzer: const LeakAnalyzer(
-            SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
-          ),
-        );
-        await LeakRadar.debugInstall(engine);
-        // Pre-seed 2 scans; no finding yet.
-        await LeakRadar.scan();
-        await LeakRadar.scan();
+    testWidgets('a new scan re-adds a dismissed finding if still leaking', (
+      tester,
+    ) async {
+      // 3 snapshots: 2 pre-seeded, 1 consumed by button tap.
+      // FakeHeapProbe repeats the last snapshot, so a second button tap
+      // also produces a growth finding.
+      final probe = FakeHeapProbe([
+        snap({'HomeBloc': 1}),
+        snap({'HomeBloc': 2}),
+        snap({'HomeBloc': 3}),
+      ]);
+      final engine = LeakEngine(
+        probe: probe,
+        analyzer: const LeakAnalyzer(
+          SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+        ),
+      );
+      await LeakRadar.debugInstall(engine);
+      // Pre-seed 2 scans; no finding yet.
+      await LeakRadar.scan();
+      await LeakRadar.scan();
 
-        await tester.pumpWidget(
-          const MaterialApp(home: LeakRadarScreen()),
-        );
-        await tester.pumpAndSettle();
+      await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
+      await tester.pumpAndSettle();
 
-        // 3rd scan (button) produces HomeBloc growth finding.
-        await tester.tap(_scanBtn);
-        await tester.pumpAndSettle();
+      // 3rd scan (button) produces HomeBloc growth finding.
+      await tester.tap(_scanBtn);
+      await tester.pumpAndSettle();
 
-        expect(find.text('HomeBloc'), findsOneWidget);
+      expect(find.text('HomeBloc'), findsOneWidget);
 
-        await tester.drag(
-          find.text('HomeBloc'),
-          const Offset(-500, 0),
-        );
-        await tester.pumpAndSettle();
+      await tester.drag(find.text('HomeBloc'), const Offset(-500, 0));
+      await tester.pumpAndSettle();
 
-        expect(find.text('HomeBloc'), findsNothing);
+      expect(find.text('HomeBloc'), findsNothing);
 
-        // 4th scan re-seeds dismissed set; HomeBloc still leaking.
-        await tester.tap(_scanBtn);
-        await tester.pumpAndSettle();
+      // 4th scan re-seeds dismissed set; HomeBloc still leaking.
+      await tester.tap(_scanBtn);
+      await tester.pumpAndSettle();
 
-        expect(find.text('HomeBloc'), findsOneWidget);
-      },
-    );
+      expect(find.text('HomeBloc'), findsOneWidget);
+    });
   });
 
   // ── Summary row ───────────────────────────────────────────────────────────
 
   group('summary row', () {
-    testWidgets(
-        'shows severity counts in summary after scan with findings',
-        (tester) async {
+    testWidgets('shows severity counts in summary after scan with findings', (
+      tester,
+    ) async {
       final probe = FakeHeapProbe([
         snap({'CritBloc': 1}),
         snap({'CritBloc': 5}),
@@ -420,8 +392,7 @@ void main() {
       expect(tester.takeException(), isNull);
 
       // At least one severity count is shown in the summary row.
-      final hasCritical =
-          find.textContaining('critical').evaluate().isNotEmpty;
+      final hasCritical = find.textContaining('critical').evaluate().isNotEmpty;
       final hasWarning = find.textContaining('warning').evaluate().isNotEmpty;
       final hasInfo = find.textContaining('info').evaluate().isNotEmpty;
       expect(hasCritical || hasWarning || hasInfo, isTrue);

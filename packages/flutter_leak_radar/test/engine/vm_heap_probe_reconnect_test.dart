@@ -62,86 +62,101 @@ void main() {
 
         // First capture: connection fails → empty snapshot (graceful).
         final snap1 = await probe.capture(forceGc: false);
-        expect(snap1.samples, isEmpty,
-            reason: 'first capture must degrade gracefully on connect failure');
+        expect(
+          snap1.samples,
+          isEmpty,
+          reason: 'first capture must degrade gracefully on connect failure',
+        );
 
         // Override retry window so we don't wait 30 s in tests.
-        probe.debugOverrideNextRetryAllowedAt(DateTime.now().subtract(const Duration(seconds: 1)));
+        probe.debugOverrideNextRetryAllowedAt(
+          DateTime.now().subtract(const Duration(seconds: 1)),
+        );
 
         // Second capture: connection succeeds → real data.
         final snap2 = await probe.capture(forceGc: false);
-        expect(snap2.samples, isNotEmpty,
-            reason: 'probe must recover on next capture after transient error');
+        expect(
+          snap2.samples,
+          isNotEmpty,
+          reason: 'probe must recover on next capture after transient error',
+        );
       },
     );
 
-    test(
-      '_classRefCache is cleared when socket drops mid-capture',
-      () async {
-        final fakeService = _FakeService();
-        final staleClassRef = ClassRef(id: 'classes/STALE', name: 'Dummy');
-        final probe = VmHeapProbe();
+    test('_classRefCache is cleared when socket drops mid-capture', () async {
+      final fakeService = _FakeService();
+      final staleClassRef = ClassRef(id: 'classes/STALE', name: 'Dummy');
+      final probe = VmHeapProbe();
 
-        // Inject a connected state with a stale cache entry.
-        probe.debugInjectServiceAndCache(
-          fakeService,
-          isolateId: 'isolates/1',
-          classRefCache: {'Dummy': staleClassRef},
-        );
+      // Inject a connected state with a stale cache entry.
+      probe.debugInjectServiceAndCache(
+        fakeService,
+        isolateId: 'isolates/1',
+        classRefCache: {'Dummy': staleClassRef},
+      );
 
-        // Verify cache is warm before the drop.
-        expect(probe.debugClassRefCache['Dummy']?.id, 'classes/STALE');
+      // Verify cache is warm before the drop.
+      expect(probe.debugClassRefCache['Dummy']?.id, 'classes/STALE');
 
-        // Simulate a socket drop during capture by making getAllocationProfile throw.
-        final droppingService = _DroppingService();
-        probe.debugInjectServiceAndCache(
-          droppingService,
-          isolateId: 'isolates/1',
-        );
+      // Simulate a socket drop during capture by making getAllocationProfile throw.
+      final droppingService = _DroppingService();
+      probe.debugInjectServiceAndCache(
+        droppingService,
+        isolateId: 'isolates/1',
+      );
 
-        final snap = await probe.capture(forceGc: false);
-        expect(snap.samples, isEmpty,
-            reason: 'capture must return empty on socket drop');
+      final snap = await probe.capture(forceGc: false);
+      expect(
+        snap.samples,
+        isEmpty,
+        reason: 'capture must return empty on socket drop',
+      );
 
-        // Cache must be cleared after the drop.
-        expect(probe.debugClassRefCache, isEmpty,
-            reason: 'stale cache entries must be cleared after socket drop');
-      },
-    );
+      // Cache must be cleared after the drop.
+      expect(
+        probe.debugClassRefCache,
+        isEmpty,
+        reason: 'stale cache entries must be cleared after socket drop',
+      );
+    });
 
-    test(
-      'stale classRef id is not reused after reconnect',
-      () async {
-        // Phase 1: connect with service A, warm the cache with stale id.
-        final serviceA = _FakeService();
-        final probe = VmHeapProbe();
-        probe.debugInjectServiceAndCache(
-          serviceA,
-          isolateId: 'isolates/1',
-          classRefCache: {'Dummy': ClassRef(id: 'classes/OLD', name: 'Dummy')},
-        );
+    test('stale classRef id is not reused after reconnect', () async {
+      // Phase 1: connect with service A, warm the cache with stale id.
+      final serviceA = _FakeService();
+      final probe = VmHeapProbe();
+      probe.debugInjectServiceAndCache(
+        serviceA,
+        isolateId: 'isolates/1',
+        classRefCache: {'Dummy': ClassRef(id: 'classes/OLD', name: 'Dummy')},
+      );
 
-        // Phase 2: socket drops mid-capture → cache cleared, service nulled.
-        final droppingService = _DroppingService();
-        probe.debugInjectServiceAndCache(droppingService, isolateId: 'isolates/1');
-        await probe.capture(forceGc: false); // triggers drop
+      // Phase 2: socket drops mid-capture → cache cleared, service nulled.
+      final droppingService = _DroppingService();
+      probe.debugInjectServiceAndCache(
+        droppingService,
+        isolateId: 'isolates/1',
+      );
+      await probe.capture(forceGc: false); // triggers drop
 
-        // Phase 3: reconnect with fresh service that returns new ids.
-        final serviceB = _FakeService(); // _fakeClassRef has id 'classes/42'
-        probe.debugInjectConnectionFactory(() async => serviceB);
-        probe.debugOverrideNextRetryAllowedAt(
-            DateTime.now().subtract(const Duration(seconds: 1)));
+      // Phase 3: reconnect with fresh service that returns new ids.
+      final serviceB = _FakeService(); // _fakeClassRef has id 'classes/42'
+      probe.debugInjectConnectionFactory(() async => serviceB);
+      probe.debugOverrideNextRetryAllowedAt(
+        DateTime.now().subtract(const Duration(seconds: 1)),
+      );
 
-        // Capture repopulates cache with fresh ids.
-        final snap = await probe.capture(forceGc: false);
-        expect(snap.samples, isNotEmpty);
+      // Capture repopulates cache with fresh ids.
+      final snap = await probe.capture(forceGc: false);
+      expect(snap.samples, isNotEmpty);
 
-        // The cache now holds the NEW id, not the stale one.
-        expect(probe.debugClassRefCache['Dummy']?.id, 'classes/42',
-            reason: 'cache must be repopulated with fresh ids after reconnect');
-        expect(probe.debugClassRefCache['Dummy']?.id, isNot('classes/OLD'));
-      },
-    );
+      // The cache now holds the NEW id, not the stale one.
+      expect(
+        probe.debugClassRefCache['Dummy']?.id,
+        'classes/42',
+        reason: 'cache must be repopulated with fresh ids after reconnect',
+      );
+      expect(probe.debugClassRefCache['Dummy']?.id, isNot('classes/OLD'));
+    });
 
     test(
       'permanent failure does not retry immediately (backoff respected)',
@@ -158,8 +173,11 @@ void main() {
         await probe.capture(forceGc: false); // first attempt, call #1
         await probe.capture(forceGc: false); // within backoff → no retry
 
-        expect(callCount, 1,
-            reason: 'must not retry within the backoff window');
+        expect(
+          callCount,
+          1,
+          reason: 'must not retry within the backoff window',
+        );
       },
     );
   });

@@ -15,18 +15,32 @@ import 'package:flutter_test/flutter_test.dart';
 import '../support/fake_heap_probe.dart';
 
 HeapSnapshot snap(Map<String, int> counts, int t) => HeapSnapshot(
-      capturedAt: DateTime(2026, 1, 1, 0, 0, t),
-      samples: [for (final e in counts.entries) ClassSample(className: e.key, instancesCurrent: e.value, bytesCurrent: 0, timestamp: DateTime(2026, 1, 1, 0, 0, t))],
-    );
+  capturedAt: DateTime(2026, 1, 1, 0, 0, t),
+  samples: [
+    for (final e in counts.entries)
+      ClassSample(
+        className: e.key,
+        instancesCurrent: e.value,
+        bytesCurrent: 0,
+        timestamp: DateTime(2026, 1, 1, 0, 0, t),
+      ),
+  ],
+);
 
 LeakEngine engineWith(FakeHeapProbe probe) => LeakEngine(
-      probe: probe,
-      analyzer: const LeakAnalyzer(SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')])),
-    );
+  probe: probe,
+  analyzer: const LeakAnalyzer(
+    SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+  ),
+);
 
 void main() {
   test('status is active when the probe is available', () async {
-    final engine = engineWith(FakeHeapProbe([snap({'A': 1}, 1)]));
+    final engine = engineWith(
+      FakeHeapProbe([
+        snap({'A': 1}, 1),
+      ]),
+    );
     await engine.start();
     expect(engine.status, LeakRadarStatus.active);
     await engine.stop();
@@ -40,7 +54,11 @@ void main() {
   });
 
   test('repeated scans build history and detect growth', () async {
-    final probe = FakeHeapProbe([snap({'HomeBloc': 1}, 1), snap({'HomeBloc': 2}, 2), snap({'HomeBloc': 3}, 3)]);
+    final probe = FakeHeapProbe([
+      snap({'HomeBloc': 1}, 1),
+      snap({'HomeBloc': 2}, 2),
+      snap({'HomeBloc': 3}, 3),
+    ]);
     final engine = engineWith(probe);
     await engine.start();
     await engine.scan();
@@ -53,7 +71,9 @@ void main() {
   });
 
   test('overlapping scans are dropped, not queued', () async {
-    final probe = FakeHeapProbe([snap({'A': 1}, 1)]);
+    final probe = FakeHeapProbe([
+      snap({'A': 1}, 1),
+    ]);
     final engine = engineWith(probe);
     await engine.start();
     final a = engine.scan();
@@ -64,7 +84,9 @@ void main() {
   });
 
   test('reports stream emits each scan', () async {
-    final probe = FakeHeapProbe([snap({'A': 1}, 1)]);
+    final probe = FakeHeapProbe([
+      snap({'A': 1}, 1),
+    ]);
     final engine = engineWith(probe);
     await engine.start();
     final future = engine.reports.first;
@@ -74,7 +96,9 @@ void main() {
   });
 
   test('scan after stop returns disabled report without capturing', () async {
-    final probe = FakeHeapProbe([snap({'A': 1}, 1)]);
+    final probe = FakeHeapProbe([
+      snap({'A': 1}, 1),
+    ]);
     final engine = engineWith(probe);
     await engine.start();
     await engine.stop();
@@ -124,44 +148,48 @@ void main() {
   });
 
   // Facade test:
-  test('LeakRadar.navigatorObserver returns inert observer when disabled',
-      () async {
-    // No init called — engine is null.
-    await LeakRadar.dispose();
-    final obs = LeakRadar.navigatorObserver;
-    expect(obs, isA<NavigatorObserver>());
-    // Calling didPop on the inert observer must not throw.
-    expect(
-      () => obs.didPop(
-        MaterialPageRoute<void>(builder: (_) => const SizedBox()),
-        null,
-      ),
-      returnsNormally,
-    );
-  });
+  test(
+    'LeakRadar.navigatorObserver returns inert observer when disabled',
+    () async {
+      // No init called — engine is null.
+      await LeakRadar.dispose();
+      final obs = LeakRadar.navigatorObserver;
+      expect(obs, isA<NavigatorObserver>());
+      // Calling didPop on the inert observer must not throw.
+      expect(
+        () => obs.didPop(
+          MaterialPageRoute<void>(builder: (_) => const SizedBox()),
+          null,
+        ),
+        returnsNormally,
+      );
+    },
+  );
 
   group('LeakEngine periodic scan via ScanScheduler', () {
-    test('periodic scan fires and produces a report on the reports stream',
-        () async {
-      final probe = FakeHeapProbe([]);
-      final engine = LeakEngine(
-        probe: probe,
-        analyzer: LeakAnalyzer(SuspectSet.empty()),
-        autoScan: const AutoScan(period: Duration(milliseconds: 30)),
-      );
+    test(
+      'periodic scan fires and produces a report on the reports stream',
+      () async {
+        final probe = FakeHeapProbe([]);
+        final engine = LeakEngine(
+          probe: probe,
+          analyzer: LeakAnalyzer(SuspectSet.empty()),
+          autoScan: const AutoScan(period: Duration(milliseconds: 30)),
+        );
 
-      final reports = <LeakReport>[];
-      final sub = engine.reports.listen(reports.add);
-      await engine.start();
+        final reports = <LeakReport>[];
+        final sub = engine.reports.listen(reports.add);
+        await engine.start();
 
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      await engine.stop();
-      await sub.cancel();
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        await engine.stop();
+        await sub.cancel();
 
-      // At least one report should have been emitted.
-      expect(reports, isNotEmpty);
-      expect(reports.first.trigger, 'periodic');
-    });
+        // At least one report should have been emitted.
+        expect(reports, isNotEmpty);
+        expect(reports.first.trigger, 'periodic');
+      },
+    );
 
     test('stop() cancels periodic timer — no reports after stop', () async {
       final probe = FakeHeapProbe([]);
@@ -173,7 +201,8 @@ void main() {
       await engine.start();
       await Future<void>.delayed(const Duration(milliseconds: 30));
       await engine.stop();
-      final countAtStop = (await engine.reports.toList()).length; // stream is closed
+      final countAtStop =
+          (await engine.reports.toList()).length; // stream is closed
       await Future<void>.delayed(const Duration(milliseconds: 60));
       // No way to receive more reports — stream is closed.
       expect(countAtStop, 0); // reports stream drained when closed
@@ -219,12 +248,7 @@ void main() {
 
     test('SampleHistory.clear empties snapshots', () {
       final history = SampleHistory();
-      history.add(
-        HeapSnapshot(
-          capturedAt: DateTime(2026),
-          samples: const [],
-        ),
-      );
+      history.add(HeapSnapshot(capturedAt: DateTime(2026), samples: const []));
       expect(history.length, 1);
       history.clear();
       expect(history.length, 0);
@@ -241,47 +265,43 @@ void main() {
     LeakEngine engineWithThreshold(
       FakeHeapProbe probe,
       LeakSeverity threshold,
-    ) =>
-        LeakEngine(
-          probe: probe,
-          analyzer: const LeakAnalyzer(
-            SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
-          ),
-          config: LeakRadarConfig(reportThreshold: threshold),
-        );
-
-    test(
-      'warning finding is excluded when threshold is critical',
-      () async {
-        // Non-monotonic growth → warning severity.
-        final probe = FakeHeapProbe([
-          snap({'HomeBloc': 2}, 1),
-          snap({'HomeBloc': 1}, 2),
-          snap({'HomeBloc': 3}, 3),
-        ]);
-        final engine = engineWithThreshold(probe, LeakSeverity.critical);
-        await engine.start();
-
-        final emitted = <LeakReport>[];
-        final sub = engine.reports.listen(emitted.add);
-
-        await engine.scan();
-        await engine.scan();
-        final report = await engine.scan();
-
-        await sub.cancel();
-        await engine.stop();
-
-        // The finding has severity=warning, threshold=critical → excluded.
-        expect(report.findings, isEmpty);
-        expect(engine.latest?.findings, isEmpty);
-        expect(
-          emitted.last.findings,
-          isEmpty,
-          reason: 'stream must emit filtered report',
-        );
-      },
+    ) => LeakEngine(
+      probe: probe,
+      analyzer: const LeakAnalyzer(
+        SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+      ),
+      config: LeakRadarConfig(reportThreshold: threshold),
     );
+
+    test('warning finding is excluded when threshold is critical', () async {
+      // Non-monotonic growth → warning severity.
+      final probe = FakeHeapProbe([
+        snap({'HomeBloc': 2}, 1),
+        snap({'HomeBloc': 1}, 2),
+        snap({'HomeBloc': 3}, 3),
+      ]);
+      final engine = engineWithThreshold(probe, LeakSeverity.critical);
+      await engine.start();
+
+      final emitted = <LeakReport>[];
+      final sub = engine.reports.listen(emitted.add);
+
+      await engine.scan();
+      await engine.scan();
+      final report = await engine.scan();
+
+      await sub.cancel();
+      await engine.stop();
+
+      // The finding has severity=warning, threshold=critical → excluded.
+      expect(report.findings, isEmpty);
+      expect(engine.latest?.findings, isEmpty);
+      expect(
+        emitted.last.findings,
+        isEmpty,
+        reason: 'stream must emit filtered report',
+      );
+    });
 
     test(
       'warning finding appears when threshold is lowered to warning',
@@ -302,8 +322,8 @@ void main() {
 
         expect(
           report.findings.any(
-            (f) => f.className == 'HomeBloc' &&
-                f.severity == LeakSeverity.warning,
+            (f) =>
+                f.className == 'HomeBloc' && f.severity == LeakSeverity.warning,
           ),
           isTrue,
           reason: 'warning finding must pass warning threshold',

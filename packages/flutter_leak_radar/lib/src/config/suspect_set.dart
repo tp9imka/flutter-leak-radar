@@ -28,16 +28,16 @@ final class SuspectSet {
   /// `_HomeScreenState`, and `*Timer` catches the `_Timer` instance returned by
   /// `Timer.periodic`, which an exact `Timer` rule would miss.)
   factory SuspectSet.defaults() => const SuspectSet(<LeakRule>[
-        LeakRule.growth('*State'),
-        LeakRule.growth('*Screen'),
-        LeakRule.growth('*Bloc'),
-        LeakRule.growth('*Cubit'),
-        LeakRule.growth('*Controller'),
-        LeakRule.growth('*Notifier'),
-        LeakRule.growth('*StreamSubscription'),
-        LeakRule.growth('*StreamController'),
-        LeakRule.growth('*Timer'),
-      ]);
+    LeakRule.growth('*State'),
+    LeakRule.growth('*Screen'),
+    LeakRule.growth('*Bloc'),
+    LeakRule.growth('*Cubit'),
+    LeakRule.growth('*Controller'),
+    LeakRule.growth('*Notifier'),
+    LeakRule.growth('*StreamSubscription'),
+    LeakRule.growth('*StreamController'),
+    LeakRule.growth('*Timer'),
+  ]);
 
   /// The ordered list of rules in this set.
   final List<LeakRule> rules;

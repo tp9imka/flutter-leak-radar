@@ -7,34 +7,33 @@ import 'package:flutter_leak_radar/src/engine/leak_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 LeakFinding _finding() => LeakFinding(
-      className: 'TestBloc',
-      kind: LeakKind.growth,
-      severity: LeakSeverity.warning,
-      liveCount: 3,
-      growth: 1,
-      series: const [2, 3],
-      captureTimes: const [],
-    );
+  className: 'TestBloc',
+  kind: LeakKind.growth,
+  severity: LeakSeverity.warning,
+  liveCount: 3,
+  growth: 1,
+  series: const [2, 3],
+  captureTimes: const [],
+);
 
 Future<void> _installEngine() => LeakRadar.debugInstall(
-      LeakEngine(
-        probe: const NoopHeapProbe(),
-        analyzer: LeakAnalyzer(SuspectSet.empty()),
-      ),
-    );
+  LeakEngine(
+    probe: const NoopHeapProbe(),
+    analyzer: LeakAnalyzer(SuspectSet.empty()),
+  ),
+);
 
 void main() {
   tearDown(() => LeakRadar.dispose());
 
   // ── Smoke ─────────────────────────────────────────────────────────────────
 
-  testWidgets('LeakExportSheet renders title "Export findings"',
-      (tester) async {
+  testWidgets('LeakExportSheet renders title "Export findings"', (
+    tester,
+  ) async {
     await _installEngine();
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: LeakExportSheet()),
-      ),
+      const MaterialApp(home: Scaffold(body: LeakExportSheet())),
     );
     await tester.pumpAndSettle();
     expect(find.text('Export findings'), findsOneWidget);
@@ -42,26 +41,22 @@ void main() {
 
   // ── Format toggle ─────────────────────────────────────────────────────────
 
-  testWidgets('format toggle shows JSON and Markdown segments',
-      (tester) async {
+  testWidgets('format toggle shows JSON and Markdown segments', (tester) async {
     await _installEngine();
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: LeakExportSheet()),
-      ),
+      const MaterialApp(home: Scaffold(body: LeakExportSheet())),
     );
     await tester.pumpAndSettle();
     expect(find.text('JSON'), findsOneWidget);
     expect(find.text('Markdown'), findsOneWidget);
   });
 
-  testWidgets('Markdown is selected by default — share button shows .md',
-      (tester) async {
+  testWidgets('Markdown is selected by default — share button shows .md', (
+    tester,
+  ) async {
     await _installEngine();
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: LeakExportSheet()),
-      ),
+      const MaterialApp(home: Scaffold(body: LeakExportSheet())),
     );
     await tester.pumpAndSettle();
     // No report → button text is "Nothing to export yet", which is the
@@ -69,21 +64,18 @@ void main() {
     // after seeding a scan.
     await LeakRadar.scan();
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: LeakExportSheet()),
-      ),
+      const MaterialApp(home: Scaffold(body: LeakExportSheet())),
     );
     await tester.pumpAndSettle();
     expect(find.text('Share .md'), findsOneWidget);
   });
 
-  testWidgets('tapping JSON segment changes preview without exception',
-      (tester) async {
+  testWidgets('tapping JSON segment changes preview without exception', (
+    tester,
+  ) async {
     await _installEngine();
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: LeakExportSheet()),
-      ),
+      const MaterialApp(home: Scaffold(body: LeakExportSheet())),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('JSON'));
@@ -91,14 +83,13 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('share button label changes with format selection',
-      (tester) async {
+  testWidgets('share button label changes with format selection', (
+    tester,
+  ) async {
     await _installEngine();
     await LeakRadar.scan();
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: LeakExportSheet()),
-      ),
+      const MaterialApp(home: Scaffold(body: LeakExportSheet())),
     );
     await tester.pumpAndSettle();
     // Default is Markdown.
@@ -115,25 +106,19 @@ void main() {
   testWidgets('share button has key export_share_btn', (tester) async {
     await _installEngine();
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: LeakExportSheet()),
-      ),
+      const MaterialApp(home: Scaffold(body: LeakExportSheet())),
     );
     await tester.pumpAndSettle();
-    expect(
-      find.byKey(const Key('export_share_btn')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('export_share_btn')), findsOneWidget);
   });
 
   // ── Integration: opens from LeakRadarScreen ───────────────────────────────
 
-  testWidgets('Export icon in LeakRadarScreen opens LeakExportSheet',
-      (tester) async {
+  testWidgets('Export icon in LeakRadarScreen opens LeakExportSheet', (
+    tester,
+  ) async {
     await _installEngine();
-    await tester.pumpWidget(
-      const MaterialApp(home: LeakRadarScreen()),
-    );
+    await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
     await tester.pump();
     await tester.tap(find.byTooltip('Export'));
     await tester.pumpAndSettle();
@@ -142,9 +127,9 @@ void main() {
 
   // ── Integration: opens from FindingDetailScreen ───────────────────────────
 
-  testWidgets(
-      'Share icon in FindingDetailScreen opens LeakExportSheet',
-      (tester) async {
+  testWidgets('Share icon in FindingDetailScreen opens LeakExportSheet', (
+    tester,
+  ) async {
     await _installEngine();
     await tester.pumpWidget(
       MaterialApp(home: FindingDetailScreen(finding: _finding())),

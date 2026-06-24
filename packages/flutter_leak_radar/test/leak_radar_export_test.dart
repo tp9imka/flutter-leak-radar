@@ -31,7 +31,9 @@ void main() {
       );
       // Force a scan so latest is set.
       await LeakRadar.scan();
-      final path = await LeakRadar.exportToFile(format: LeakExportFormat.markdown);
+      final path = await LeakRadar.exportToFile(
+        format: LeakExportFormat.markdown,
+      );
 
       expect(path, isNotNull);
       expect(path, endsWith('.md'));

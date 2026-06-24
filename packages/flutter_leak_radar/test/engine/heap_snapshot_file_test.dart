@@ -31,31 +31,35 @@ void main() {
       );
     });
 
-    test('returns a non-null path and the file exists when engine is active', () async {
-      await LeakRadar.debugInstall(
-        LeakEngine(
-          probe: const NoopHeapProbe(),
-          analyzer: LeakAnalyzer(SuspectSet.empty()),
-        ),
-      );
-
-      final tempDir = Directory.systemTemp.createTempSync('flr_heap_test_');
-      try {
-        final path = await LeakRadar.captureHeapSnapshotToFile(
-          directory: tempDir,
+    test(
+      'returns a non-null path and the file exists when engine is active',
+      () async {
+        await LeakRadar.debugInstall(
+          LeakEngine(
+            probe: const NoopHeapProbe(),
+            analyzer: LeakAnalyzer(SuspectSet.empty()),
+          ),
         );
-        // NativeRuntime.writeHeapSnapshotToFile is available in the test VM
-        // (debug/profile mode), so path should be non-null.
-        expect(path, isNotNull);
-        expect(path, endsWith('.data'));
-        expect(path, contains('leak_radar_heap_'));
-        expect(File(path!).existsSync(), isTrue);
-      } finally {
-        tempDir.deleteSync(recursive: true);
-      }
-    }, skip: Platform.isAndroid || Platform.isIOS
-        ? 'NativeRuntime.writeHeapSnapshotToFile is not supported on mobile test runners'
-        : null);
+
+        final tempDir = Directory.systemTemp.createTempSync('flr_heap_test_');
+        try {
+          final path = await LeakRadar.captureHeapSnapshotToFile(
+            directory: tempDir,
+          );
+          // NativeRuntime.writeHeapSnapshotToFile is available in the test VM
+          // (debug/profile mode), so path should be non-null.
+          expect(path, isNotNull);
+          expect(path, endsWith('.data'));
+          expect(path, contains('leak_radar_heap_'));
+          expect(File(path!).existsSync(), isTrue);
+        } finally {
+          tempDir.deleteSync(recursive: true);
+        }
+      },
+      skip: Platform.isAndroid || Platform.isIOS
+          ? 'NativeRuntime.writeHeapSnapshotToFile is not supported on mobile test runners'
+          : null,
+    );
 
     test('uses Directory.systemTemp when no directory is given', () async {
       await LeakRadar.debugInstall(

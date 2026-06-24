@@ -185,10 +185,10 @@ class _SegmentButton extends StatelessWidget {
   final VoidCallback onTap;
 
   Color _severityColor(LeakSeverity s) => switch (s) {
-        LeakSeverity.critical => LeakRadarColors.severityCritical,
-        LeakSeverity.warning => LeakRadarColors.severityWarning,
-        LeakSeverity.info => LeakRadarColors.severityInfo,
-      };
+    LeakSeverity.critical => LeakRadarColors.severityCritical,
+    LeakSeverity.warning => LeakRadarColors.severityWarning,
+    LeakSeverity.info => LeakRadarColors.severityInfo,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -203,9 +203,7 @@ class _SegmentButton extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: active ? color : Colors.transparent,
-          border: Border.all(
-            color: active ? color : LeakRadarColors.border08,
-          ),
+          border: Border.all(color: active ? color : LeakRadarColors.border08),
           borderRadius: radius,
         ),
         alignment: Alignment.center,
@@ -214,9 +212,7 @@ class _SegmentButton extends StatelessWidget {
           style: GoogleFonts.jetBrainsMono(
             fontSize: 11,
             fontWeight: FontWeight.w500,
-            color: active
-                ? LeakRadarColors.pageBg
-                : LeakRadarColors.text40,
+            color: active ? LeakRadarColors.pageBg : LeakRadarColors.text40,
           ),
         ),
       ),
@@ -488,11 +484,7 @@ class _ToggleRow extends StatelessWidget {
 }
 
 class _Toggle extends StatelessWidget {
-  const _Toggle({
-    super.key,
-    required this.value,
-    required this.onChanged,
-  });
+  const _Toggle({super.key, required this.value, required this.onChanged});
 
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -506,9 +498,7 @@ class _Toggle extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(13),
-          color: value
-              ? LeakRadarColors.accent
-              : const Color(0x24FFFFFF),
+          color: value ? LeakRadarColors.accent : const Color(0x24FFFFFF),
         ),
         child: GestureDetector(
           onTap: () => onChanged(!value),
@@ -517,8 +507,7 @@ class _Toggle extends StatelessWidget {
               AnimatedAlign(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeInOut,
-                alignment:
-                    value ? Alignment.centerRight : Alignment.centerLeft,
+                alignment: value ? Alignment.centerRight : Alignment.centerLeft,
                 child: Padding(
                   padding: const EdgeInsets.all(3),
                   child: Container(
@@ -567,11 +556,7 @@ class _Divider extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Padding(
       padding: EdgeInsets.symmetric(vertical: 4),
-      child: Divider(
-        color: LeakRadarColors.border08,
-        height: 1,
-        thickness: 1,
-      ),
+      child: Divider(color: LeakRadarColors.border08, height: 1, thickness: 1),
     );
   }
 }

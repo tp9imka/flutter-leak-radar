@@ -139,23 +139,26 @@ void main() {
       expect(result, LeakSeverity.critical);
     });
 
-    test('hint does NOT lower: critical input with hint info → stays critical', () {
-      // Arrange — monotonic growth >= 2 is critical; hint should not reduce it
-      const mode = LeakDetectionMode.growth;
-      const growth = 3;
-      const monotonic = true;
+    test(
+      'hint does NOT lower: critical input with hint info → stays critical',
+      () {
+        // Arrange — monotonic growth >= 2 is critical; hint should not reduce it
+        const mode = LeakDetectionMode.growth;
+        const growth = 3;
+        const monotonic = true;
 
-      // Act
-      final result = computeSeverity(
-        mode: mode,
-        growth: growth,
-        liveCount: 0,
-        monotonic: monotonic,
-        hint: LeakSeverity.info,
-      );
+        // Act
+        final result = computeSeverity(
+          mode: mode,
+          growth: growth,
+          liveCount: 0,
+          monotonic: monotonic,
+          hint: LeakSeverity.info,
+        );
 
-      // Assert
-      expect(result, LeakSeverity.critical);
-    });
+        // Assert
+        expect(result, LeakSeverity.critical);
+      },
+    );
   });
 }

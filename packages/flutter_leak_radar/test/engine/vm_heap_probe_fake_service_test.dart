@@ -17,16 +17,13 @@ LibraryRef _libRef(String uri) =>
     LibraryRef(id: 'libs/${uri.hashCode}', name: uri, uri: uri);
 
 ClassRef _classRef(String name, {String? libraryUri}) => ClassRef(
-      id: 'classes/${name.hashCode}',
-      name: name,
-      library: libraryUri != null ? _libRef(libraryUri) : null,
-    );
+  id: 'classes/${name.hashCode}',
+  name: name,
+  library: libraryUri != null ? _libRef(libraryUri) : null,
+);
 
-InstanceRef _instanceRef(String id, String className) => InstanceRef(
-      id: id,
-      kind: 'PlainInstance',
-      classRef: _classRef(className),
-    );
+InstanceRef _instanceRef(String id, String className) =>
+    InstanceRef(id: id, kind: 'PlainInstance', classRef: _classRef(className));
 
 // ---------------------------------------------------------------------------
 // Fakes — capture group
@@ -43,8 +40,7 @@ class _ProfileFakeService extends Fake implements VmService {
     String isolateId, {
     bool? gc,
     bool? reset,
-  }) async =>
-      AllocationProfile()..members = _members;
+  }) async => AllocationProfile()..members = _members;
 }
 
 /// Records the `gc` flag passed to getAllocationProfile.
@@ -73,8 +69,7 @@ class _ThrowingProfileFakeService extends Fake implements VmService {
     String isolateId, {
     bool? gc,
     bool? reset,
-  }) =>
-      Future.error(_error);
+  }) => Future.error(_error);
 }
 
 // ---------------------------------------------------------------------------
@@ -99,8 +94,7 @@ class _RetainingPathFakeService extends Fake implements VmService {
     bool? includeSubclasses,
     bool? includeImplementers,
     String? idZoneId,
-  }) async =>
-      InstanceSet()..instances = instances;
+  }) async => InstanceSet()..instances = instances;
 
   @override
   Future<RetainingPath> getRetainingPath(
@@ -108,8 +102,7 @@ class _RetainingPathFakeService extends Fake implements VmService {
     String targetId,
     int limit, {
     String? idZoneId,
-  }) async =>
-      retainingPath;
+  }) async => retainingPath;
 }
 
 /// Returns an empty instance list (no live instances found).
@@ -122,8 +115,7 @@ class _EmptyInstancesFakeService extends Fake implements VmService {
     bool? includeSubclasses,
     bool? includeImplementers,
     String? idZoneId,
-  }) async =>
-      InstanceSet()..instances = [];
+  }) async => InstanceSet()..instances = [];
 }
 
 /// Returns one instance from getInstances but throws SentinelException from
@@ -146,14 +138,13 @@ class _SentinelRetainingPathFakeService extends Fake implements VmService {
     String targetId,
     int limit, {
     String? idZoneId,
-  }) =>
-      Future.error(
-        SentinelException.parse('getRetainingPath', {
-          'type': 'Sentinel',
-          'kind': 'Collected',
-          'valueAsString': 'Collected',
-        }),
-      );
+  }) => Future.error(
+    SentinelException.parse('getRetainingPath', {
+      'type': 'Sentinel',
+      'kind': 'Collected',
+      'valueAsString': 'Collected',
+    }),
+  );
 }
 
 /// Returns one instance and a trivial single-hop RetainingPath; used for the
@@ -164,8 +155,7 @@ class _TrivialRetainingPathFakeService extends Fake implements VmService {
     String isolateId, {
     bool? gc,
     bool? reset,
-  }) async =>
-      AllocationProfile()..members = [];
+  }) async => AllocationProfile()..members = [];
 
   @override
   Future<InstanceSet> getInstances(
@@ -175,8 +165,7 @@ class _TrivialRetainingPathFakeService extends Fake implements VmService {
     bool? includeSubclasses,
     bool? includeImplementers,
     String? idZoneId,
-  }) async =>
-      InstanceSet()..instances = [_instanceRef('objects/1', 'Dummy')];
+  }) async => InstanceSet()..instances = [_instanceRef('objects/1', 'Dummy')];
 
   @override
   Future<RetainingPath> getRetainingPath(
@@ -199,49 +188,51 @@ class _TrivialRetainingPathFakeService extends Fake implements VmService {
 void main() {
   // -------------------------------------------------------------------------
   group('capture — parsing and mapping', () {
-    test('maps AllocationProfile members to HeapSnapshot.samples correctly',
-        () async {
-      // Arrange
-      final member1 = ClassHeapStats()
-        ..classRef = _classRef(
-          'HomeBloc',
-          libraryUri: 'package:app/blocs/home.dart',
-        )
-        ..instancesCurrent = 3
-        ..bytesCurrent = 128;
+    test(
+      'maps AllocationProfile members to HeapSnapshot.samples correctly',
+      () async {
+        // Arrange
+        final member1 = ClassHeapStats()
+          ..classRef = _classRef(
+            'HomeBloc',
+            libraryUri: 'package:app/blocs/home.dart',
+          )
+          ..instancesCurrent = 3
+          ..bytesCurrent = 128;
 
-      final member2 = ClassHeapStats()
-        ..classRef = _classRef(
-          'AuthService',
-          libraryUri: 'package:app/services/auth.dart',
-        )
-        ..instancesCurrent = 1
-        ..bytesCurrent = 64;
+        final member2 = ClassHeapStats()
+          ..classRef = _classRef(
+            'AuthService',
+            libraryUri: 'package:app/services/auth.dart',
+          )
+          ..instancesCurrent = 1
+          ..bytesCurrent = 64;
 
-      final probe = VmHeapProbe();
-      probe.debugInjectServiceAndCache(
-        _ProfileFakeService([member1, member2]),
-        isolateId: 'isolates/1',
-      );
+        final probe = VmHeapProbe();
+        probe.debugInjectServiceAndCache(
+          _ProfileFakeService([member1, member2]),
+          isolateId: 'isolates/1',
+        );
 
-      // Act
-      final snapshot = await probe.capture(forceGc: false);
+        // Act
+        final snapshot = await probe.capture(forceGc: false);
 
-      // Assert
-      expect(snapshot.samples.length, 2);
+        // Assert
+        expect(snapshot.samples.length, 2);
 
-      final s1 = snapshot.samples[0];
-      expect(s1.className, 'HomeBloc');
-      expect(s1.library, 'package:app/blocs/home.dart');
-      expect(s1.instancesCurrent, 3);
-      expect(s1.bytesCurrent, 128);
+        final s1 = snapshot.samples[0];
+        expect(s1.className, 'HomeBloc');
+        expect(s1.library, 'package:app/blocs/home.dart');
+        expect(s1.instancesCurrent, 3);
+        expect(s1.bytesCurrent, 128);
 
-      final s2 = snapshot.samples[1];
-      expect(s2.className, 'AuthService');
-      expect(s2.library, 'package:app/services/auth.dart');
-      expect(s2.instancesCurrent, 1);
-      expect(s2.bytesCurrent, 64);
-    });
+        final s2 = snapshot.samples[1];
+        expect(s2.className, 'AuthService');
+        expect(s2.library, 'package:app/services/auth.dart');
+        expect(s2.instancesCurrent, 1);
+        expect(s2.bytesCurrent, 64);
+      },
+    );
 
     test('skips members with null or empty class name', () async {
       // Arrange
@@ -302,20 +293,23 @@ void main() {
       expect(snapshot.samples, isEmpty);
     });
 
-    test('returns empty snapshot on generic exception (never throws)', () async {
-      // Arrange
-      final probe = VmHeapProbe();
-      probe.debugInjectServiceAndCache(
-        _ThrowingProfileFakeService(
-          const SocketException('connection reset'),
-        ),
-        isolateId: 'isolates/1',
-      );
+    test(
+      'returns empty snapshot on generic exception (never throws)',
+      () async {
+        // Arrange
+        final probe = VmHeapProbe();
+        probe.debugInjectServiceAndCache(
+          _ThrowingProfileFakeService(
+            const SocketException('connection reset'),
+          ),
+          isolateId: 'isolates/1',
+        );
 
-      // Act & Assert: must not throw; snapshot is empty
-      final snapshot = await probe.capture(forceGc: false);
-      expect(snapshot.samples, isEmpty);
-    });
+        // Act & Assert: must not throw; snapshot is empty
+        final snapshot = await probe.capture(forceGc: false);
+        expect(snapshot.samples, isEmpty);
+      },
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -411,30 +405,32 @@ void main() {
       expect(result, isNull);
     });
 
-    test('throttle: returns null after maxRetainingPathRequests in one cycle',
-        () async {
-      // Arrange: limit is 2; three classes registered in the cache
-      final fakeClassRef = _classRef('Shared');
-      final probe = VmHeapProbe(maxRetainingPathRequests: 2);
-      probe.debugInjectServiceAndCache(
-        _TrivialRetainingPathFakeService(),
-        isolateId: 'isolates/1',
-        classRefCache: {
-          'A': fakeClassRef,
-          'B': fakeClassRef,
-          'C': fakeClassRef,
-        },
-      );
+    test(
+      'throttle: returns null after maxRetainingPathRequests in one cycle',
+      () async {
+        // Arrange: limit is 2; three classes registered in the cache
+        final fakeClassRef = _classRef('Shared');
+        final probe = VmHeapProbe(maxRetainingPathRequests: 2);
+        probe.debugInjectServiceAndCache(
+          _TrivialRetainingPathFakeService(),
+          isolateId: 'isolates/1',
+          classRefCache: {
+            'A': fakeClassRef,
+            'B': fakeClassRef,
+            'C': fakeClassRef,
+          },
+        );
 
-      // Act: three requests in the same cycle
-      final p1 = await probe.retainingPath('A'); // within budget
-      final p2 = await probe.retainingPath('B'); // within budget
-      final p3 = await probe.retainingPath('C'); // over budget → null
+        // Act: three requests in the same cycle
+        final p1 = await probe.retainingPath('A'); // within budget
+        final p2 = await probe.retainingPath('B'); // within budget
+        final p3 = await probe.retainingPath('C'); // over budget → null
 
-      // Assert
-      expect(p1, isNotNull);
-      expect(p2, isNotNull);
-      expect(p3, isNull);
-    });
+        // Assert
+        expect(p1, isNotNull);
+        expect(p2, isNotNull);
+        expect(p3, isNull);
+      },
+    );
   });
 }

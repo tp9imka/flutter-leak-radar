@@ -9,18 +9,26 @@ import 'package:flutter_leak_radar/src/model/leak_kind.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 HeapSnapshot snap(Map<String, int> counts, int t) => HeapSnapshot(
-      capturedAt: DateTime(2026, 1, 1, 0, 0, t),
-      samples: [
-        for (final e in counts.entries)
-          ClassSample(className: e.key, instancesCurrent: e.value, bytesCurrent: 0, timestamp: DateTime(2026, 1, 1, 0, 0, t)),
-      ],
-    );
+  capturedAt: DateTime(2026, 1, 1, 0, 0, t),
+  samples: [
+    for (final e in counts.entries)
+      ClassSample(
+        className: e.key,
+        instancesCurrent: e.value,
+        bytesCurrent: 0,
+        timestamp: DateTime(2026, 1, 1, 0, 0, t),
+      ),
+  ],
+);
 
 void main() {
   test('flat series produces no finding', () {
-    final h = SampleHistory()..add(snap({'HomeBloc': 1}, 1))..add(snap({'HomeBloc': 1}, 2));
-    final report = const LeakAnalyzer(SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]))
-        .analyze(h, trigger: 'manual', status: LeakRadarStatus.active);
+    final h = SampleHistory()
+      ..add(snap({'HomeBloc': 1}, 1))
+      ..add(snap({'HomeBloc': 1}, 2));
+    final report = const LeakAnalyzer(
+      SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+    ).analyze(h, trigger: 'manual', status: LeakRadarStatus.active);
     expect(report.findings, isEmpty);
   });
 
@@ -29,8 +37,9 @@ void main() {
       ..add(snap({'HomeBloc': 1}, 1))
       ..add(snap({'HomeBloc': 2}, 2))
       ..add(snap({'HomeBloc': 3}, 3));
-    final report = const LeakAnalyzer(SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]))
-        .analyze(h, trigger: 'manual', status: LeakRadarStatus.active);
+    final report = const LeakAnalyzer(
+      SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+    ).analyze(h, trigger: 'manual', status: LeakRadarStatus.active);
     expect(report.findings.length, 1);
     final f = report.findings.single;
     expect(f.className, 'HomeBloc');
@@ -42,9 +51,23 @@ void main() {
   test('maxLive trips on exceed only', () {
     final atLimit = SampleHistory()..add(snap({'HomeBloc': 1}, 1));
     final over = SampleHistory()..add(snap({'HomeBloc': 2}, 1));
-    const analyzer = LeakAnalyzer(SuspectSet(<LeakRule>[LeakRule.maxLive('*Bloc', 1)]));
-    expect(analyzer.analyze(atLimit, trigger: 'm', status: LeakRadarStatus.active).findings, isEmpty);
-    expect(analyzer.analyze(over, trigger: 'm', status: LeakRadarStatus.active).findings.single.kind, LeakKind.growth);
+    const analyzer = LeakAnalyzer(
+      SuspectSet(<LeakRule>[LeakRule.maxLive('*Bloc', 1)]),
+    );
+    expect(
+      analyzer
+          .analyze(atLimit, trigger: 'm', status: LeakRadarStatus.active)
+          .findings,
+      isEmpty,
+    );
+    expect(
+      analyzer
+          .analyze(over, trigger: 'm', status: LeakRadarStatus.active)
+          .findings
+          .single
+          .kind,
+      LeakKind.growth,
+    );
   });
 
   test('growth rule: no finding when class appears only in latest snapshot', () {
@@ -53,32 +76,48 @@ void main() {
       ..add(snap({'Other': 1}, 1))
       ..add(snap({'Other': 1}, 2))
       ..add(snap({'Other': 1, 'NewBloc': 5}, 3));
-    final report = const LeakAnalyzer(SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]))
-        .analyze(h, trigger: 'manual', status: LeakRadarStatus.active);
+    final report = const LeakAnalyzer(
+      SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+    ).analyze(h, trigger: 'manual', status: LeakRadarStatus.active);
     expect(report.findings.where((f) => f.className == 'NewBloc'), isEmpty);
   });
 
-  test('growth rule: finding when class is live in ≥2 snapshots and growing', () {
-    // NewBloc series = [0, 3, 5] — 2 non-zero samples; baseline=3, growth=2.
-    final h = SampleHistory()
-      ..add(snap({}, 1))
-      ..add(snap({'NewBloc': 3}, 2))
-      ..add(snap({'NewBloc': 5}, 3));
-    final report = const LeakAnalyzer(SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]))
-        .analyze(h, trigger: 'manual', status: LeakRadarStatus.active);
-    expect(report.findings.length, 1);
-    final f = report.findings.single;
-    expect(f.className, 'NewBloc');
-    expect(f.growth, 2); // 5 − 3
-  });
+  test(
+    'growth rule: finding when class is live in ≥2 snapshots and growing',
+    () {
+      // NewBloc series = [0, 3, 5] — 2 non-zero samples; baseline=3, growth=2.
+      final h = SampleHistory()
+        ..add(snap({}, 1))
+        ..add(snap({'NewBloc': 3}, 2))
+        ..add(snap({'NewBloc': 5}, 3));
+      final report = const LeakAnalyzer(
+        SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+      ).analyze(h, trigger: 'manual', status: LeakRadarStatus.active);
+      expect(report.findings.length, 1);
+      final f = report.findings.single;
+      expect(f.className, 'NewBloc');
+      expect(f.growth, 2); // 5 − 3
+    },
+  );
 
   test('precise findings are folded into the report', () {
     final h = SampleHistory()..add(snap({'X': 1}, 1));
     final precise = [
-      const LeakFinding(className: 'CallSession', kind: LeakKind.notGced, severity: LeakSeverity.critical, liveCount: 1, growth: 0, tag: 'CallSession'),
+      const LeakFinding(
+        className: 'CallSession',
+        kind: LeakKind.notGced,
+        severity: LeakSeverity.critical,
+        liveCount: 1,
+        growth: 0,
+        tag: 'CallSession',
+      ),
     ];
-    final report = const LeakAnalyzer(SuspectSet.empty())
-        .analyze(h, trigger: 'manual', status: LeakRadarStatus.active, preciseFindings: precise);
+    final report = const LeakAnalyzer(SuspectSet.empty()).analyze(
+      h,
+      trigger: 'manual',
+      status: LeakRadarStatus.active,
+      preciseFindings: precise,
+    );
     expect(report.findings.single.tag, 'CallSession');
     expect(report.worstSeverity, LeakSeverity.critical);
   });

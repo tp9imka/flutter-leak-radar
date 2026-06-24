@@ -59,27 +59,30 @@ void main() {
     expect(reg.trackedCount, 0);
   });
 
-  test('aggregates leaked instances of one class+tag into a single finding', () {
-    final gc = FakeGc();
-    final reg = LeakObjectRegistry(
-      gcCounter: gc,
-      disposalGrace: Duration.zero,
-      clock: () => DateTime(2026),
-    );
-    for (final o in [Object(), Object(), Object()]) {
-      reg.track(o, tag: 'LeakyScreen');
-      reg.markDisposed(o);
-    }
-    gc.value += 3;
-    final leaks = reg.collectLeaks(
-      gcCycles: 3,
-      now: DateTime(2026).add(const Duration(seconds: 10)),
-    );
-    expect(leaks, hasLength(1));
-    expect(leaks.single.liveCount, 3);
-    expect(leaks.single.tag, 'LeakyScreen');
-    expect(leaks.single.kind, LeakKind.notGced);
-  });
+  test(
+    'aggregates leaked instances of one class+tag into a single finding',
+    () {
+      final gc = FakeGc();
+      final reg = LeakObjectRegistry(
+        gcCounter: gc,
+        disposalGrace: Duration.zero,
+        clock: () => DateTime(2026),
+      );
+      for (final o in [Object(), Object(), Object()]) {
+        reg.track(o, tag: 'LeakyScreen');
+        reg.markDisposed(o);
+      }
+      gc.value += 3;
+      final leaks = reg.collectLeaks(
+        gcCycles: 3,
+        now: DateTime(2026).add(const Duration(seconds: 10)),
+      );
+      expect(leaks, hasLength(1));
+      expect(leaks.single.liveCount, 3);
+      expect(leaks.single.tag, 'LeakyScreen');
+      expect(leaks.single.kind, LeakKind.notGced);
+    },
+  );
 
   test('distinct tags produce separate aggregated findings', () {
     final gc = FakeGc();

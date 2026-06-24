@@ -15,10 +15,10 @@ import 'package:vm_service/vm_service.dart';
 final _fakeClassRef = ClassRef(id: 'classes/99', name: 'MyMap');
 
 ObjRef _fakeInstance() => InstanceRef(
-      id: 'objects/1',
-      kind: 'PlainInstance',
-      classRef: _fakeClassRef,
-    );
+  id: 'objects/1',
+  kind: 'PlainInstance',
+  classRef: _fakeClassRef,
+);
 
 /// Base fake VmService that returns a single-instance set and a RetainingPath
 /// with one element.  Subclasses supply the parentMapKey.
@@ -33,8 +33,7 @@ abstract class _FakeVmServiceBase extends Fake implements VmService {
     bool? includeSubclasses,
     bool? includeImplementers,
     String? idZoneId,
-  }) async =>
-      InstanceSet()..instances = [_fakeInstance()];
+  }) async => InstanceSet()..instances = [_fakeInstance()];
 
   @override
   Future<RetainingPath> getRetainingPath(
@@ -70,11 +69,11 @@ class _FakeVmServiceWithInstanceRefMapKey extends _FakeVmServiceBase {
 
   @override
   ObjRef? get fakeParentMapKey => InstanceRef(
-        id: 'objects/key1',
-        kind: 'String',
-        valueAsString: valueAsString,
-        classRef: ClassRef(id: 'classes/dart:core/String', name: 'String'),
-      );
+    id: 'objects/key1',
+    kind: 'String',
+    valueAsString: valueAsString,
+    classRef: ClassRef(id: 'classes/dart:core/String', name: 'String'),
+  );
 }
 
 /// parentMapKey is null.
@@ -115,8 +114,9 @@ void main() {
       'retainingPath extracts mapKey when parentMapKey is InstanceRef',
       () async {
         // Arrange: correct VM service behavior.
-        final fakeService =
-            _FakeVmServiceWithInstanceRefMapKey(valueAsString: 'myKey');
+        final fakeService = _FakeVmServiceWithInstanceRefMapKey(
+          valueAsString: 'myKey',
+        );
         final probe = VmHeapProbe();
         probe.debugInjectServiceAndCache(
           fakeService,
@@ -130,22 +130,19 @@ void main() {
       },
     );
 
-    test(
-      'retainingPath handles null parentMapKey without throwing',
-      () async {
-        final fakeService = _FakeVmServiceWithNullMapKey();
-        final probe = VmHeapProbe();
-        probe.debugInjectServiceAndCache(
-          fakeService,
-          isolateId: 'isolates/1',
-          classRefCache: {'MyMap': _fakeClassRef},
-        );
+    test('retainingPath handles null parentMapKey without throwing', () async {
+      final fakeService = _FakeVmServiceWithNullMapKey();
+      final probe = VmHeapProbe();
+      probe.debugInjectServiceAndCache(
+        fakeService,
+        isolateId: 'isolates/1',
+        classRefCache: {'MyMap': _fakeClassRef},
+      );
 
-        final result = await probe.retainingPath('MyMap');
+      final result = await probe.retainingPath('MyMap');
 
-        expect(result, isNotNull);
-        expect(result!.elements.first.mapKey, isNull);
-      },
-    );
+      expect(result, isNotNull);
+      expect(result!.elements.first.mapKey, isNull);
+    });
   });
 }

@@ -20,9 +20,7 @@ class RadarGlyph extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox.square(
       dimension: size,
-      child: CustomPaint(
-        painter: _RadarPainter(),
-      ),
+      child: CustomPaint(painter: _RadarPainter()),
     );
   }
 }

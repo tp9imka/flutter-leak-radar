@@ -47,9 +47,7 @@ abstract final class LeakRadar {
   /// Reactive config notifier. Mirrors the active config so UI can rebuild
   /// when settings change without polling.
   static final ValueNotifier<LeakRadarConfig> _configNotifier =
-      ValueNotifier<LeakRadarConfig>(
-    const LeakRadarConfig(enabled: false),
-  );
+      ValueNotifier<LeakRadarConfig>(const LeakRadarConfig(enabled: false));
 
   /// A [ValueListenable] that emits the current [LeakRadarConfig] whenever
   /// [updateConfig] is called.
@@ -69,30 +67,34 @@ abstract final class LeakRadar {
       _engine = null;
       return;
     }
-    await runSafelyAsync<void>(() async {
-      _logger = RateLimitedLogger(level: config.logLevel);
-      HeapProbe probe = VmHeapProbe(
-        logger: _logger,
-        maxRetainingPathRequests: config.maxRetainingPathRequests,
-      );
-      if (!await probe.isAvailable) {
-        await probe.dispose();
-        probe = const NoopHeapProbe();
-      }
-      final engine = LeakEngine(
-        probe: probe,
-        analyzer: LeakAnalyzer(config.suspects.merge(config.rules)),
-        history: SampleHistory(maxSnapshots: config.maxSnapshots),
-        registry: LeakObjectRegistry(disposalGrace: config.disposalGrace),
-        gcCyclesForPreciseLeak: config.gcCyclesForPreciseLeak,
-        logger: _logger,
-        autoScan: config.autoScan,
-      );
-      await engine.start();
-      _showOverlay = config.showOverlay;
-      _engine = engine;
-      _configNotifier.value = config;
-    }, fallback: null, logger: _logger);
+    await runSafelyAsync<void>(
+      () async {
+        _logger = RateLimitedLogger(level: config.logLevel);
+        HeapProbe probe = VmHeapProbe(
+          logger: _logger,
+          maxRetainingPathRequests: config.maxRetainingPathRequests,
+        );
+        if (!await probe.isAvailable) {
+          await probe.dispose();
+          probe = const NoopHeapProbe();
+        }
+        final engine = LeakEngine(
+          probe: probe,
+          analyzer: LeakAnalyzer(config.suspects.merge(config.rules)),
+          history: SampleHistory(maxSnapshots: config.maxSnapshots),
+          registry: LeakObjectRegistry(disposalGrace: config.disposalGrace),
+          gcCyclesForPreciseLeak: config.gcCyclesForPreciseLeak,
+          logger: _logger,
+          autoScan: config.autoScan,
+        );
+        await engine.start();
+        _showOverlay = config.showOverlay;
+        _engine = engine;
+        _configNotifier.value = config;
+      },
+      fallback: null,
+      logger: _logger,
+    );
   }
 
   /// Test seam: install a pre-built engine (e.g. with a FakeHeapProbe).
@@ -112,12 +114,14 @@ abstract final class LeakRadar {
     final capturedAt = DateTime.now();
     final engine = _engine;
     if (engine == null) {
-      return Future.value(LeakReport(
-        findings: const [],
-        capturedAt: capturedAt,
-        trigger: trigger,
-        status: LeakRadarStatus.disabled,
-      ));
+      return Future.value(
+        LeakReport(
+          findings: const [],
+          capturedAt: capturedAt,
+          trigger: trigger,
+          status: LeakRadarStatus.disabled,
+        ),
+      );
     }
     return runSafelyAsync(
       () => engine.scan(trigger: trigger),
@@ -139,34 +143,42 @@ abstract final class LeakRadar {
   /// [LeakRadarConfig.gcCyclesForPreciseLeak] GC cycles after
   /// [markDisposed] is called (or if [markDisposed] is never called).
   /// A no-op when the engine is not running.
-  static void track(Object object, {required String tag}) =>
-      runSafely<void>(() => _engine?.track(object, tag: tag), fallback: null, logger: _logger);
+  static void track(Object object, {required String tag}) => runSafely<void>(
+    () => _engine?.track(object, tag: tag),
+    fallback: null,
+    logger: _logger,
+  );
 
   /// Resets all accumulated leak state visible in the UI.
   ///
   /// Clears the engine's precise registry, snapshot history, and latest
   /// report, then emits an empty [LeakReport] on [reports] so the UI updates.
   /// A no-op when the engine is not running. Never throws.
-  static void clearLeaks() =>
-      runSafely<void>(
-        () => _engine?.clearLeaks(),
-        fallback: null,
-        logger: _logger,
-      );
+  static void clearLeaks() => runSafely<void>(
+    () => _engine?.clearLeaks(),
+    fallback: null,
+    logger: _logger,
+  );
 
   /// Notifies the engine that [object] has been intentionally disposed.
   ///
   /// After this call the engine expects the object to be GCed within
   /// [LeakRadarConfig.disposalGrace] + a few GC cycles. A no-op when the
   /// engine is not running or the object was never [track]ed.
-  static void markDisposed(Object object) =>
-      runSafely<void>(() => _engine?.markDisposed(object), fallback: null, logger: _logger);
+  static void markDisposed(Object object) => runSafely<void>(
+    () => _engine?.markDisposed(object),
+    fallback: null,
+    logger: _logger,
+  );
 
   /// Stream of [LeakReport]s emitted after each scan completes.
   ///
   /// Emits an empty stream when the engine is not running.
-  static Stream<LeakReport> get reports =>
-      runSafely(() => _engine?.reports ?? const Stream<LeakReport>.empty(), fallback: const Stream<LeakReport>.empty(), logger: _logger);
+  static Stream<LeakReport> get reports => runSafely(
+    () => _engine?.reports ?? const Stream<LeakReport>.empty(),
+    fallback: const Stream<LeakReport>.empty(),
+    logger: _logger,
+  );
 
   /// The most recent [LeakReport], or null if no scan has run yet.
   static LeakReport? get latest =>
@@ -175,20 +187,22 @@ abstract final class LeakRadar {
   /// Current runtime status of the detector.
   ///
   /// Returns [LeakRadarStatus.disabled] when the engine is not running.
-  static LeakRadarStatus get status =>
-      runSafely(() => _engine?.status ?? LeakRadarStatus.disabled, fallback: LeakRadarStatus.disabled, logger: _logger);
+  static LeakRadarStatus get status => runSafely(
+    () => _engine?.status ?? LeakRadarStatus.disabled,
+    fallback: LeakRadarStatus.disabled,
+    logger: _logger,
+  );
 
   /// Returns the [NavigatorObserver] wired to navigation-triggered scans when
   /// the engine is active and [AutoScan.onNavigation] is true. Falls back to
   /// an inert no-op observer when disabled, in release builds, or on error —
   /// so callers can unconditionally add this to [MaterialApp.navigatorObservers]
   /// without guarding against null.
-  static NavigatorObserver get navigatorObserver =>
-      runSafely(
-        () => _engine?.navigatorObserver ?? _inertObserver,
-        fallback: _inertObserver,
-        logger: _logger,
-      );
+  static NavigatorObserver get navigatorObserver => runSafely(
+    () => _engine?.navigatorObserver ?? _inertObserver,
+    fallback: _inertObserver,
+    logger: _logger,
+  );
 
   /// Wraps [child] with a [LeakRadarOverlay] when the engine is active and
   /// [LeakRadarConfig.showOverlay] is true. Returns [child] unchanged when the
@@ -211,11 +225,15 @@ abstract final class LeakRadar {
   /// Reconfigures auto-scan triggers and updates [configListenable]. No-op
   /// when the engine is not running. Never throws.
   static void updateConfig(LeakRadarConfig config) {
-    runSafely<void>(() {
-      _engine?.updateConfig(config);
-      _showOverlay = config.showOverlay;
-      _configNotifier.value = config;
-    }, fallback: null, logger: _logger);
+    runSafely<void>(
+      () {
+        _engine?.updateConfig(config);
+        _showOverlay = config.showOverlay;
+        _configNotifier.value = config;
+      },
+      fallback: null,
+      logger: _logger,
+    );
   }
 
   /// Lazily fetches the retaining path for [className] from the active engine.
@@ -224,9 +242,7 @@ abstract final class LeakRadar {
   /// retaining paths, or any error occurs — never throws into the host.
   /// Called by the UI layer only on explicit user expand; never during a scan.
   @internal
-  static Future<RetainingPathView?> fetchRetainingPath(
-    String className,
-  ) =>
+  static Future<RetainingPathView?> fetchRetainingPath(String className) =>
       runSafelyAsync(
         () =>
             _engine?.retainingPath(className) ??
@@ -248,22 +264,25 @@ abstract final class LeakRadar {
   static Future<String?> exportToFile({
     LeakExportFormat format = LeakExportFormat.markdown,
     Directory? directory,
-  }) =>
-      runSafelyAsync<String?>(() async {
-        final report = _engine?.latest;
-        if (report == null) return null;
+  }) => runSafelyAsync<String?>(
+    () async {
+      final report = _engine?.latest;
+      if (report == null) return null;
 
-        final dir = directory ?? Directory.systemTemp;
-        final stamp = report.capturedAt.millisecondsSinceEpoch;
-        final ext = format == LeakExportFormat.json ? 'json' : 'md';
-        final file = File('${dir.path}/leak_report_$stamp.$ext');
+      final dir = directory ?? Directory.systemTemp;
+      final stamp = report.capturedAt.millisecondsSinceEpoch;
+      final ext = format == LeakExportFormat.json ? 'json' : 'md';
+      final file = File('${dir.path}/leak_report_$stamp.$ext');
 
-        final content = format == LeakExportFormat.json
-            ? jsonEncode(report.toJson())
-            : report.toMarkdown();
-        await file.writeAsString(content);
-        return file.path;
-      }, fallback: null, logger: _logger);
+      final content = format == LeakExportFormat.json
+          ? jsonEncode(report.toJson())
+          : report.toMarkdown();
+      await file.writeAsString(content);
+      return file.path;
+    },
+    fallback: null,
+    logger: _logger,
+  );
 
   /// Writes a binary heap snapshot to a file and returns the absolute path.
   ///

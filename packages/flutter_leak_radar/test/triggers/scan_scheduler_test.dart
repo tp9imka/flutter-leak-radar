@@ -8,7 +8,9 @@ void main() {
       var fired = 0;
       final scheduler = ScanScheduler(
         period: null,
-        onTick: () async { fired++; },
+        onTick: () async {
+          fired++;
+        },
       );
       scheduler.start();
       await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -20,7 +22,9 @@ void main() {
       var fired = 0;
       final scheduler = ScanScheduler(
         period: const Duration(milliseconds: 20),
-        onTick: () async { fired++; },
+        onTick: () async {
+          fired++;
+        },
       );
       scheduler.start();
       await Future<void>.delayed(const Duration(milliseconds: 70));
@@ -33,7 +37,9 @@ void main() {
       var fired = 0;
       final scheduler = ScanScheduler(
         period: const Duration(milliseconds: 20),
-        onTick: () async { fired++; },
+        onTick: () async {
+          fired++;
+        },
       );
       scheduler.start();
       await Future<void>.delayed(const Duration(milliseconds: 30));
@@ -47,7 +53,9 @@ void main() {
       var fired = 0;
       final scheduler = ScanScheduler(
         period: const Duration(milliseconds: 20),
-        onTick: () async { fired++; },
+        onTick: () async {
+          fired++;
+        },
       );
       scheduler.start();
       scheduler.start(); // second call should be a no-op

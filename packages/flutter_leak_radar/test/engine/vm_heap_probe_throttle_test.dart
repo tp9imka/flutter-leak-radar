@@ -16,10 +16,10 @@ import 'package:vm_service/vm_service.dart';
 final _fakeClassRef = ClassRef(id: 'classes/1', name: 'Dummy');
 
 ObjRef _fakeInstance() => InstanceRef(
-      id: 'objects/1',
-      kind: 'PlainInstance',
-      classRef: _fakeClassRef,
-    );
+  id: 'objects/1',
+  kind: 'PlainInstance',
+  classRef: _fakeClassRef,
+);
 
 class _ThrottleFakeService extends Fake implements VmService {
   int retainingPathCalls = 0;
@@ -45,8 +45,7 @@ class _ThrottleFakeService extends Fake implements VmService {
     bool? includeSubclasses,
     bool? includeImplementers,
     String? idZoneId,
-  }) async =>
-      InstanceSet()..instances = [_fakeInstance()];
+  }) async => InstanceSet()..instances = [_fakeInstance()];
 
   @override
   Future<RetainingPath> getRetainingPath(
@@ -77,28 +76,30 @@ void main() {
   });
 
   group('VmHeapProbe maxRetainingPathRequests throttle', () {
-    test('retainingPath returns null after maxRetainingPathRequests per cycle',
-        () async {
-      final probe = VmHeapProbe(maxRetainingPathRequests: 2);
-      probe.debugInjectServiceAndCache(
-        fakeService,
-        isolateId: 'isolates/1',
-        classRefCache: {
-          'A': fakeClassRef,
-          'B': fakeClassRef,
-          'C': fakeClassRef,
-        },
-      );
+    test(
+      'retainingPath returns null after maxRetainingPathRequests per cycle',
+      () async {
+        final probe = VmHeapProbe(maxRetainingPathRequests: 2);
+        probe.debugInjectServiceAndCache(
+          fakeService,
+          isolateId: 'isolates/1',
+          classRefCache: {
+            'A': fakeClassRef,
+            'B': fakeClassRef,
+            'C': fakeClassRef,
+          },
+        );
 
-      // Act: request 3 paths; limit is 2.
-      final p1 = await probe.retainingPath('A');
-      final p2 = await probe.retainingPath('B');
-      final p3 = await probe.retainingPath('C'); // should be throttled → null
+        // Act: request 3 paths; limit is 2.
+        final p1 = await probe.retainingPath('A');
+        final p2 = await probe.retainingPath('B');
+        final p3 = await probe.retainingPath('C'); // should be throttled → null
 
-      expect(p1, isNotNull);
-      expect(p2, isNotNull);
-      expect(p3, isNull); // throttled
-    });
+        expect(p1, isNotNull);
+        expect(p2, isNotNull);
+        expect(p3, isNull); // throttled
+      },
+    );
 
     test('retainingPath counter resets after capture', () async {
       final probe = VmHeapProbe(maxRetainingPathRequests: 1);

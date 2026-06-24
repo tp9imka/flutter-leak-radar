@@ -26,8 +26,9 @@ void main() {
       expect(find.byTooltip('More'), findsOneWidget);
     });
 
-    testWidgets('opening popup shows Collect heap snapshot item',
-        (tester) async {
+    testWidgets('opening popup shows Collect heap snapshot item', (
+      tester,
+    ) async {
       await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
       await tester.pump();
 

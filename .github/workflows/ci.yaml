@@ -24,6 +24,9 @@ jobs:
 
       - run: flutter --version
 
+      - name: Format check
+        run: dart format --output=none --set-exit-if-changed .
+
       # One root `pub get` resolves the whole pub workspace
       # (flutter_leak_radar + flutter_leak_radar_lint + the lint example).
       # This is the workspace-native alternative to `melos bootstrap`, which

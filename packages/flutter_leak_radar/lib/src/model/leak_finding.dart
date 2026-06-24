@@ -65,53 +65,51 @@ final class LeakFinding {
 
   /// Returns a copy of this finding with [retainingPath] set.
   LeakFinding withRetainingPath(RetainingPathView path) => LeakFinding(
-        className: className,
-        kind: kind,
-        severity: severity,
-        liveCount: liveCount,
-        growth: growth,
-        library: library,
-        tag: tag,
-        series: series,
-        captureTimes: captureTimes,
-        retainingPath: path,
-      );
+    className: className,
+    kind: kind,
+    severity: severity,
+    liveCount: liveCount,
+    growth: growth,
+    library: library,
+    tag: tag,
+    series: series,
+    captureTimes: captureTimes,
+    retainingPath: path,
+  );
 
   Map<String, Object?> toJson() => {
-        'className': className,
-        'kind': kind.name,
-        'severity': severity.name,
-        'liveCount': liveCount,
-        'growth': growth,
-        if (library != null) 'library': library,
-        if (tag != null) 'tag': tag,
-        'series': series,
-        'captureTimes': captureTimes.map((dt) => dt.toIso8601String()).toList(),
-        if (retainingPath != null) 'retainingPath': retainingPath!.toJson(),
-      };
+    'className': className,
+    'kind': kind.name,
+    'severity': severity.name,
+    'liveCount': liveCount,
+    'growth': growth,
+    if (library != null) 'library': library,
+    if (tag != null) 'tag': tag,
+    'series': series,
+    'captureTimes': captureTimes.map((dt) => dt.toIso8601String()).toList(),
+    if (retainingPath != null) 'retainingPath': retainingPath!.toJson(),
+  };
 
   static LeakFinding fromJson(Map<String, Object?> json) => LeakFinding(
-        className: json['className'] as String,
-        kind: LeakKind.values.byName(json['kind'] as String),
-        severity: LeakSeverity.values.byName(json['severity'] as String),
-        liveCount: json['liveCount'] as int,
-        growth: json['growth'] as int,
-        library: json['library'] as String?,
-        tag: json['tag'] as String?,
-        series: (json['series'] as List<Object?>?)
-                ?.map((e) => e as int)
-                .toList() ??
-            const <int>[],
-        captureTimes: (json['captureTimes'] as List<Object?>?)
-                ?.map((e) => DateTime.parse(e as String))
-                .toList() ??
-            const <DateTime>[],
-        retainingPath: json['retainingPath'] != null
-            ? _retainingPathFromJson(
-                json['retainingPath'] as Map<String, Object?>,
-              )
-            : null,
-      );
+    className: json['className'] as String,
+    kind: LeakKind.values.byName(json['kind'] as String),
+    severity: LeakSeverity.values.byName(json['severity'] as String),
+    liveCount: json['liveCount'] as int,
+    growth: json['growth'] as int,
+    library: json['library'] as String?,
+    tag: json['tag'] as String?,
+    series:
+        (json['series'] as List<Object?>?)?.map((e) => e as int).toList() ??
+        const <int>[],
+    captureTimes:
+        (json['captureTimes'] as List<Object?>?)
+            ?.map((e) => DateTime.parse(e as String))
+            .toList() ??
+        const <DateTime>[],
+    retainingPath: json['retainingPath'] != null
+        ? _retainingPathFromJson(json['retainingPath'] as Map<String, Object?>)
+        : null,
+  );
 
   // series, captureTimes, and retainingPath are intentionally excluded from
   // identity
@@ -135,15 +133,13 @@ RetainingPathView _retainingPathFromJson(Map<String, Object?> json) =>
     RetainingPathView(
       gcRootType: json['gcRootType'] as String?,
       elements: (json['elements'] as List<Object?>)
-          .map(
-            (e) => _retainingHopFromJson(e as Map<String, Object?>),
-          )
+          .map((e) => _retainingHopFromJson(e as Map<String, Object?>))
           .toList(),
     );
 
 RetainingHop _retainingHopFromJson(Map<String, Object?> json) => RetainingHop(
-      objectType: json['objectType'] as String,
-      field: json['field'] as String?,
-      index: json['index'] as int?,
-      mapKey: json['mapKey'] as String?,
-    );
+  objectType: json['objectType'] as String,
+  field: json['field'] as String?,
+  index: json['index'] as int?,
+  mapKey: json['mapKey'] as String?,
+);

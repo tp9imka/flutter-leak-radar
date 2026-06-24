@@ -19,7 +19,10 @@ Future<String?> writeHeapSnapshotFile({
 }) async {
   try {
     final now = (clock ?? DateTime.now)();
-    final stamp = now.toIso8601String().replaceAll(':', '-').replaceAll('.', '-');
+    final stamp = now
+        .toIso8601String()
+        .replaceAll(':', '-')
+        .replaceAll('.', '-');
     final dir = directory ?? Directory.systemTemp;
     final path = '${dir.path}/leak_radar_heap_$stamp.data';
     developer.NativeRuntime.writeHeapSnapshotToFile(path);

@@ -6,12 +6,21 @@ void main() {
   const hop1 = RetainingHop(objectType: 'Foo', field: 'bar');
   const hop2 = RetainingHop(objectType: 'Baz');
 
-  test('RetainingPathView: equal gcRootType + equal elements → == with equal hashCodes', () {
-    final a = RetainingPathView(gcRootType: 'isolate', elements: [hop1, hop2]);
-    final b = RetainingPathView(gcRootType: 'isolate', elements: [hop1, hop2]);
-    expect(a, equals(b));
-    expect(a.hashCode, b.hashCode);
-  });
+  test(
+    'RetainingPathView: equal gcRootType + equal elements → == with equal hashCodes',
+    () {
+      final a = RetainingPathView(
+        gcRootType: 'isolate',
+        elements: [hop1, hop2],
+      );
+      final b = RetainingPathView(
+        gcRootType: 'isolate',
+        elements: [hop1, hop2],
+      );
+      expect(a, equals(b));
+      expect(a.hashCode, b.hashCode);
+    },
+  );
 
   test('RetainingPathView: different elements → not equal', () {
     final a = RetainingPathView(gcRootType: 'isolate', elements: [hop1]);

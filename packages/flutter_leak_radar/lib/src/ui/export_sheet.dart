@@ -60,10 +60,7 @@ class _LeakExportSheetState extends State<LeakExportSheet> {
       if (!mounted) return;
       if (path != null) {
         await SharePlus.instance.share(
-          ShareParams(
-            files: [XFile(path)],
-            text: 'Leak Radar report',
-          ),
+          ShareParams(files: [XFile(path)], text: 'Leak Radar report'),
         );
       }
     } catch (_) {
@@ -84,9 +81,7 @@ class _LeakExportSheetState extends State<LeakExportSheet> {
         decoration: const BoxDecoration(
           color: LeakRadarColors.cardBg,
           border: Border(
-            top: BorderSide(
-              color: Color.fromRGBO(255, 255, 255, 0.10),
-            ),
+            top: BorderSide(color: Color.fromRGBO(255, 255, 255, 0.10)),
           ),
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(22),
@@ -129,83 +124,78 @@ class _GrabHandle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 12),
-        child: Center(
-          child: Container(
-            width: 38,
-            height: 4,
-            decoration: BoxDecoration(
-              color: const Color.fromRGBO(255, 255, 255, 0.20),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
+    padding: const EdgeInsets.only(top: 12),
+    child: Center(
+      child: Container(
+        width: 38,
+        height: 4,
+        decoration: BoxDecoration(
+          color: const Color.fromRGBO(255, 255, 255, 0.20),
+          borderRadius: BorderRadius.circular(2),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Export findings',
-              style: LeakRadarText.metric.copyWith(fontSize: 18),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Share straight from the device — '
-              'into a bug, a PR, a thread.',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 13,
-                color: LeakRadarColors.text40,
-              ),
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Export findings',
+          style: LeakRadarText.metric.copyWith(fontSize: 18),
         ),
-      );
+        const SizedBox(height: 4),
+        Text(
+          'Share straight from the device — '
+          'into a bug, a PR, a thread.',
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 13,
+            color: LeakRadarColors.text40,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _FormatToggle extends StatelessWidget {
-  const _FormatToggle({
-    required this.selected,
-    required this.onChanged,
-  });
+  const _FormatToggle({required this.selected, required this.onChanged});
 
   final _ExportFormat selected;
   final ValueChanged<_ExportFormat> onChanged;
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: LeakRadarColors.codePreviewBg,
-            border: Border.all(
-              color: const Color.fromRGBO(255, 255, 255, 0.10),
-            ),
-            borderRadius: BorderRadius.circular(10),
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    child: Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: LeakRadarColors.codePreviewBg,
+        border: Border.all(color: const Color.fromRGBO(255, 255, 255, 0.10)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          _Segment(
+            label: 'JSON',
+            active: selected == _ExportFormat.json,
+            onTap: () => onChanged(_ExportFormat.json),
           ),
-          child: Row(
-            children: [
-              _Segment(
-                label: 'JSON',
-                active: selected == _ExportFormat.json,
-                onTap: () => onChanged(_ExportFormat.json),
-              ),
-              const SizedBox(width: 4),
-              _Segment(
-                label: 'Markdown',
-                active: selected == _ExportFormat.markdown,
-                onTap: () => onChanged(_ExportFormat.markdown),
-              ),
-            ],
+          const SizedBox(width: 4),
+          _Segment(
+            label: 'Markdown',
+            active: selected == _ExportFormat.markdown,
+            onTap: () => onChanged(_ExportFormat.markdown),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }
 
 class _Segment extends StatelessWidget {
@@ -221,33 +211,26 @@ class _Segment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Expanded(
-        child: GestureDetector(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 8,
-            ),
-            decoration: BoxDecoration(
-              color: active
-                  ? LeakRadarColors.accent
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: active
-                    ? LeakRadarColors.pageBg
-                    : LeakRadarColors.text40,
-              ),
-            ),
+    child: GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? LeakRadarColors.accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: active ? LeakRadarColors.pageBg : LeakRadarColors.text40,
           ),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _PreviewBox extends StatelessWidget {
@@ -257,28 +240,28 @@ class _PreviewBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Container(
-          constraints: const BoxConstraints(maxHeight: 150),
-          decoration: BoxDecoration(
-            color: LeakRadarColors.codePreviewBg,
-            border: Border.all(color: LeakRadarColors.border08),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          padding: const EdgeInsets.all(12),
-          child: SingleChildScrollView(
-            child: Text(
-              text,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 11.5,
-                color: text == 'Nothing to export yet'
-                    ? LeakRadarColors.text25
-                    : LeakRadarColors.text60,
-              ),
-            ),
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    child: Container(
+      constraints: const BoxConstraints(maxHeight: 150),
+      decoration: BoxDecoration(
+        color: LeakRadarColors.codePreviewBg,
+        border: Border.all(color: LeakRadarColors.border08),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: SingleChildScrollView(
+        child: Text(
+          text,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 11.5,
+            color: text == 'Nothing to export yet'
+                ? LeakRadarColors.text25
+                : LeakRadarColors.text60,
           ),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _ShareButton extends StatelessWidget {
@@ -301,49 +284,47 @@ class _ShareButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: GestureDetector(
-          key: const Key('export_share_btn'),
-          onTap: hasReport && !sharing ? onTap : null,
-          child: Container(
-            height: 48,
-            decoration: BoxDecoration(
-              color: hasReport
-                  ? LeakRadarColors.accent
-                  : LeakRadarColors.text25,
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (sharing)
-                  const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: LeakRadarColors.pageBg,
-                    ),
-                  )
-                else ...[
-                  Icon(
-                    Icons.upload_outlined,
-                    size: 18,
-                    color: LeakRadarColors.pageBg,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _label,
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: LeakRadarColors.pageBg,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    child: GestureDetector(
+      key: const Key('export_share_btn'),
+      onTap: hasReport && !sharing ? onTap : null,
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: hasReport ? LeakRadarColors.accent : LeakRadarColors.text25,
+          borderRadius: BorderRadius.circular(13),
         ),
-      );
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (sharing)
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: LeakRadarColors.pageBg,
+                ),
+              )
+            else ...[
+              Icon(
+                Icons.upload_outlined,
+                size: 18,
+                color: LeakRadarColors.pageBg,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _label,
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: LeakRadarColors.pageBg,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
+  );
 }
