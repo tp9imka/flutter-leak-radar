@@ -1,0 +1,38 @@
+name: Publish
+
+# Automated publishing to pub.dev via OIDC — no long-lived tokens.
+#
+# Release one package by pushing a package-prefixed tag, e.g.:
+#   git tag flutter_leak_radar-v0.1.0
+#   git push origin flutter_leak_radar-v0.1.0
+#
+# Prerequisites (one-time, on pub.dev → package → Admin → Automated publishing):
+#   - Enable "Publishing from GitHub Actions" for each package.
+#   - Set the repository to tp9imka/flutter-leak-radar.
+#   - Set the tag pattern to "{{package}}-v{{version}}", e.g.
+#     flutter_leak_radar-v{{version}} and flutter_leak_radar_lint-v{{version}}.
+# Also ensure the package's pubspec uses version (not path) dependencies before
+# the first release.
+
+on:
+  push:
+    tags:
+      - 'flutter_leak_radar-v*'
+      - 'flutter_leak_radar_lint-v*'
+
+jobs:
+  flutter_leak_radar:
+    if: startsWith(github.ref_name, 'flutter_leak_radar-v')
+    permissions:
+      id-token: write # mint the OIDC token pub.dev verifies against the tag
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
+    with:
+      working-directory: packages/flutter_leak_radar
+
+  flutter_leak_radar_lint:
+    if: startsWith(github.ref_name, 'flutter_leak_radar_lint-v')
+    permissions:
+      id-token: write
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
+    with:
+      working-directory: packages/flutter_leak_radar_lint
