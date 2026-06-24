@@ -117,6 +117,29 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('precise finding (empty series) shows precise panel, not chart',
+        (tester) async {
+      await LeakRadar.debugInstall(LeakEngine(
+        probe: const NoopHeapProbe(),
+        analyzer: LeakAnalyzer(SuspectSet.empty()),
+      ));
+      const finding = LeakFinding(
+        className: '_LeakyScreenState',
+        kind: LeakKind.notGced,
+        severity: LeakSeverity.critical,
+        liveCount: 3,
+        growth: 0,
+        series: <int>[],
+        tag: 'LeakyScreen',
+      );
+      await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
+      await tester.pumpAndSettle();
+      expect(find.text('Precise tracking'), findsOneWidget);
+      expect(find.text('still live after disposal'), findsOneWidget);
+      expect(find.text('Live instances / capture'), findsNothing);
+      expect(find.text('3'), findsOneWidget); // aggregated LIVE NOW count
+    });
   });
 
   group('FindingDetailScreen — retaining path', () {

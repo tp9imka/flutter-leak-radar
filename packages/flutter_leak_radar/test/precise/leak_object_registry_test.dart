@@ -59,6 +59,54 @@ void main() {
     expect(reg.trackedCount, 0);
   });
 
+  test('aggregates leaked instances of one class+tag into a single finding', () {
+    final gc = FakeGc();
+    final reg = LeakObjectRegistry(
+      gcCounter: gc,
+      disposalGrace: Duration.zero,
+      clock: () => DateTime(2026),
+    );
+    for (final o in [Object(), Object(), Object()]) {
+      reg.track(o, tag: 'LeakyScreen');
+      reg.markDisposed(o);
+    }
+    gc.value += 3;
+    final leaks = reg.collectLeaks(
+      gcCycles: 3,
+      now: DateTime(2026).add(const Duration(seconds: 10)),
+    );
+    expect(leaks, hasLength(1));
+    expect(leaks.single.liveCount, 3);
+    expect(leaks.single.tag, 'LeakyScreen');
+    expect(leaks.single.kind, LeakKind.notGced);
+  });
+
+  test('distinct tags produce separate aggregated findings', () {
+    final gc = FakeGc();
+    final reg = LeakObjectRegistry(
+      gcCounter: gc,
+      disposalGrace: Duration.zero,
+      clock: () => DateTime(2026),
+    );
+    final a1 = Object(), a2 = Object(), b1 = Object();
+    reg
+      ..track(a1, tag: 'A')
+      ..markDisposed(a1)
+      ..track(a2, tag: 'A')
+      ..markDisposed(a2)
+      ..track(b1, tag: 'B')
+      ..markDisposed(b1);
+    gc.value += 3;
+    final leaks = reg.collectLeaks(
+      gcCycles: 3,
+      now: DateTime(2026).add(const Duration(seconds: 10)),
+    );
+    expect(leaks, hasLength(2));
+    final byTag = {for (final l in leaks) l.tag: l.liveCount};
+    expect(byTag['A'], 2);
+    expect(byTag['B'], 1);
+  });
+
   group('disposalGrace — wall-clock enforcement', () {
     test('not reported as leak while within grace period', () {
       final gc = FakeGc();
