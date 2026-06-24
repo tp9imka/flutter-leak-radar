@@ -7,6 +7,7 @@ import '../model/leak_finding.dart';
 import '../model/leak_kind.dart';
 import '../model/leak_report.dart';
 import '../leak_radar.dart';
+import 'export_sheet.dart';
 import 'finding_detail_screen.dart';
 import 'growth_sparkline.dart';
 import 'settings_screen.dart';
@@ -32,10 +33,6 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
   bool _scanning = false;
   bool _collectingHeap = false;
   _Filter _activeFilter = _Filter.all;
-
-  /// Cached path from the most recent [_export] call, reused by [_share]
-  /// so we never write a second temp file for the same report.
-  String? _lastExportPath;
 
   @override
   void initState() {
@@ -67,36 +64,18 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
     setState(() {
       _report = report;
       _scanning = false;
-      _lastExportPath = null;
     });
     return report;
   }
 
-  Future<String?> _getOrExportPath() =>
-      LeakRadar.exportToFile(format: LeakExportFormat.markdown);
-
-  Future<void> _export() async {
-    final path = await _getOrExportPath();
-    if (!mounted) return;
-    if (path != null) _lastExportPath = path;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(path != null ? 'Exported: $path' : 'Export failed'),
-      ),
+  void _showExportSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: const Color.fromRGBO(0, 0, 0, 0.55),
+      isScrollControlled: true,
+      builder: (_) => const LeakExportSheet(),
     );
-  }
-
-  Future<void> _share() async {
-    try {
-      final path = _lastExportPath ?? await _getOrExportPath();
-      if (!mounted || path == null) return;
-      _lastExportPath = path;
-      await SharePlus.instance.share(
-        ShareParams(files: [XFile(path)], text: 'Leak Radar report'),
-      );
-    } catch (_) {
-      // Never throw into host — swallow share errors silently.
-    }
   }
 
   Future<void> _collectHeapSnapshot() async {
@@ -228,7 +207,9 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
         _IconBtn(
           icon: Icons.download_outlined,
           tooltip: 'Export',
-          onTap: _scanning ? null : _export,
+          onTap: _scanning
+              ? null
+              : () => _showExportSheet(context),
         ),
         _IconBtn(
           icon: Icons.settings_outlined,
@@ -254,7 +235,7 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
               case _HeapMenuAction.heapSnapshot:
                 if (!_scanning && !_collectingHeap) _collectHeapSnapshot();
               case _HeapMenuAction.share:
-                if (!_scanning) _share();
+                if (!_scanning) _showExportSheet(context);
             }
           },
           itemBuilder: (_) => [

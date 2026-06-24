@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../leak_radar.dart';
 import '../model/leak_finding.dart';
+import 'export_sheet.dart';
 import '../model/leak_kind.dart';
 import '../model/retaining_path.dart';
 import 'theme/theme.dart';
@@ -52,6 +53,16 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
     ));
   }
 
+  void _showExportSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: const Color.fromRGBO(0, 0, 0, 0.55),
+      isScrollControlled: true,
+      builder: (_) => const LeakExportSheet(),
+    );
+  }
+
   int get _growth {
     final s = widget.finding.series;
     if (s.length > 1) return s.last - s.first;
@@ -88,9 +99,13 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
           ),
           overflow: TextOverflow.ellipsis,
         ),
-        actions: const [
-          _IconBtn(icon: Icons.ios_share_outlined, tooltip: 'Share', onTap: null),
-          SizedBox(width: 4),
+        actions: [
+          _IconBtn(
+            icon: Icons.ios_share_outlined,
+            tooltip: 'Share',
+            onTap: () => _showExportSheet(context),
+          ),
+          const SizedBox(width: 4),
         ],
       );
 
