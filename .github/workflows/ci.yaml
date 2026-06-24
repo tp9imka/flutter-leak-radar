@@ -43,6 +43,8 @@ jobs:
         run: flutter test
         working-directory: packages/flutter_leak_radar
 
+      # Pure-Dart package: dart test (not flutter test) so custom_lint's
+      # analyzer harness resolves the standalone Dart SDK.
       - name: Test flutter_leak_radar_lint
-        run: flutter test
+        run: dart test
         working-directory: packages/flutter_leak_radar_lint
