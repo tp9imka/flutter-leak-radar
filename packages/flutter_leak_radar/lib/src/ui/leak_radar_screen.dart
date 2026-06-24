@@ -444,11 +444,11 @@ class _Chip extends StatelessWidget {
             const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: active
-              ? const Color.fromRGBO(46, 227, 155, 0.18)
+              ? LeakRadarColors.accent.withValues(alpha: 0.18)
               : const Color.fromRGBO(255, 255, 255, 0.05),
           border: Border.all(
             color: active
-                ? const Color.fromRGBO(46, 227, 155, 0.55)
+                ? LeakRadarColors.accent.withValues(alpha: 0.55)
                 : const Color.fromRGBO(255, 255, 255, 0.10),
           ),
           borderRadius: BorderRadius.circular(20),
@@ -698,11 +698,11 @@ class _BottomBar extends StatelessWidget {
                         ? LeakRadarColors.accent.withValues(alpha: 0.5)
                         : LeakRadarColors.accent,
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: const [
+                    boxShadow: [
                       BoxShadow(
-                        color: Color.fromRGBO(47, 227, 155, 0.25),
+                        color: LeakRadarColors.accent.withValues(alpha: 0.25),
                         blurRadius: 8,
-                        offset: Offset(0, 2),
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
