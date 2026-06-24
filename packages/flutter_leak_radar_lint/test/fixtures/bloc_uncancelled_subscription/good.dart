@@ -86,3 +86,17 @@ class PlainService {
     _sub?.cancel();
   }
 }
+
+// Good: .listen() is nested inside a closure passed to the constructor —
+// it is NOT a subscription created at constructor scope, so it must NOT be
+// flagged. The closure is called later (e.g. when a Future resolves), not
+// immediately in the constructor body.
+class _GoodClosureListenBloc extends Cubit<int> {
+  _GoodClosureListenBloc(Future<Stream<int>> futureStream) : super(0) {
+    // The .listen() here is INSIDE a closure (the .then callback) — it is not
+    // a constructor-scope subscription and must not be flagged.
+    futureStream.then((stream) {
+      stream.listen((v) => emit(v));
+    });
+  }
+}

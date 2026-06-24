@@ -130,6 +130,19 @@ class _ConstructorListenVisitor extends RecursiveAstVisitor<void> {
   final Set<String> _fieldNames;
   final List<_ListenFinding> calls = [];
 
+  /// Do NOT descend into nested function literals (closures / lambdas).
+  ///
+  /// A `.listen()` buried inside a closure that the constructor merely passes
+  /// somewhere is NOT a subscription created at constructor scope — it is
+  /// called later (or never), so flagging it here would be a false positive.
+  /// Only `.listen()` calls that are textually at constructor scope (or in
+  /// immediately-executed initialiser expressions, not wrapped in a closure)
+  /// are in scope for this rule.
+  @override
+  void visitFunctionExpression(FunctionExpression node) {
+    // Intentionally do NOT call super — stop recursion into closure bodies.
+  }
+
   @override
   void visitMethodInvocation(MethodInvocation node) {
     if (node.methodName.name == 'listen') {
