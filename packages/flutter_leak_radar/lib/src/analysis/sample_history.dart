@@ -32,6 +32,10 @@ class SampleHistory {
   int latestCountFor(String className) =>
       _snapshots.isEmpty ? 0 : _countIn(_snapshots.last, className);
 
+  /// [capturedAt] timestamps oldest→newest, parallel to [seriesFor].
+  List<DateTime> get captureTimestamps =>
+      [for (final s in _snapshots) s.capturedAt];
+
   int _countIn(HeapSnapshot s, String className) {
     for (final sample in s.samples) {
       if (sample.className == className) return sample.instancesCurrent;
