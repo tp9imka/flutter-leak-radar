@@ -19,19 +19,34 @@ void main() {
       );
     });
 
-    testWidgets('renders the Collect heap snapshot button', (tester) async {
+    testWidgets('renders the More overflow menu button', (tester) async {
       await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
       await tester.pump();
-      expect(find.byTooltip('Collect heap snapshot'), findsOneWidget);
-      expect(find.byIcon(Icons.memory), findsOneWidget);
+      // Heap snapshot is now in a popup menu accessed via the More button.
+      expect(find.byTooltip('More'), findsOneWidget);
     });
 
-    testWidgets('button tap does not throw', (tester) async {
+    testWidgets('opening popup shows Collect heap snapshot item',
+        (tester) async {
       await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
       await tester.pump();
 
+      // Open the overflow popup.
+      await tester.tap(find.byTooltip('More'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('heap snapshot'), findsOneWidget);
+    });
+
+    testWidgets('heap snapshot menu item tap does not throw', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('More'));
+      await tester.pumpAndSettle();
+
       await tester.runAsync(() async {
-        await tester.tap(find.byTooltip('Collect heap snapshot'));
+        await tester.tap(find.textContaining('heap snapshot'));
         await Future<void>.delayed(const Duration(milliseconds: 300));
       });
       await tester.pump();
@@ -40,20 +55,22 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('button tap shows a SnackBar', (tester) async {
+    testWidgets('heap snapshot menu item tap shows a SnackBar', (tester) async {
       await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
       await tester.pump();
 
+      await tester.tap(find.byTooltip('More'));
+      await tester.pumpAndSettle();
+
       await tester.runAsync(() async {
-        await tester.tap(find.byTooltip('Collect heap snapshot'));
+        await tester.tap(find.textContaining('heap snapshot'));
         await Future<void>.delayed(const Duration(milliseconds: 300));
       });
       await tester.pump();
       await tester.pumpAndSettle();
 
       // Expect either the success or the unavailable snackbar.
-      final snackBars = find.byType(SnackBar);
-      expect(snackBars, findsOneWidget);
+      expect(find.byType(SnackBar), findsOneWidget);
     });
   });
 }

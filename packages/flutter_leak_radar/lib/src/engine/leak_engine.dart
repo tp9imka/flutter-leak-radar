@@ -30,13 +30,15 @@ class LeakEngine {
     int gcCyclesForPreciseLeak = 3,
     RateLimitedLogger? logger,
     AutoScan? autoScan,
+    LeakRadarConfig? config,
   })  : _probe = probe,
         _analyzer = analyzer,
         _history = history ?? SampleHistory(),
         _registry = registry ?? LeakObjectRegistry(),
         _gcCyclesForPreciseLeak = gcCyclesForPreciseLeak,
         _logger = logger ?? RateLimitedLogger(),
-        _autoScan = autoScan ?? const AutoScan();
+        _autoScan = autoScan ?? config?.autoScan ?? const AutoScan(),
+        _config = config ?? const LeakRadarConfig();
 
   final HeapProbe _probe;
   final LeakAnalyzer _analyzer;
@@ -44,21 +46,28 @@ class LeakEngine {
   final LeakObjectRegistry _registry;
   final int _gcCyclesForPreciseLeak;
   final RateLimitedLogger _logger;
-  final AutoScan _autoScan;
+  AutoScan _autoScan;
+  LeakRadarConfig _config;
   ScanScheduler? _scheduler;
   LeakRadarNavigatorObserver? _navObserver;
 
   final StreamController<LeakReport> _reports =
       StreamController<LeakReport>.broadcast();
   LeakRadarStatus _status = LeakRadarStatus.disabled;
-  LeakReport? _latest;
+
+  /// Full unfiltered report kept so re-filtering on threshold change is cheap.
+  LeakReport? _latestFullReport;
+
+  /// Filtered report matching the current [LeakRadarConfig.reportThreshold].
+  LeakReport? _latestFiltered;
   bool _scanning = false;
 
   /// Broadcast stream of every scan result.
   Stream<LeakReport> get reports => _reports.stream;
 
-  /// The most recent scan result, or null if no scan has completed yet.
-  LeakReport? get latest => _latest;
+  /// The most recent scan result filtered by [LeakRadarConfig.reportThreshold],
+  /// or null if no scan has completed yet.
+  LeakReport? get latest => _latestFiltered;
 
   /// Current operational status of the engine.
   LeakRadarStatus get status => _status;
@@ -76,7 +85,49 @@ class LeakEngine {
     );
     _status =
         available ? LeakRadarStatus.active : LeakRadarStatus.preciseOnly;
+    _startAutoScan();
+  }
 
+  /// Updates the running config. Reconfigures auto-scan triggers if needed.
+  ///
+  /// All mutations are safe — never throws. When [LeakRadarConfig.autoScan]
+  /// changes, the old scheduler and nav observer are stopped and recreated.
+  /// When [LeakRadarConfig.preciseTracking] changes to false, the registry
+  /// is cleared. When [LeakRadarConfig.reportThreshold] changes, the last
+  /// full report is re-filtered and re-emitted on the [reports] stream.
+  void updateConfig(LeakRadarConfig newConfig) {
+    runSafely<void>(() {
+      final autoScanChanged = newConfig.autoScan != _config.autoScan;
+      final preciseTrackingDisabled =
+          _config.preciseTracking && !newConfig.preciseTracking;
+
+      // Keep _autoScan in sync before restarting the scheduler, so
+      // _startAutoScan always sees the new period / flags regardless of whether
+      // the engine is currently disabled.
+      _autoScan = newConfig.autoScan;
+
+      if (autoScanChanged && _status != LeakRadarStatus.disabled) {
+        _scheduler?.stop();
+        _scheduler = null;
+        _navObserver?.dispose();
+        _navObserver = null;
+        _startAutoScan();
+      }
+
+      if (preciseTrackingDisabled) _registry.clear();
+
+      _config = newConfig;
+
+      // Re-filter and re-emit whenever the threshold or the config changes
+      // so listeners always see a report consistent with the current config.
+      if (_latestFullReport != null && !_reports.isClosed) {
+        _latestFiltered = _filtered(_latestFullReport!);
+        _reports.add(_latestFiltered!);
+      }
+    }, fallback: null, logger: _logger);
+  }
+
+  void _startAutoScan() {
     if (_autoScan.hasPeriodic) {
       _scheduler = ScanScheduler(
         period: _autoScan.period,
@@ -88,7 +139,6 @@ class LeakEngine {
       );
       _scheduler!.start();
     }
-
     if (_autoScan.onNavigation) {
       _navObserver = LeakRadarNavigatorObserver(
         onScan: () => runSafelyAsync(
@@ -102,18 +152,27 @@ class LeakEngine {
   }
 
   /// Registers [o] for precise leak tracking under the given [tag].
-  void track(Object o, {required String tag}) =>
-      _registry.track(o, tag: tag);
+  ///
+  /// No-op when [LeakRadarConfig.preciseTracking] is false.
+  void track(Object o, {required String tag}) {
+    if (!_config.preciseTracking) return;
+    _registry.track(o, tag: tag);
+  }
 
   /// Records that [o] has been disposed. Pairs with [track].
-  void markDisposed(Object o) => _registry.markDisposed(o);
+  ///
+  /// No-op when [LeakRadarConfig.preciseTracking] is false.
+  void markDisposed(Object o) {
+    if (!_config.preciseTracking) return;
+    _registry.markDisposed(o);
+  }
 
   /// Captures a heap snapshot (when active), analyses history, and returns a
   /// [LeakReport]. Overlapping calls are dropped — the in-flight scan's result
   /// is returned instead of queuing a second capture.
   Future<LeakReport> scan({String trigger = 'manual'}) async {
     if (_status == LeakRadarStatus.disabled) return _degraded(trigger);
-    if (_scanning) return _latest ?? _degraded(trigger);
+    if (_scanning) return _latestFiltered ?? _degraded(trigger);
     _scanning = true;
     try {
       if (_status == LeakRadarStatus.active) {
@@ -137,13 +196,29 @@ class LeakEngine {
         status: _status,
         preciseFindings: precise,
       );
-      _latest = report;
-      if (!_reports.isClosed) _reports.add(report);
-      return report;
+      _latestFullReport = report;
+      final filtered = _filtered(report);
+      _latestFiltered = filtered;
+      if (!_reports.isClosed) _reports.add(filtered);
+      return filtered;
     } finally {
       _scanning = false;
     }
   }
+
+  /// Returns a copy of [full] with findings below [LeakRadarConfig.reportThreshold]
+  /// removed.
+  LeakReport _filtered(LeakReport full) => LeakReport(
+        findings: full.findings
+            .where(
+              (f) => f.severity.index >= _config.reportThreshold.index,
+            )
+            .toList(),
+        capturedAt: full.capturedAt,
+        trigger: full.trigger,
+        status: full.status,
+        heapBytes: full.heapBytes,
+      );
 
   LeakReport _degraded(String trigger) => LeakReport(
         findings: const <LeakFinding>[],

@@ -2,8 +2,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:meta/meta.dart';
 
 import 'analysis/leak_analyzer.dart';
 import 'analysis/sample_history.dart';
@@ -44,6 +44,20 @@ abstract final class LeakRadar {
   static final NavigatorObserver _inertObserver = _InertNavigatorObserver();
   static bool _showOverlay = true;
 
+  /// Reactive config notifier. Mirrors the active config so UI can rebuild
+  /// when settings change without polling.
+  static final ValueNotifier<LeakRadarConfig> _configNotifier =
+      ValueNotifier<LeakRadarConfig>(
+    const LeakRadarConfig(enabled: false),
+  );
+
+  /// A [ValueListenable] that emits the current [LeakRadarConfig] whenever
+  /// [updateConfig] is called.
+  ///
+  /// Starts with `LeakRadarConfig(enabled: false)` before [init] completes.
+  static ValueListenable<LeakRadarConfig> get configListenable =>
+      _configNotifier;
+
   /// Initialises the leak detector with the given [config].
   ///
   /// Call once from `main()` after `WidgetsFlutterBinding.ensureInitialized()`.
@@ -77,6 +91,7 @@ abstract final class LeakRadar {
       await engine.start();
       _showOverlay = config.showOverlay;
       _engine = engine;
+      _configNotifier.value = config;
     }, fallback: null, logger: _logger);
   }
 
@@ -170,12 +185,25 @@ abstract final class LeakRadar {
   /// Any internal error is swallowed — [child] is returned as the fallback so
   /// the host app is never affected.
   static Widget overlay({required Widget child}) {
-    if (!kEngineEnabled || _engine == null || !_showOverlay) return child;
+    final showOverlay = _configNotifier.value.showOverlay && _showOverlay;
+    if (!kEngineEnabled || _engine == null || !showOverlay) return child;
     return runSafely(
       () => LeakRadarOverlay(show: true, child: child),
       fallback: child,
       logger: _logger,
     );
+  }
+
+  /// Applies [config] to the running engine.
+  ///
+  /// Reconfigures auto-scan triggers and updates [configListenable]. No-op
+  /// when the engine is not running. Never throws.
+  static void updateConfig(LeakRadarConfig config) {
+    runSafely<void>(() {
+      _engine?.updateConfig(config);
+      _showOverlay = config.showOverlay;
+      _configNotifier.value = config;
+    }, fallback: null, logger: _logger);
   }
 
   /// Lazily fetches the retaining path for [className] from the active engine.
@@ -257,8 +285,14 @@ abstract final class LeakRadar {
   static Future<void> dispose() async {
     final engine = _engine;
     _engine = null;
+    _configNotifier.value = const LeakRadarConfig(enabled: false);
+    _showOverlay = true;
     if (engine != null) {
-      await runSafelyAsync(() => engine.stop(), fallback: null, logger: _logger);
+      await runSafelyAsync(
+        () => engine.stop(),
+        fallback: null,
+        logger: _logger,
+      );
     }
   }
 }

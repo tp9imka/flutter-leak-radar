@@ -54,12 +54,17 @@ class LeakAnalyzer {
         className: className,
         kind: LeakKind.growth,
         severity: computeSeverity(
-          mode: rule.mode, growth: growth, liveCount: liveCount,
-          maxLive: rule.maxLive, monotonic: monotonic, hint: rule.severityHint,
+          mode: rule.mode,
+          growth: growth,
+          liveCount: liveCount,
+          maxLive: rule.maxLive,
+          monotonic: monotonic,
+          hint: rule.severityHint,
         ),
         liveCount: liveCount,
         growth: growth,
         series: series,
+        captureTimes: history.captureTimestamps,
       ));
     }
 
