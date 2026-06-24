@@ -84,6 +84,8 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
               ? _buildPrecisePanel()
               : _buildBarChart(),
           _buildRetainingPath(),
+          if (widget.finding.allocationStack != null)
+            _buildAllocationStack(widget.finding.allocationStack!),
           _buildBottomRow(),
         ],
       ),
@@ -370,6 +372,32 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: rows);
   }
+
+  Widget _buildAllocationStack(StackTrace stack) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: Container(
+      decoration: BoxDecoration(
+        color: LeakRadarColors.codePreviewBg,
+        border: Border.all(color: LeakRadarColors.border08),
+        borderRadius: BorderRadius.circular(13),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Allocation Site',
+            style: LeakRadarText.mono.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          SelectableText(
+            stack.toString(),
+            style: monoFont(fontSize: 11, color: LeakRadarColors.text40),
+          ),
+        ],
+      ),
+    ),
+  );
 
   Widget _buildBottomRow() => Padding(
     padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),

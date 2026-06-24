@@ -4,7 +4,7 @@ import '../model/leak_kind.dart';
 import 'gc_support.dart';
 
 class _Entry {
-  _Entry(Object obj, this.tag)
+  _Entry(Object obj, this.tag, {this.allocationStack})
     : ref = WeakReference<Object>(obj),
       hashKey = identityHashCode(obj),
       className = obj.runtimeType.toString();
@@ -22,15 +22,22 @@ class _Entry {
   /// time the finalizer callback fires.
   final String className;
 
+  /// Stack trace at track() time; non-null only when
+  /// [LeakObjectRegistry.captureAllocationStack] is true.
+  final StackTrace? allocationStack;
+
   int? disposedGc;
   DateTime? disposedAt;
 }
 
 /// Pending notDisposed finding accumulated by the Finalizer callback.
 class _PendingNotDisposed {
-  const _PendingNotDisposed(this.className, this.tag);
+  const _PendingNotDisposed(this.className, this.tag, this.allocationStack);
   final String className;
   final String? tag;
+
+  /// Stack trace captured at track() time; may be null.
+  final StackTrace? allocationStack;
 }
 
 /// Precise leak detection via [WeakReference], a GC-cycle counter, and a
@@ -49,13 +56,18 @@ class LeakObjectRegistry {
     GcCounter? gcCounter,
     this.disposalGrace = const Duration(seconds: 2),
     DateTime Function()? clock,
+    this.captureAllocationStack = false,
   }) : _gc = gcCounter ?? const DeveloperGcCounter(),
        _clock = clock ?? DateTime.now {
     _finalizer = Finalizer<_Entry>((entry) {
       try {
         if (entry.disposedGc == null) {
           _pendingNotDisposed.add(
-            _PendingNotDisposed(entry.className, entry.tag),
+            _PendingNotDisposed(
+              entry.className,
+              entry.tag,
+              entry.allocationStack,
+            ),
           );
         }
         _entries.remove(entry.hashKey);
@@ -75,6 +87,13 @@ class LeakObjectRegistry {
   /// a leak, regardless of GC cycles elapsed.
   final Duration disposalGrace;
 
+  /// When true, [track] captures [StackTrace.current] and attaches it to
+  /// the resulting [LeakFinding] as [LeakFinding.allocationStack].
+  ///
+  /// Disabled by default because stack capture has a measurable cost per
+  /// tracked object in hot paths.
+  final bool captureAllocationStack;
+
   final Map<int, _Entry> _entries = <int, _Entry>{};
 
   /// Pending notDisposed findings accumulated by the Finalizer.
@@ -87,8 +106,19 @@ class LeakObjectRegistry {
   int get trackedCount => _entries.length;
 
   /// Begin tracking [obj] under the given [tag] label.
+  ///
+  /// When [captureAllocationStack] is true, captures [StackTrace.current]
+  /// and stores it on the entry so it can be surfaced in the [LeakFinding].
   void track(Object obj, {required String tag}) {
-    final entry = _Entry(obj, tag);
+    StackTrace? stack;
+    if (captureAllocationStack) {
+      // Strip the top frame (this track() call) so callers see their own
+      // call site as the first frame.
+      final raw = StackTrace.current.toString();
+      final stripped = raw.split('\n').skip(1).join('\n');
+      stack = StackTrace.fromString(stripped);
+    }
+    final entry = _Entry(obj, tag, allocationStack: stack);
     _entries[entry.hashKey] = entry;
     _finalizer.attach(obj, entry);
   }
@@ -133,12 +163,12 @@ class LeakObjectRegistry {
       final pastGrace = at.difference(disposedAt) >= disposalGrace;
       if (!(survivedCycles && pastGrace)) return;
       final className = target.runtimeType.toString();
-      notGcedGroups
-          .putIfAbsent(
-            '$className ${entry.tag}',
-            () => _LeakGroup(className, entry.tag),
-          )
-          .count++;
+      final group = notGcedGroups.putIfAbsent(
+        '$className ${entry.tag}',
+        () => _LeakGroup(className, entry.tag),
+      );
+      group.allocationStack ??= entry.allocationStack;
+      group.count++;
     });
 
     for (final k in dead) {
@@ -148,12 +178,12 @@ class LeakObjectRegistry {
     // Drain notDisposed findings accumulated by the Finalizer callbacks.
     final notDisposedGroups = <String, _LeakGroup>{};
     for (final pending in _pendingNotDisposed) {
-      notDisposedGroups
-          .putIfAbsent(
-            '${pending.className} ${pending.tag ?? ''}',
-            () => _LeakGroup(pending.className, pending.tag),
-          )
-          .count++;
+      final group = notDisposedGroups.putIfAbsent(
+        '${pending.className} ${pending.tag ?? ''}',
+        () => _LeakGroup(pending.className, pending.tag),
+      );
+      group.allocationStack ??= pending.allocationStack;
+      group.count++;
     }
     _pendingNotDisposed.clear();
 
@@ -166,6 +196,7 @@ class LeakObjectRegistry {
           liveCount: g.count,
           growth: 0,
           tag: g.tag,
+          allocationStack: g.allocationStack,
         ),
     ];
 
@@ -178,6 +209,7 @@ class LeakObjectRegistry {
           liveCount: g.count,
           growth: 0,
           tag: g.tag,
+          allocationStack: g.allocationStack,
         ),
     ];
 
@@ -196,4 +228,8 @@ class _LeakGroup {
   final String className;
   final String? tag;
   int count = 0;
+
+  /// Stack of the first tracked instance in this group; null when
+  /// [LeakObjectRegistry.captureAllocationStack] was false at track() time.
+  StackTrace? allocationStack;
 }

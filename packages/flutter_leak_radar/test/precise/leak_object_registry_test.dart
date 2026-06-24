@@ -178,6 +178,49 @@ void main() {
     });
   });
 
+  group('captureAllocationStack', () {
+    test('captureAllocationStack=false -> no stack on finding', () {
+      final gc = FakeGc();
+      final reg = LeakObjectRegistry(
+        gcCounter: gc,
+        disposalGrace: Duration.zero,
+        clock: () => DateTime(2026),
+      );
+      final obj = Object();
+      reg.track(obj, tag: 'Widget');
+      reg.markDisposed(obj);
+      gc.value += 3;
+      final leaks = reg.collectLeaks(
+        gcCycles: 3,
+        now: DateTime(2026).add(const Duration(seconds: 10)),
+      );
+      expect(leaks.single.allocationStack, isNull);
+    });
+
+    test('captureAllocationStack=true includes stack in notGced finding', () {
+      final gc = FakeGc();
+      final reg = LeakObjectRegistry(
+        gcCounter: gc,
+        disposalGrace: Duration.zero,
+        clock: () => DateTime(2026),
+        captureAllocationStack: true,
+      );
+      final obj = Object();
+      reg.track(obj, tag: 'Widget');
+      reg.markDisposed(obj);
+      gc.value += 3;
+      final leaks = reg.collectLeaks(
+        gcCycles: 3,
+        now: DateTime(2026).add(const Duration(seconds: 10)),
+      );
+      expect(leaks.single.allocationStack, isNotNull);
+      expect(
+        leaks.single.allocationStack.toString(),
+        contains('leak_object_registry_test'),
+      );
+    });
+  });
+
   group('disposalGrace — wall-clock enforcement', () {
     test('not reported as leak while within grace period', () {
       final gc = FakeGc();

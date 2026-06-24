@@ -21,6 +21,7 @@ final class LeakFinding {
     this.series = const <int>[],
     this.captureTimes = const <DateTime>[],
     this.retainingPath,
+    this.allocationStack,
   });
 
   /// Simple (unqualified) name of the leaking class.
@@ -53,6 +54,13 @@ final class LeakFinding {
   /// Retaining path fetched on demand; null until the user expands the tile.
   final RetainingPathView? retainingPath;
 
+  /// Stack trace captured at [LeakObjectRegistry.track] time, when
+  /// [LeakObjectRegistry.captureAllocationStack] is true. Null otherwise.
+  ///
+  /// Excluded from [==] and [hashCode] — it is diagnostic, not identity.
+  /// Not deserialised from JSON (stack strings are not round-trip safe).
+  final StackTrace? allocationStack;
+
   /// The [DateTime] of the first capture where this class had count > 0.
   DateTime? get firstSeen {
     for (var i = 0; i < series.length; i++) {
@@ -75,6 +83,22 @@ final class LeakFinding {
     series: series,
     captureTimes: captureTimes,
     retainingPath: path,
+    allocationStack: allocationStack,
+  );
+
+  /// Returns a copy of this finding with [allocationStack] set.
+  LeakFinding withAllocationStack(StackTrace stack) => LeakFinding(
+    className: className,
+    kind: kind,
+    severity: severity,
+    liveCount: liveCount,
+    growth: growth,
+    library: library,
+    tag: tag,
+    series: series,
+    captureTimes: captureTimes,
+    retainingPath: retainingPath,
+    allocationStack: stack,
   );
 
   Map<String, Object?> toJson() => {
@@ -88,6 +112,7 @@ final class LeakFinding {
     'series': series,
     'captureTimes': captureTimes.map((dt) => dt.toIso8601String()).toList(),
     if (retainingPath != null) 'retainingPath': retainingPath!.toJson(),
+    if (allocationStack != null) 'allocationStack': allocationStack.toString(),
   };
 
   static LeakFinding fromJson(Map<String, Object?> json) => LeakFinding(
