@@ -51,3 +51,12 @@ jobs:
       - name: Test flutter_leak_radar_lint
         run: dart test
         working-directory: packages/flutter_leak_radar_lint
+
+      # leak_graph is pure Dart (retaining-path heap analyzer).
+      - name: Analyze leak_graph
+        run: dart analyze
+        working-directory: packages/leak_graph
+
+      - name: Test leak_graph
+        run: dart test
+        working-directory: packages/leak_graph
