@@ -236,6 +236,16 @@ abstract final class LeakRadar {
     );
   }
 
+  /// Triggers an immediate graph scan and merges any findings into the report.
+  ///
+  /// No-op when the engine is not running or
+  /// [LeakRadarConfig.graphScan] is null. Never throws.
+  static Future<void> graphScanNow() => runSafelyAsync<void>(
+    () => _engine?.graphScanNow() ?? Future<void>.value(),
+    fallback: null,
+    logger: _logger,
+  );
+
   /// Lazily fetches the retaining path for [className] from the active engine.
   ///
   /// Returns null when the engine is absent, the probe does not support

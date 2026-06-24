@@ -1,6 +1,7 @@
 // lib/src/engine/leak_engine.dart
 import 'dart:async';
 
+import 'package:leak_graph/leak_graph.dart';
 import 'package:meta/meta.dart';
 
 import '../analysis/leak_analyzer.dart';
@@ -16,7 +17,10 @@ import '../triggers/scan_scheduler.dart';
 import '../util/rate_limited_logger.dart';
 import '../util/safe.dart';
 import 'class_sample.dart';
+import 'graph_finding_mapper.dart';
+import 'heap_graph_source.dart';
 import 'heap_probe.dart';
+import 'vm_heap_probe.dart';
 
 /// Orchestrates capture → analyze → report. Internal; reachable from the
 /// facade and tests, but never part of the public API.
@@ -31,6 +35,7 @@ class LeakEngine {
     RateLimitedLogger? logger,
     AutoScan? autoScan,
     LeakRadarConfig? config,
+    HeapGraphSource? graphSource,
   }) : _probe = probe,
        _analyzer = analyzer,
        _history = history ?? SampleHistory(),
@@ -38,7 +43,8 @@ class LeakEngine {
        _gcCyclesForPreciseLeak = gcCyclesForPreciseLeak,
        _logger = logger ?? RateLimitedLogger(),
        _autoScan = autoScan ?? config?.autoScan ?? const AutoScan(),
-       _config = config ?? const LeakRadarConfig();
+       _config = config ?? const LeakRadarConfig(),
+       _injectedGraphSource = graphSource;
 
   final HeapProbe _probe;
   final LeakAnalyzer _analyzer;
@@ -50,6 +56,14 @@ class LeakEngine {
   LeakRadarConfig _config;
   ScanScheduler? _scheduler;
   LeakRadarNavigatorObserver? _navObserver;
+
+  // Injectable for tests. When null, falls back to VmHeapGraphSource over the
+  // probe (only when probe is a VmHeapProbe; otherwise no graph scanning).
+  final HeapGraphSource? _injectedGraphSource;
+  HeapGraphSource? _resolvedSource;
+  bool _sourceResolved = false;
+  int _navCount = 0;
+  bool _graphScanInFlight = false;
 
   final StreamController<LeakReport> _reports =
       StreamController<LeakReport>.broadcast();
@@ -144,14 +158,87 @@ class LeakEngine {
     }
     if (_autoScan.onNavigation) {
       _navObserver = LeakRadarNavigatorObserver(
-        onScan: () => runSafelyAsync(
-          () => scan(trigger: 'navigation'),
-          fallback: null,
-          logger: _logger,
-        ),
+        onScan: () =>
+            runSafelyAsync(() => _navScan(), fallback: null, logger: _logger),
         debounce: _autoScan.navigationDebounce,
       );
     }
+  }
+
+  Future<LeakReport> _navScan() async {
+    final report = await scan(trigger: 'navigation');
+    _navCount++;
+    final gs = _config.graphScan;
+    if (gs != null && _navCount % gs.everyNthNavigation == 0) {
+      await _runGraphScan(report);
+    }
+    return _latestFiltered ?? report;
+  }
+
+  HeapGraphSource? _resolvedGraphSource() {
+    if (_injectedGraphSource != null) return _injectedGraphSource;
+    if (!_sourceResolved) {
+      _sourceResolved = true;
+      _resolvedSource = _probe is VmHeapProbe
+          ? VmHeapGraphSource(_probe)
+          : null;
+    }
+    return _resolvedSource;
+  }
+
+  Future<void> _runGraphScan(LeakReport baseReport) async {
+    if (_graphScanInFlight) return;
+    _graphScanInFlight = true;
+    try {
+      final source = _resolvedGraphSource();
+      if (source == null) return;
+      final gs = _config.graphScan;
+      if (gs == null) return;
+      await runSafelyAsync<void>(
+        () async {
+          final graph = await source.acquire(maxObjects: gs.maxGraphObjects);
+          if (graph == null) return;
+          final result = GraphLeakAnalyzer().analyze(
+            graph,
+            GraphAnalysisOptions(
+              confirmWithReachability: true,
+              appPackages: gs.appPackages,
+              minClusterSize: gs.minClusterSize,
+            ),
+          );
+          if (result.clusters.isEmpty) return;
+          final graphFindings = result.clusters.map(mapGraphCluster).toList();
+          final merged = LeakReport(
+            findings: [...baseReport.findings, ...graphFindings],
+            capturedAt: baseReport.capturedAt,
+            trigger: baseReport.trigger,
+            status: baseReport.status,
+            heapBytes: baseReport.heapBytes,
+          );
+          _latestFullReport = merged;
+          final filtered = _filtered(merged);
+          _latestFiltered = filtered;
+          if (!_reports.isClosed) _reports.add(filtered);
+        },
+        fallback: null,
+        logger: _logger,
+      );
+    } finally {
+      _graphScanInFlight = false;
+    }
+  }
+
+  /// Runs a one-shot graph scan and merges findings into the latest report.
+  ///
+  /// No-op when [LeakRadarConfig.graphScan] is null. Never throws.
+  Future<void> graphScanNow() async {
+    if (_config.graphScan == null) return;
+    final base = _latestFullReport ?? _degraded('graph_manual');
+    await runSafelyAsync<void>(
+      () => _runGraphScan(base),
+      fallback: null,
+      logger: _logger,
+    );
   }
 
   /// Registers [o] for precise leak tracking under the given [tag].
