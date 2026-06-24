@@ -38,17 +38,24 @@ class _LeakyScreenState extends State<LeakyScreen> {
 
   void _onNotifierChanged() {}
 
+  void _onTimer() {}
+
+  void _onStream() {}
+
   @override
   void initState() {
     super.initState();
     LeakRadar.track(this, tag: 'LeakyScreen');
 
     // Pattern 2: assign subscription to field, never cancel it.
-    _subscription = Stream.periodic(const Duration(seconds: 1), (i) => i)
-        .listen((_) {});
+    _subscription = Stream.periodic(const Duration(seconds: 1), (i) => i).listen((_) {
+      _onStream();
+    });
 
     // Pattern 3: start periodic timer, never cancel it.
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {});
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _onTimer();
+    });
 
     // Pattern 5: discarded_listen_result — result of .listen() is not captured.
     _streamController.stream.listen((_) {});
@@ -59,6 +66,10 @@ class _LeakyScreenState extends State<LeakyScreen> {
 
   @override
   void dispose() {
+    // Tell Leak Radar this State should now be collectable. Because we skip
+    // the teardown below, the live Timer/subscription keep it alive — so the
+    // precise tracker reports it as a notGced leak on a single navigation.
+    LeakRadar.markDisposed(this);
     // Intentionally NOT calling:
     //   _textController.dispose()    (pattern 1)
     //   _subscription?.cancel()      (pattern 2)

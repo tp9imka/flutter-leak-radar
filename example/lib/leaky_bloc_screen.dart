@@ -25,8 +25,11 @@ class _LeakyBlocScreenState extends State<LeakyBlocScreen> {
 
   @override
   void dispose() {
-    // Intentionally NOT calling _cubit.close() so the Cubit and its
-    // uncancelled StreamSubscription are retained after this screen is popped.
+    // Tell Leak Radar the Cubit should now be collectable. We intentionally
+    // do NOT call _cubit.close(), so its uncancelled StreamSubscription keeps
+    // the Cubit alive after this screen is popped — the precise tracker then
+    // reports it as a notGced leak.
+    LeakRadar.markDisposed(_cubit);
     super.dispose();
   }
 
