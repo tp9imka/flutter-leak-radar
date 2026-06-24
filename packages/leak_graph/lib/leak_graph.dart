@@ -14,3 +14,4 @@ export 'src/model/graph_analysis_result.dart';
 export 'src/graph/heap_graph_view.dart';
 export 'src/analysis/shortest_retaining_paths.dart';
 export 'src/analysis/root_classifier.dart';
+export 'src/analysis/app_package_set.dart';
