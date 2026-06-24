@@ -4,6 +4,7 @@ import '../model/root_kind.dart';
 
 /// A single heap instance suspected of being leaked.
 final class LeakRecord {
+  final int nodeId;
   final String className;
   final Uri libraryUri;
   final int shallowSize;
@@ -13,6 +14,7 @@ final class LeakRecord {
   final String signature;
 
   const LeakRecord({
+    required this.nodeId,
     required this.className,
     required this.libraryUri,
     required this.shallowSize,
@@ -47,6 +49,7 @@ String pathSignature(List<GraphHop> hops, {int maxDepth = 12}) {
 List<GraphLeakCluster> clusterLeaks(
   List<LeakRecord> leaks, {
   int minClusterSize = 2,
+  LeakConfidence confidence = LeakConfidence.heuristic,
 }) {
   final groups = <String, List<LeakRecord>>{};
   for (final r in leaks) {
@@ -67,7 +70,7 @@ List<GraphLeakCluster> clusterLeaks(
         retainedShallowBytes: totalBytes,
         representativePath: first.path,
         rootKind: first.rootKind,
-        confidence: LeakConfidence.heuristic,
+        confidence: confidence,
         signature: entry.key,
       ),
     );
