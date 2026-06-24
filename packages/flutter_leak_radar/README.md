@@ -116,7 +116,7 @@ final jsonPath = await LeakRadar.exportToFile(format: LeakExportFormat.json);
 | `maxSnapshots` | `int` | `20` | Rolling history depth for growth analysis. |
 | `gcCyclesForPreciseLeak` | `int` | `3` | GC cycles before a tracked object is flagged as not-GCed. |
 | `disposalGrace` | `Duration` | `2s` | Time after `markDisposed` before the object must be GCed. |
-| `maxRetainingPathDepth` | `int` | `5` | Depth of retaining path fetched for a finding. |
+| `maxRetainingPathRequests` | `int` | `5` | Max retaining-path fetches per scan (caps VM-service overhead). |
 | `logLevel` | `LeakLogLevel` | `warning` | Internal log verbosity. |
 | `showOverlay` | `bool` | `true` | Whether `LeakRadar.overlay()` renders the badge. |
 
@@ -167,8 +167,6 @@ The `.data` file is a `dartheap` binary snapshot that can be loaded into:
 
 - **Flutter DevTools** — open the Memory tab, click *Import*, and select the
   file to inspect the object graph interactively.
-- **The repository's standalone heap analyser** — see `tools/heap_analyzer/`
-  for CLI-based diffing and class-level summaries.
 
 No VM-service connection is required — the snapshot is written directly via
 `dart:developer`'s `NativeRuntime.writeHeapSnapshotToFile`. The method returns
@@ -206,7 +204,7 @@ configuration required.
 
 ## Static analysis companion
 
-Add [`flutter_leak_radar_lint`](../flutter_leak_radar_lint/) to catch
+Add [`flutter_leak_radar_lint`](https://pub.dev/packages/flutter_leak_radar_lint) to catch
 undisposed controllers, uncancelled subscriptions, and similar patterns at
 edit time before they cause runtime leaks.
 
@@ -214,4 +212,4 @@ edit time before they cause runtime leaks.
 
 ## License
 
-MIT — see [LICENSE](../../LICENSE).
+MIT — see [LICENSE](LICENSE).

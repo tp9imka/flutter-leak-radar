@@ -1,0 +1,4 @@
+# Test fixtures import package:flutter (a dev-only dependency of this pure-Dart
+# lint package) and are test data only — not needed by consumers. Excluding
+# them keeps the published archive clean (no missing-dependency warnings).
+test/
