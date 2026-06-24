@@ -10,6 +10,9 @@ class SampleHistory {
   final int maxSnapshots;
   final ListQueue<HeapSnapshot> _snapshots = ListQueue<HeapSnapshot>();
 
+  /// Empties the snapshot ring buffer.
+  void clear() => _snapshots.clear();
+
   void add(HeapSnapshot snapshot) {
     _snapshots.addLast(snapshot);
     while (_snapshots.length > maxSnapshots) {

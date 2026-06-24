@@ -142,6 +142,18 @@ abstract final class LeakRadar {
   static void track(Object object, {required String tag}) =>
       runSafely<void>(() => _engine?.track(object, tag: tag), fallback: null, logger: _logger);
 
+  /// Resets all accumulated leak state visible in the UI.
+  ///
+  /// Clears the engine's precise registry, snapshot history, and latest
+  /// report, then emits an empty [LeakReport] on [reports] so the UI updates.
+  /// A no-op when the engine is not running. Never throws.
+  static void clearLeaks() =>
+      runSafely<void>(
+        () => _engine?.clearLeaks(),
+        fallback: null,
+        logger: _logger,
+      );
+
   /// Notifies the engine that [object] has been intentionally disposed.
   ///
   /// After this call the engine expects the object to be GCed within

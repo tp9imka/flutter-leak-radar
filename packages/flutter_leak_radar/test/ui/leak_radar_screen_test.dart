@@ -258,6 +258,140 @@ void main() {
     });
   });
 
+  // ── Clear leaks ───────────────────────────────────────────────────────────
+
+  group('Clear leaks', () {
+    testWidgets(
+      'tapping Clear leaks in overflow menu empties the list',
+      (tester) async {
+        final probe = FakeHeapProbe([
+          snap({'HomeBloc': 1}),
+          snap({'HomeBloc': 2}),
+          snap({'HomeBloc': 3}),
+        ]);
+        final engine = LeakEngine(
+          probe: probe,
+          analyzer: const LeakAnalyzer(
+            SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+          ),
+        );
+        await LeakRadar.debugInstall(engine);
+        await LeakRadar.scan();
+        await LeakRadar.scan();
+        await LeakRadar.scan();
+
+        await tester.pumpWidget(
+          const MaterialApp(home: LeakRadarScreen()),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('HomeBloc'), findsOneWidget);
+
+        await tester.tap(find.byTooltip('More'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Clear leaks'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('HomeBloc'), findsNothing);
+        expect(find.text('No leaks detected'), findsOneWidget);
+      },
+    );
+  });
+
+  // ── Swipe-to-dismiss ─────────────────────────────────────────────────────
+
+  group('swipe-to-dismiss', () {
+    testWidgets(
+      'swiping a finding row removes it from the displayed list',
+      (tester) async {
+        final probe = FakeHeapProbe([
+          snap({'HomeBloc': 1}),
+          snap({'HomeBloc': 2}),
+          snap({'HomeBloc': 3}),
+        ]);
+        final engine = LeakEngine(
+          probe: probe,
+          analyzer: const LeakAnalyzer(
+            SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+          ),
+        );
+        await LeakRadar.debugInstall(engine);
+        await LeakRadar.scan();
+        await LeakRadar.scan();
+        await LeakRadar.scan();
+
+        await tester.pumpWidget(
+          const MaterialApp(home: LeakRadarScreen()),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('HomeBloc'), findsOneWidget);
+
+        await tester.drag(
+          find.text('HomeBloc'),
+          const Offset(-500, 0),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('HomeBloc'), findsNothing);
+        expect(
+          find.text('No findings match this filter'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'a new scan re-adds a dismissed finding if still leaking',
+      (tester) async {
+        // 3 snapshots: 2 pre-seeded, 1 consumed by button tap.
+        // FakeHeapProbe repeats the last snapshot, so a second button tap
+        // also produces a growth finding.
+        final probe = FakeHeapProbe([
+          snap({'HomeBloc': 1}),
+          snap({'HomeBloc': 2}),
+          snap({'HomeBloc': 3}),
+        ]);
+        final engine = LeakEngine(
+          probe: probe,
+          analyzer: const LeakAnalyzer(
+            SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+          ),
+        );
+        await LeakRadar.debugInstall(engine);
+        // Pre-seed 2 scans; no finding yet.
+        await LeakRadar.scan();
+        await LeakRadar.scan();
+
+        await tester.pumpWidget(
+          const MaterialApp(home: LeakRadarScreen()),
+        );
+        await tester.pumpAndSettle();
+
+        // 3rd scan (button) produces HomeBloc growth finding.
+        await tester.tap(_scanBtn);
+        await tester.pumpAndSettle();
+
+        expect(find.text('HomeBloc'), findsOneWidget);
+
+        await tester.drag(
+          find.text('HomeBloc'),
+          const Offset(-500, 0),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('HomeBloc'), findsNothing);
+
+        // 4th scan re-seeds dismissed set; HomeBloc still leaking.
+        await tester.tap(_scanBtn);
+        await tester.pumpAndSettle();
+
+        expect(find.text('HomeBloc'), findsOneWidget);
+      },
+    );
+  });
+
   // ── Summary row ───────────────────────────────────────────────────────────
 
   group('summary row', () {

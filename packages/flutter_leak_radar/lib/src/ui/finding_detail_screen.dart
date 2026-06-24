@@ -383,74 +383,85 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
 
   Widget _buildBottomRow() => Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Row(
-          children: [
-            Flexible(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: LeakRadarColors.cardBg,
-                  border: Border.all(color: LeakRadarColors.border08),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('STATUS', style: LeakRadarText.label),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.finding.tag != null
-                          ? 'Tracked'
-                          : 'Heap-inspected · no opt-in needed',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 11,
-                        color: LeakRadarColors.text80,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: _captureHeap,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color.fromRGBO(90, 209, 230, 0.12),
-                  border: Border.all(
-                    color: const Color.fromRGBO(90, 209, 230, 0.30),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: LeakRadarColors.cardBg,
+                    border: Border.all(color: LeakRadarColors.border08),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.camera_outlined,
-                      size: 14,
-                      color: LeakRadarColors.severityInfo,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Capture .dartheap',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: LeakRadarColors.severityInfo,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('STATUS', style: LeakRadarText.label),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.finding.tag != null
+                            ? 'Tracked'
+                            : 'Heap-inspected · no opt-in needed',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 11,
+                          color: LeakRadarColors.text80,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Material(
+                color: Colors.transparent,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    onTap: _captureHeap,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color.fromRGBO(90, 209, 230, 0.12),
+                        border: Border.all(
+                          color: const Color.fromRGBO(90, 209, 230, 0.30),
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.camera_outlined,
+                            size: 14,
+                            color: LeakRadarColors.severityInfo,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Capture .dartheap',
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: LeakRadarColors.severityInfo,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       );
 }

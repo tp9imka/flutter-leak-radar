@@ -206,6 +206,20 @@ class LeakEngine {
     }
   }
 
+  /// Resets all accumulated leak state without stopping the engine.
+  ///
+  /// Clears the precise registry, empties the snapshot history, sets both the
+  /// full and filtered latest reports to an empty report, and emits the empty
+  /// report on [reports] so the UI updates immediately.
+  void clearLeaks() {
+    _registry.clear();
+    _history.clear();
+    final empty = _degraded('clear');
+    _latestFullReport = empty;
+    _latestFiltered = empty;
+    if (!_reports.isClosed) _reports.add(empty);
+  }
+
   /// Returns a copy of [full] with findings below [LeakRadarConfig.reportThreshold]
   /// removed.
   LeakReport _filtered(LeakReport full) => LeakReport(

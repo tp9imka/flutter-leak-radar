@@ -43,6 +43,10 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
   bool _collectingHeap = false;
   _Filter _activeFilter = _Filter.all;
 
+  // Tracks classes dismissed by swipe in the current view. The engine still
+  // detects these leaks — a fresh scan re-adds them if still leaking.
+  final Set<String> _dismissed = {};
+
   @override
   void initState() {
     super.initState();
@@ -53,13 +57,14 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
 
   List<LeakFinding> get _filtered {
     final findings = _report?.findings ?? const <LeakFinding>[];
-    return switch (_activeFilter) {
+    final base = switch (_activeFilter) {
       _Filter.all => findings,
       _Filter.critical =>
         findings.where((f) => f.severity == LeakSeverity.critical).toList(),
       _Filter.growing => findings.where((f) => f.growth > 0).toList(),
       _Filter.tracked => findings.where((f) => f.tag != null).toList(),
     };
+    return base.where((f) => !_dismissed.contains(f.className)).toList();
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -73,6 +78,7 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
     setState(() {
       _report = report;
       _scanning = false;
+      _dismissed.clear(); // fresh scan re-shows swiped rows
     });
     return report;
   }
@@ -147,7 +153,7 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
             onSelected: (f) => setState(() => _activeFilter = f),
           ),
           Expanded(
-            child: report == null || findings.isEmpty
+            child: findings.isEmpty
                 ? _EmptyState(
                     status: report?.status ?? LeakRadar.status,
                   )
@@ -161,8 +167,26 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
                     : ListView.builder(
                         padding: const EdgeInsets.only(bottom: 8),
                         itemCount: filtered.length,
-                        itemBuilder: (_, i) =>
-                            _FindingRow(finding: filtered[i]),
+                        itemBuilder: (_, i) {
+                          final f = filtered[i];
+                          return Dismissible(
+                            key: ValueKey(
+                              '${f.className}|'
+                              '${f.kind.name}|'
+                              '${f.tag ?? ''}',
+                            ),
+                            direction: DismissDirection.endToStart,
+                            // View-level dismiss: engine still detects;
+                            // re-adds on next scan.
+                            onDismissed: (_) => setState(
+                              () => _dismissed.add(f.className),
+                            ),
+                            background: const SizedBox.shrink(),
+                            secondaryBackground:
+                                const _DismissBackground(),
+                            child: _FindingRow(finding: f),
+                          );
+                        },
                       ),
           ),
         ],
@@ -252,6 +276,14 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
                 if (!_scanning && !_collectingHeap) _collectHeapSnapshot();
               case _HeapMenuAction.share:
                 if (!_scanning) _showExportSheet(context);
+              case _HeapMenuAction.clearLeaks:
+                LeakRadar.clearLeaks();
+                if (mounted) {
+                  setState(() {
+                    _dismissed.clear();
+                    _report = LeakRadar.latest;
+                  });
+                }
             }
           },
           itemBuilder: (_) => [
@@ -273,6 +305,15 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
                 ),
               ),
             ),
+            PopupMenuItem(
+              value: _HeapMenuAction.clearLeaks,
+              child: Text(
+                'Clear leaks',
+                style: LeakRadarText.label.copyWith(
+                  color: LeakRadarColors.text100,
+                ),
+              ),
+            ),
           ],
         ),
         const SizedBox(width: 4),
@@ -281,7 +322,7 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
   }
 }
 
-enum _HeapMenuAction { heapSnapshot, share }
+enum _HeapMenuAction { heapSnapshot, share, clearLeaks }
 
 // ── Icon button ───────────────────────────────────────────────────────────────
 
@@ -661,6 +702,31 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 8),
             Text('status: ${status.name}', style: LeakRadarText.label),
           ],
+        ),
+      );
+}
+
+// ── Dismiss background ────────────────────────────────────────────────────────
+
+class _DismissBackground extends StatelessWidget {
+  const _DismissBackground();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color.fromRGBO(239, 68, 68, 0.18),
+          border: Border.all(
+            color: const Color.fromRGBO(239, 68, 68, 0.40),
+          ),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(
+          Icons.delete_outline,
+          color: Color.fromRGBO(239, 68, 68, 0.80),
+          size: 20,
         ),
       );
 }

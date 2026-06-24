@@ -207,6 +207,36 @@ void main() {
     });
   });
 
+  group('_buildBottomRow', () {
+    testWidgets('capture button has InkWell with non-null onTap',
+        (tester) async {
+      await LeakRadar.debugInstall(LeakEngine(
+        probe: const NoopHeapProbe(),
+        analyzer: LeakAnalyzer(SuspectSet.empty()),
+      ));
+      final finding = testFinding();
+      await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
+      await tester.pumpAndSettle();
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is InkWell && w.onTap != null,
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('bottom row renders without overflow', (tester) async {
+      await LeakRadar.debugInstall(LeakEngine(
+        probe: const NoopHeapProbe(),
+        analyzer: LeakAnalyzer(SuspectSet.empty()),
+      ));
+      final finding = testFinding();
+      await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('LeakFinding.firstSeen', () {
     test('returns null when captureTimes is empty', () {
       final f = testFinding(series: [0, 1, 2], captureTimes: []);
