@@ -1,3 +1,17 @@
+## 0.1.0
+
+- **Live retaining-path detector** (`GraphScan`): loads a VM heap snapshot after
+  every Nth navigation and walks the retaining path of each tracked object.
+  Objects reachable only from non-live roots are reported as
+  `LeakKind.retainedByNonLiveRoot` findings.
+- `LeakRadar.graphScanNow()`: triggers an on-demand retaining-path scan outside
+  the automatic schedule.
+- `LeakRadarConfig.standard(graphScan: ...)`: wire `GraphScan(everyNthNavigation: n)`
+  to enable the live graph detector in the existing config API.
+- `leak_graph` dependency promoted from a path reference to a version constraint
+  (`^0.1.0`); `leak_graph` is a pub workspace sibling, so the workspace resolver
+  maps it to the local copy — no path dep, publish-ready.
+
 ## 0.0.2
 
 - `forceGc({int fullGcCycles, Duration? timeout})` test utility: drives GC by

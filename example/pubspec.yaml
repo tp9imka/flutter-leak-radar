@@ -2,21 +2,20 @@ name: flutter_leak_radar_example
 description: Demo app for flutter_leak_radar — exercises all 7 lint rules and the runtime detector.
 publish_to: none
 version: 0.0.1
+resolution: workspace
 environment:
   sdk: ">=3.10.0 <4.0.0"
   flutter: ">=3.38.0"
 dependencies:
   flutter:
     sdk: flutter
-  flutter_leak_radar:
-    path: ../packages/flutter_leak_radar
+  flutter_leak_radar: ^0.1.0
   bloc: ^9.2.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  flutter_leak_radar_lint:
-    path: ../packages/flutter_leak_radar_lint
+  flutter_leak_radar_lint: ^0.1.0
   custom_lint: ^0.8.1
   image: ^4.5.4
   flutter_launcher_icons: ^0.14.4

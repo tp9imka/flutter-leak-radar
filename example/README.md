@@ -66,6 +66,15 @@ warning underlines in `leaky_screen.dart` / `leaky_cubit.dart` (the plugin is en
 `analysis_options.yaml`). If they don't appear, run `dart pub get` in `example/` and restart
 the Dart analysis server (VS Code: **Dart: Restart Analysis Server**, or **Reload Window**).
 
+## Live graph scan (0.1.0)
+
+The demo now enables `graphScan: const GraphScan(everyNthNavigation: 2)` in
+`LeakRadarConfig.standard`. Every second navigation triggers a full VM heap
+snapshot load; the retaining path of every tracked object is walked and objects
+reachable only from non-live roots are reported as `LeakKind.retainedByNonLiveRoot`
+findings in the dashboard. You can also call `LeakRadar.graphScanNow()` from the
+dashboard's manual-scan button to trigger it on demand.
+
 ## Runtime detector setup
 
 `main.dart` wires the detector with:
