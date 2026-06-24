@@ -1,35 +1,107 @@
+// example/lib/leaky_screen.dart
+//
+// Intentional leak testbed — demonstrates 6 lint-rule patterns in one State.
+//
+// Pattern 1  undisposed_controller      — TextEditingController created, never disposed
+// Pattern 2  uncancelled_subscription   — StreamSubscription field, never cancelled
+// Pattern 3  uncancelled_timer          — Timer.periodic field, never cancelled
+// Pattern 4  unclosed_stream_controller — StreamController field, never closed
+// Pattern 5  discarded_listen_result    — bare stream.listen() whose result is dropped
+// Pattern 6  missing_remove_listener    — addListener without removeListener in dispose()
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_leak_radar/flutter_leak_radar.dart';
 
-/// A screen that INTENTIONALLY leaks: it starts a periodic Timer and opens a
-/// StreamController in initState but never cancels/closes them in dispose().
-/// Each push/pop leaves the State (and its Timer) retained.
 class LeakyScreen extends StatefulWidget {
   const LeakyScreen({super.key});
+
   @override
   State<LeakyScreen> createState() => _LeakyScreenState();
 }
 
 class _LeakyScreenState extends State<LeakyScreen> {
-  // ignore: unused_field — intentional leak: _timer is never cancelled
-  late final Timer _timer;
-  final StreamController<int> _controller = StreamController<int>.broadcast();
+  // Pattern 1: undisposed_controller — TextEditingController never disposed.
+  final TextEditingController _textController = TextEditingController();
+
+  // Pattern 2: uncancelled_subscription — StreamSubscription never cancelled.
+  StreamSubscription<int>? _subscription;
+
+  // Pattern 3: uncancelled_timer — Timer.periodic never cancelled.
+  Timer? _timer;
+
+  // Pattern 4: unclosed_stream_controller — StreamController never closed.
+  final StreamController<int> _streamController = StreamController<int>();
+
+  // Pattern 6: missing_remove_listener — ValueNotifier addListener without removeListener.
+  final ValueNotifier<int> _notifier = ValueNotifier<int>(0);
+
+  void _onNotifierChanged() {}
 
   @override
   void initState() {
     super.initState();
-    LeakRadar.track(this, tag: 'LeakyScreenState'); // precise opt-in
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _controller.add(0));
+    LeakRadar.track(this, tag: 'LeakyScreen');
+
+    // Pattern 2: assign subscription to field, never cancel it.
+    _subscription = Stream.periodic(const Duration(seconds: 1), (i) => i)
+        .listen((_) {});
+
+    // Pattern 3: start periodic timer, never cancel it.
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {});
+
+    // Pattern 5: discarded_listen_result — result of .listen() is not captured.
+    _streamController.stream.listen((_) {});
+
+    // Pattern 6: addListener with a named callback, no matching removeListener.
+    _notifier.addListener(_onNotifierChanged);
   }
 
-  // BUG ON PURPOSE: no dispose() cancelling _timer / closing _controller,
-  // and no LeakRadar.markDisposed(this).
+  @override
+  void dispose() {
+    // Intentionally NOT calling:
+    //   _textController.dispose()    (pattern 1)
+    //   _subscription?.cancel()      (pattern 2)
+    //   _timer?.cancel()             (pattern 3)
+    //   _streamController.close()    (pattern 4)
+    //   _notifier.removeListener(…)  (pattern 6)
+    super.dispose();
+  }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Leaky screen')),
-        body: const Center(child: Text('Pop me, then Scan in Leak Radar.')),
-      );
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Leaky Screen — 6 patterns')),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This screen intentionally leaks:\n'
+              '  1. TextEditingController (undisposed_controller)\n'
+              '  2. StreamSubscription (uncancelled_subscription)\n'
+              '  3. Timer.periodic (uncancelled_timer)\n'
+              '  4. StreamController (unclosed_stream_controller)\n'
+              '  5. bare .listen() (discarded_listen_result)\n'
+              '  6. addListener without removeListener (missing_remove_listener)',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _textController,
+              decoration: const InputDecoration(
+                labelText: 'Type something (controller leaks on pop)',
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Pop this screen, then open the Leak Radar dashboard\n'
+              'or wait for the navigation-triggered scan.',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
