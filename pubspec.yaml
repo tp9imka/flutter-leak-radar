@@ -6,6 +6,5 @@ workspace:
   - packages/flutter_leak_radar
   - packages/flutter_leak_radar_lint
   - packages/flutter_leak_radar_lint/example
-  - example
 dev_dependencies:
   melos: ^6.0.0
