@@ -18,5 +18,20 @@ dev_dependencies:
   flutter_leak_radar_lint:
     path: ../packages/flutter_leak_radar_lint
   custom_lint: ^0.8.1
+  image: ^4.5.4
+  flutter_launcher_icons: ^0.14.4
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon/
+
+flutter_launcher_icons:
+  image_path: "assets/icon/leak_radar_icon.png"
+  android: true
+  adaptive_icon_background: "#0A0D0E"
+  adaptive_icon_foreground: "assets/icon/leak_radar_foreground.png"
+  ios: true
+  remove_alpha_ios: true
+  macos:
+    generate: true
+    image_path: "assets/icon/leak_radar_icon.png"
