@@ -76,6 +76,36 @@ void main() {
     expect(f.library, fw);
   });
 
+  test('default resource globs keep growing platform resources', () {
+    // A growing framework TextEditingController (a *Controller) and _Timer are
+    // real leaks and must survive the defaults; a framework *State (_FocusState)
+    // is churn and must be dropped.
+    const wid = 'package:flutter/src/widgets/editable_text.dart';
+    const async = 'dart:async';
+    final h = SampleHistory()
+      ..add(
+        snapLib([
+          ('TextEditingController', 1, wid),
+          ('_Timer', 2, async),
+          ('_FocusState', 1, 'package:flutter/src/widgets/focus_manager.dart'),
+        ], 1),
+      )
+      ..add(
+        snapLib([
+          ('TextEditingController', 4, wid),
+          ('_Timer', 6, async),
+          ('_FocusState', 3, 'package:flutter/src/widgets/focus_manager.dart'),
+        ], 2),
+      );
+    final report = LeakAnalyzer(
+      SuspectSet.defaults(),
+    ).analyze(h, trigger: 'm', status: LeakRadarStatus.active);
+    final names = report.findings.map((f) => f.className).toSet();
+    expect(names, contains('TextEditingController'));
+    expect(names, contains('_Timer'));
+    expect(names, isNot(contains('_FocusState')));
+  });
+
   test('flat series produces no finding', () {
     final h = SampleHistory()
       ..add(snap({'HomeBloc': 1}, 1))

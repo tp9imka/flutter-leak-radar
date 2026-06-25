@@ -27,22 +27,31 @@ final class SuspectSet {
   /// private implementation classes match — e.g. `*State` catches
   /// `_HomeScreenState`, and `*Timer` catches the `_Timer` instance returned by
   /// `Timer.periodic`, which an exact `Timer` rule would miss.)
-  /// [appOnly] is set on every default rule: these broad suffix globs match
-  /// the VM's private framework classes (`_FocusState`, `AnimationController`,
-  /// `_Timer`, `ValueNotifier`, …), so they only flag app-owned matches —
-  /// preventing framework churn from flooding the report. Explicit user rules
-  /// added via [LeakRadarConfig.rules] are unaffected (they default
-  /// `appOnly: false`).
+  /// Only the WIDGET-LIFECYCLE globs (`*State`, `*Screen`) are [appOnly]: the
+  /// framework spawns and disposes hundreds of private `*State` objects
+  /// (`_FocusState`, `_AnimatedState`, `NavigatorState`, …) as you navigate, and
+  /// flagging that churn floods the report — so those only flag app-owned
+  /// matches.
+  ///
+  /// The DISPOSABLE-RESOURCE globs (`*Controller`, `*Notifier`, `*Stream*`,
+  /// `*Timer`, `*Bloc`, `*Cubit`) are NOT app-filtered: a growing
+  /// `TextEditingController` / `AnimationController` / `_Timer` /
+  /// `StreamController` is a real, useful leak wherever its class is declared,
+  /// so platform resource leaks surface. The growth metric (latest minus the
+  /// window minimum) keeps healthy churn — which returns to baseline — out.
+  ///
+  /// Explicit user rules added via [LeakRadarConfig.rules] are never
+  /// app-filtered (they default `appOnly: false`).
   factory SuspectSet.defaults() => const SuspectSet(<LeakRule>[
     LeakRule.growth('*State', appOnly: true),
     LeakRule.growth('*Screen', appOnly: true),
-    LeakRule.growth('*Bloc', appOnly: true),
-    LeakRule.growth('*Cubit', appOnly: true),
-    LeakRule.growth('*Controller', appOnly: true),
-    LeakRule.growth('*Notifier', appOnly: true),
-    LeakRule.growth('*StreamSubscription', appOnly: true),
-    LeakRule.growth('*StreamController', appOnly: true),
-    LeakRule.growth('*Timer', appOnly: true),
+    LeakRule.growth('*Bloc'),
+    LeakRule.growth('*Cubit'),
+    LeakRule.growth('*Controller'),
+    LeakRule.growth('*Notifier'),
+    LeakRule.growth('*StreamSubscription'),
+    LeakRule.growth('*StreamController'),
+    LeakRule.growth('*Timer'),
   ]);
 
   /// The ordered list of rules in this set.
