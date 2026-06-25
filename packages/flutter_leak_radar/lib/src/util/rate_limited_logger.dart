@@ -1,5 +1,5 @@
 // lib/src/util/rate_limited_logger.dart
-import 'dart:developer' as developer;
+import 'package:flutter/foundation.dart';
 
 /// Verbosity for [RateLimitedLogger].
 enum LeakLogLevel { none, error, warning, verbose }
@@ -31,11 +31,11 @@ class RateLimitedLogger {
       return;
     }
     _lastLogged[message] = at;
-    developer.log(
-      message,
-      name: 'flutter_leak_radar',
-      error: error,
-      stackTrace: stackTrace,
-    );
+    // debugPrint (not developer.log) so diagnostics appear in `adb logcat` and
+    // the run console where developers look — developer.log only reaches the
+    // VM-service log stream (DevTools / the `flutter run` terminal).
+    final String suffix = error != null ? ': $error' : '';
+    debugPrint('[flutter_leak_radar] $message$suffix');
+    if (stackTrace != null) debugPrint('$stackTrace');
   }
 }
