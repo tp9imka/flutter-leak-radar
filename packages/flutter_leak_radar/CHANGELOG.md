@@ -15,6 +15,14 @@
 - VM-service connect failures are logged once as a warning (not on every retry).
   The detector degrades cleanly to precise + file-snapshot graph scanning when
   the VM service is unreachable in-process (common on physical devices).
+- **Verbose diagnostics:** with `logLevel: LeakLogLevel.verbose`, each scan now
+  logs why it produced N findings — engine status, capture result, `forceGc` +
+  `collectLeaks` counts, the graph-scan acquire path (live / file-fallback /
+  null) and analyzer stats. Makes silent "no findings" observable.
+- **Example self-test:** the example's home screen has a "Run leak self-test"
+  button (`example/lib/leak_self_test.dart`) that drives the leak scenario in
+  the live app and prints a `LEAK-RADAR-SUMMARY` block — no `integration_test`
+  dependency, so it runs on any target including a physical device.
 
 ## 0.1.0
 

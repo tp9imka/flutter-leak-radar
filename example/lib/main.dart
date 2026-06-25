@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_leak_radar/flutter_leak_radar.dart';
 
+import 'leak_self_test.dart';
 import 'leaky_bloc_screen.dart';
 import 'leaky_screen.dart';
 
@@ -21,7 +22,10 @@ Future<void> main() async {
         onNavigation: true,
         period: Duration(seconds: 8),
       ),
-      graphScan: const GraphScan(everyNthNavigation: 2),
+      // minClusterSize:1 surfaces a single-instance demo leak: one retained
+      // _LeakyScreenState (a cluster of 1) is reported after a single pop.
+      // Production may prefer 2 to require a repeated pattern before flagging.
+      graphScan: const GraphScan(everyNthNavigation: 1, minClusterSize: 1),
       // Surface precise (track + markDisposed) leaks quickly in the demo:
       // 1 GC cycle + 1s grace, instead of the 3-cycle / 2s production defaults.
       // This is why popping a leaky screen once flags it within a scan or two.
@@ -34,6 +38,10 @@ Future<void> main() async {
         LeakRule.maxLive('_LeakyScreenState', 1),
         LeakRule.growth('LeakyCubit'),
       ],
+    ).copyWith(
+      // Verbose so each scan logs why it produced N findings (acquire path,
+      // forceGc, collectLeaks counts, graph analyze stats). See the console.
+      logLevel: LeakLogLevel.verbose,
     ),
   );
   runApp(const _App());
@@ -95,6 +103,13 @@ class _HomeScreen extends StatelessWidget {
                 ),
               ),
               child: const Text('Open Leak Radar Dashboard'),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: () => runLeakSelfTest(Navigator.of(context)),
+              child: const Text(
+                'Run leak self-test\n(drives + prints summary)',
+              ),
             ),
           ],
         ),

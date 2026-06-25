@@ -177,6 +177,32 @@ web, non-standalone VM).
 icon) in its app bar that writes the snapshot and offers a Share sheet to send
 the file directly from the device.
 
+### On-device limitations (heap-growth & graph scans)
+
+Precise tracking (`notGced` / `notDisposed`) is pure Dart — it relies only on
+`WeakReference` and `Finalizer`, so it works everywhere on-device, including a
+plain `flutter run` on a physical Android or iOS device.
+
+Heap-growth analysis and the retaining-path graph scan need a **heap source**,
+which is one of:
+
+- a reachable **in-process VM service** — available on desktop and on
+  emulators/simulators; or
+- **`NativeRuntime.writeHeapSnapshotToFile`** — *not* supported on a physical
+  Android/iOS app's embedded VM.
+
+On a plain `flutter run` on a physical device neither is available, so only
+precise findings appear there. To exercise all detectors, run the example on
+**macOS or an emulator** (`flutter run -d macos`) and tap **"Run leak
+self-test"** on the home screen — it drives the leak scenario in the live app
+and prints a `LEAK-RADAR-SUMMARY` block (grouped by `LeakKind`, including empty
+kinds) to the console. The self-test is plain app code — no `integration_test`
+package and no `androidx.test` native dependency — so it also runs on a
+physical device (showing precise findings, with verbose logs explaining why the
+graph/growth paths are unavailable there).
+
+For offline analysis, feed an exported `.data` snapshot to the `leak_graph` CLI.
+
 ---
 
 ## Debug/profile-only guarantee
