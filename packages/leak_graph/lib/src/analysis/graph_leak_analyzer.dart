@@ -141,11 +141,27 @@ final class GraphLeakAnalyzer {
         }
       }).toList();
 
-      final hops = buildHops(pathLinks, pathClassNames);
+      // Attribution: the DEEPEST app-owned object on the path is the leaked
+      // "owner" this finding is reported under; the internal SDK leaf below it
+      // (e.g. a _ControllerSubscription/_Closure) is demoted to retaining-path
+      // detail. Walk leaf->root; the first app hop is the anchor.
+      int? anchorIndex;
+      if (appSet != null) {
+        for (var i = pathLibraries.length - 1; i >= 0; i--) {
+          if (appSet.contains(pathLibraries[i])) {
+            anchorIndex = i;
+            break;
+          }
+        }
+      }
 
+      final hops = buildHops(pathLinks, pathClassNames);
       final path = GraphRetainingPath(hops: hops, rootKind: rootKind);
+      // Signature anchored at the owner (root -> anchor) so two owners with the
+      // same owner+root path cluster regardless of which internal leaf BFS
+      // reached first. Falls back to the full path when there is no anchor.
       final signature = pathSignature(
-        hops,
+        anchorIndex != null ? hops.sublist(0, anchorIndex + 1) : hops,
         maxDepth: options.maxSignatureDepth,
       );
 
@@ -159,6 +175,15 @@ final class GraphLeakAnalyzer {
           pathLibraries: pathLibraries,
           rootKind: rootKind,
           signature: signature,
+          attributionAnchorNodeId: anchorIndex != null
+              ? pathLinks[anchorIndex].nodeId
+              : null,
+          attributionClassName: anchorIndex != null
+              ? pathClassNames[anchorIndex]
+              : null,
+          attributionLibraryUri: anchorIndex != null
+              ? pathLibraries[anchorIndex]
+              : null,
         ),
       );
     }
@@ -173,9 +198,14 @@ final class GraphLeakAnalyzer {
         kept.add(record);
         continue;
       }
+      // Keep a record iff it has an app owner on its path (attribution anchor)
+      // OR its own leaf class is app code. The old bare `pathLibraries.any`
+      // rule let pure-SDK leaves survive under their SDK names just because an
+      // app object sat somewhere on their path; attribution now folds those
+      // into the app owner instead.
       final inApp =
-          appSet.contains(record.libraryUri) ||
-          record.pathLibraries.any(appSet.contains);
+          record.attributionAnchorNodeId != null ||
+          appSet.contains(record.libraryUri);
       if (inApp) {
         kept.add(record);
       } else {
@@ -195,7 +225,15 @@ final class GraphLeakAnalyzer {
       if (liveTree.hasAnchor) {
         survivors = <LeakRecord>[];
         for (final record in kept) {
-          if (liveTree.isReachable(record.nodeId)) {
+          // A leak-prone-rooted candidate is never suppressed by mere forward-
+          // reachability from a live anchor: the anchor reaching it via a stale
+          // debug / inactive-element back-reference is NOT retention-for-use —
+          // its real keep-alive owner is the leak-prone root. Suppress only a
+          // candidate whose root is not leak-prone (a safety net, given the
+          // isLeakProne gate above), which is what stopped the real leak from
+          // being wrongly hidden.
+          if (liveTree.isReachable(record.nodeId) &&
+              !record.rootKind.isLeakProne) {
             suppressedByLiveTree++;
           } else {
             survivors.add(record);

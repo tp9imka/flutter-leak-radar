@@ -307,5 +307,79 @@ void main() {
       expect(result.clusters.first.confidence, LeakConfidence.heuristic);
       expect(result.stats.suppressedByLiveTree, 0);
     });
+
+    test('attributes the leak to the deepest app owner (not the SDK leaf) and '
+        'does not suppress it despite a stale live-tree edge', () {
+      HeapNode n(int id, String cls, Uri lib, List<HeapEdge> edges) => HeapNode(
+        id: id,
+        className: cls,
+        libraryUri: lib,
+        shallowSize: 16,
+        edges: edges,
+      );
+      final dartAsync = Uri.parse('dart:async');
+      final dartCore = Uri.parse('dart:core');
+      final flutter = Uri.parse('package:flutter/src/binding.dart');
+      final app = Uri.parse('package:my_app/leaky_screen.dart');
+
+      // Two _LeakyScreenState owners, each retained by a _Timer and each
+      // transitively retaining SDK leaves (_ControllerSubscription, _Closure).
+      // A live WidgetsFlutterBinding ALSO reaches both States via a stale edge
+      // — which previously marked them "live" and suppressed the real leak,
+      // while the SDK leaves surfaced under their dart:* names.
+      final graph = InMemoryHeapGraph.of({
+        0: n(0, 'Root', dartCore, const [
+          HeapEdge(targetId: 1),
+          HeapEdge(targetId: 5),
+          HeapEdge(targetId: 9),
+        ]),
+        1: n(1, '_Timer', dartAsync, const [
+          HeapEdge(targetId: 2, field: '_callback'),
+        ]),
+        2: n(2, '_LeakyScreenState', app, const [
+          HeapEdge(targetId: 3, field: '_sub'),
+          HeapEdge(targetId: 4, field: '_cb'),
+        ]),
+        3: n(3, '_ControllerSubscription', dartAsync, const []),
+        4: n(4, '_Closure', dartCore, const []),
+        5: n(5, '_Timer', dartAsync, const [
+          HeapEdge(targetId: 6, field: '_callback'),
+        ]),
+        6: n(6, '_LeakyScreenState', app, const [
+          HeapEdge(targetId: 7, field: '_sub'),
+          HeapEdge(targetId: 8, field: '_cb'),
+        ]),
+        7: n(7, '_ControllerSubscription', dartAsync, const []),
+        8: n(8, '_Closure', dartCore, const []),
+        9: n(9, 'WidgetsFlutterBinding', flutter, const [
+          HeapEdge(targetId: 2),
+          HeapEdge(targetId: 6),
+        ]),
+      });
+
+      final result = analyzer.analyze(
+        graph,
+        const GraphAnalysisOptions(
+          appPackages: ['my_app'],
+          confirmWithReachability: true,
+          minClusterSize: 1,
+        ),
+      );
+
+      // Headline is the app owner, not the SDK leaf; the per-owner internal
+      // leaves fold into a single cluster of 2 owners; not suppressed.
+      expect(result.clusters, hasLength(1));
+      final c = result.clusters.single;
+      expect(c.className, '_LeakyScreenState');
+      expect(c.libraryUri.toString(), contains('leaky_screen'));
+      expect(c.instanceCount, 2);
+      expect(c.rootKind, RootKind.timer);
+      expect(result.stats.suppressedByLiveTree, 0);
+      // The SDK chain survives as drill-down path detail.
+      final classes = c.representativePath.hops
+          .map((h) => h.className)
+          .toList();
+      expect(classes, contains('_LeakyScreenState'));
+    });
   });
 }
