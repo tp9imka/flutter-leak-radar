@@ -35,33 +35,36 @@ void main() {
   // ── Summary row: actions + stats ────────────────────────────────────────────
 
   group('_SummaryRow', () {
-    testWidgets('shows the GC action and the class/instance stats line', (
-      tester,
-    ) async {
-      final probe = FakeHeapProbe([
-        snap({'HomeBloc': 1}),
-        snap({'HomeBloc': 2}),
-        snap({'HomeBloc': 3}),
-      ]);
-      await LeakRadar.debugInstall(
-        LeakEngine(
-          probe: probe,
-          analyzer: const LeakAnalyzer(
-            SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+    testWidgets(
+      'shows the GC action; class/instance stats appear exactly once',
+      (tester) async {
+        final probe = FakeHeapProbe([
+          snap({'HomeBloc': 1}),
+          snap({'HomeBloc': 2}),
+          snap({'HomeBloc': 3}),
+        ]);
+        await LeakRadar.debugInstall(
+          LeakEngine(
+            probe: probe,
+            analyzer: const LeakAnalyzer(
+              SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+            ),
           ),
-        ),
-      );
-      await LeakRadar.scan();
-      await LeakRadar.scan();
-      await LeakRadar.scan();
+        );
+        await LeakRadar.scan();
+        await LeakRadar.scan();
+        await LeakRadar.scan();
 
-      await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
+        await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Force GC and rescan'), findsOneWidget);
-      expect(find.text('GC'), findsOneWidget);
-      expect(find.textContaining('instance'), findsWidgets);
-    });
+        expect(find.byTooltip('Force GC and rescan'), findsOneWidget);
+        expect(find.text('GC'), findsOneWidget);
+        // Stats live in exactly ONE place (the bottom bar), not duplicated in
+        // the summary row.
+        expect(find.textContaining('instances'), findsOneWidget);
+      },
+    );
 
     testWidgets('summary row does not overflow at 320 px with many findings', (
       tester,

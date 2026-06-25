@@ -175,7 +175,7 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SummaryRow(report: report, formatTime: _formatTime),
+          _SummaryRow(report: report),
           _FilterRow(
             active: _activeFilter,
             total: findings.length,
@@ -219,6 +219,7 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
       bottomNavigationBar: _BottomBar(
         filteredFindings: filtered,
         scanning: _scanning,
+        scanTime: report != null ? _formatTime(report.capturedAt) : null,
         onScanTap: () async {
           final messenger = ScaffoldMessenger.of(context);
           final newReport = await _scan();
@@ -396,10 +397,9 @@ class _IconBtn extends StatelessWidget {
 // ── Summary row ───────────────────────────────────────────────────────────────
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.report, required this.formatTime});
+  const _SummaryRow({required this.report});
 
   final LeakReport? report;
-  final String Function(DateTime) formatTime;
 
   @override
   Widget build(BuildContext context) {
@@ -413,61 +413,38 @@ class _SummaryRow extends StatelessWidget {
     final infoCount = findings
         .where((f) => f.severity == LeakSeverity.info)
         .length;
-    final classCount = findings.map((f) => f.className).toSet().length;
-    final instanceCount = findings.fold<int>(0, (s, f) => s + f.liveCount);
 
+    // Severity breakdown (wraps when the numbers get wide) + actions on the
+    // right, with guaranteed spacing via the Expanded. The class/instance
+    // totals and scan time live once, in the bottom bar.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          // Severity breakdown (wraps when the numbers get wide) + actions on
-          // the right, with guaranteed spacing via the Expanded.
-          Row(
-            children: [
-              Expanded(
-                child: Wrap(
-                  spacing: 14,
-                  runSpacing: 4,
-                  children: [
-                    if (criticalCount > 0)
-                      _SeverityCount(
-                        LeakSeverity.critical,
-                        criticalCount,
-                        'critical',
-                      ),
-                    if (warningCount > 0)
-                      _SeverityCount(
-                        LeakSeverity.warning,
-                        warningCount,
-                        'warning',
-                      ),
-                    if (infoCount > 0)
-                      _SeverityCount(LeakSeverity.info, infoCount, 'info'),
-                    if (findings.isEmpty)
-                      Text('No leaks', style: LeakRadarText.label),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              const _VmConnectionChip(),
-              const SizedBox(width: 8),
-              const _GcButton(),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '$classCount ${classCount == 1 ? 'class' : 'classes'} · '
-            '$instanceCount ${instanceCount == 1 ? 'instance' : 'instances'}',
-            style: monoFont(fontSize: 11, color: LeakRadarColors.text40),
-          ),
-          if (report != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              'scan ${formatTime(report!.capturedAt)}',
-              style: monoFont(fontSize: 11, color: LeakRadarColors.text40),
+          Expanded(
+            child: Wrap(
+              spacing: 14,
+              runSpacing: 4,
+              children: [
+                if (criticalCount > 0)
+                  _SeverityCount(
+                    LeakSeverity.critical,
+                    criticalCount,
+                    'critical',
+                  ),
+                if (warningCount > 0)
+                  _SeverityCount(LeakSeverity.warning, warningCount, 'warning'),
+                if (infoCount > 0)
+                  _SeverityCount(LeakSeverity.info, infoCount, 'info'),
+                if (findings.isEmpty)
+                  Text('No leaks', style: LeakRadarText.label),
+              ],
             ),
-          ],
+          ),
+          const SizedBox(width: 12),
+          const _VmConnectionChip(),
+          const SizedBox(width: 8),
+          const _GcButton(),
         ],
       ),
     );
@@ -927,11 +904,16 @@ class _BottomBar extends StatelessWidget {
     required this.filteredFindings,
     required this.scanning,
     required this.onScanTap,
+    this.scanTime,
   });
 
   final List<LeakFinding> filteredFindings;
   final bool scanning;
   final VoidCallback onScanTap;
+
+  /// Formatted last-scan time (e.g. `17:17`), or null before any scan. Shown
+  /// here only — the summary row no longer duplicates it.
+  final String? scanTime;
 
   @override
   Widget build(BuildContext context) {
@@ -948,10 +930,29 @@ class _BottomBar extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Text(
-                  '${filteredFindings.length} classes · $instanceTotal instances',
-                  overflow: TextOverflow.ellipsis,
-                  style: monoFont(fontSize: 11, color: LeakRadarColors.text25),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${filteredFindings.length} classes · '
+                      '$instanceTotal instances',
+                      overflow: TextOverflow.ellipsis,
+                      style: monoFont(
+                        fontSize: 11,
+                        color: LeakRadarColors.text25,
+                      ),
+                    ),
+                    if (scanTime != null)
+                      Text(
+                        'scan $scanTime',
+                        overflow: TextOverflow.ellipsis,
+                        style: monoFont(
+                          fontSize: 11,
+                          color: LeakRadarColors.text25,
+                        ),
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
