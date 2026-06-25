@@ -109,6 +109,12 @@ final class _LeakGraphRunner implements GraphScanRunner {
       histogram: graph.classHistogram(),
     );
   }
+
+  @override
+  Future<GraphRetainingPath?> retainingPathForClass(
+    String className, {
+    required int maxObjects,
+  }) async => null;
 }
 
 /// Always returns null (simulates unavailable / size-exceeded graph).
@@ -116,6 +122,12 @@ final class _NullGraphRunner implements GraphScanRunner {
   @override
   Future<GraphScanOutcome?> run(
     GraphAnalysisOptions options, {
+    required int maxObjects,
+  }) async => null;
+
+  @override
+  Future<GraphRetainingPath?> retainingPathForClass(
+    String className, {
     required int maxObjects,
   }) async => null;
 }
@@ -127,6 +139,12 @@ final class _ThrowingGraphRunner implements GraphScanRunner {
     GraphAnalysisOptions options, {
     required int maxObjects,
   }) async => throw StateError('graph runner failure');
+
+  @override
+  Future<GraphRetainingPath?> retainingPathForClass(
+    String className, {
+    required int maxObjects,
+  }) async => null;
 }
 
 /// Returns a class histogram whose app-owned `GrowingState` count climbs by 2
@@ -154,6 +172,12 @@ final class _GrowingHistogramRunner implements GraphScanRunner {
       ],
     );
   }
+
+  @override
+  Future<GraphRetainingPath?> retainingPathForClass(
+    String className, {
+    required int maxObjects,
+  }) async => null;
 }
 
 // ---------------------------------------------------------------------------
@@ -422,6 +446,44 @@ void main() {
           ),
           isTrue,
           reason: 'app-owned GrowingState must be flagged from the histogram',
+        );
+      },
+    );
+
+    test(
+      'retainingPath falls back to the snapshot lookup when the VM has none',
+      () async {
+        // FakeHeapProbe([]) → probe.retainingPath returns null (no VM path), so
+        // the engine must fall back to the runner's standalone snapshot lookup.
+        final graphPath = const GraphRetainingPath(
+          hops: [
+            GraphHop(className: 'Holder', field: 'x'),
+            GraphHop(className: 'Target'),
+          ],
+          rootKind: RootKind.timer,
+        );
+        final runner = FixedGraphScanRunner(
+          (_) => null,
+          pathForClass: (name) => name == 'Target' ? graphPath : null,
+        );
+        final engine = LeakEngine(
+          probe: FakeHeapProbe([]),
+          analyzer: LeakAnalyzer(SuspectSet.empty()),
+          config: const LeakRadarConfig(
+            graphScan: GraphScan(maxGraphObjects: 100000),
+          ),
+          graphRunner: runner,
+        );
+
+        await engine.start();
+        final path = await engine.retainingPath('Target');
+        await engine.stop();
+
+        expect(path, isNotNull);
+        expect(
+          path!.elements.map((e) => e.objectType),
+          contains('Target'),
+          reason: 'standalone snapshot path must surface without a VM service',
         );
       },
     );

@@ -31,6 +31,14 @@ abstract interface class GraphScanRunner {
     GraphAnalysisOptions options, {
     required int maxObjects,
   });
+
+  /// Captures a heap snapshot and returns the retaining path to the first
+  /// reachable instance of [className], or null. Standalone (no VM service);
+  /// the parse + BFS run off the main isolate. Never throws.
+  Future<GraphRetainingPath?> retainingPathForClass(
+    String className, {
+    required int maxObjects,
+  });
 }
 
 /// Heuristic upper bound on heap-snapshot bytes per object. Caps the snapshot
@@ -95,6 +103,48 @@ final class IsolateGraphScanRunner implements GraphScanRunner {
       }
     }
   }
+
+  @override
+  Future<GraphRetainingPath?> retainingPathForClass(
+    String className, {
+    required int maxObjects,
+  }) async {
+    final String? path = await writeHeapSnapshotFile();
+    if (path == null) return null;
+    try {
+      final lengthBytes = await File(path).length();
+      if (lengthBytes > maxObjects * _snapshotBytesPerObject) return null;
+      return await Isolate.run(
+        () => _pathForClassInFile(path, className, maxObjects),
+      );
+    } catch (e) {
+      _logger?.log(
+        'retainingPathForClass: background lookup failed: $e',
+        level: LeakLogLevel.verbose,
+      );
+      return null;
+    } finally {
+      try {
+        await File(path).delete();
+      } catch (_) {
+        // Best-effort cleanup; never throw.
+      }
+    }
+  }
+}
+
+/// Runs in the spawned isolate: reads the snapshot file, parses the graph, and
+/// BFS-finds the retaining path to an instance of [className]. Top-level so it
+/// is sendable to [Isolate.run].
+Future<GraphRetainingPath?> _pathForClassInFile(
+  String path,
+  String className,
+  int maxObjects,
+) async {
+  final Uint8List bytes = await File(path).readAsBytes();
+  final HeapGraphView graph = heapGraphFromBytes(bytes);
+  if (graph.nodeCount >= maxObjects) return null;
+  return retainingPathForClass(graph, className);
 }
 
 /// Runs in the spawned isolate: reads the snapshot file, parses the graph,
@@ -121,11 +171,16 @@ Future<GraphScanOutcome?> _analyzeSnapshotFile(
 /// real snapshot or isolate.
 @visibleForTesting
 final class FixedGraphScanRunner implements GraphScanRunner {
-  FixedGraphScanRunner(this._result, {List<ClassCount> histogram = const []})
-    : _histogram = histogram;
+  FixedGraphScanRunner(
+    this._result, {
+    List<ClassCount> histogram = const [],
+    GraphRetainingPath? Function(String className)? pathForClass,
+  }) : _histogram = histogram,
+       _pathForClass = pathForClass;
 
   final GraphAnalysisResult? Function(GraphAnalysisOptions options) _result;
   final List<ClassCount> _histogram;
+  final GraphRetainingPath? Function(String className)? _pathForClass;
   int runCount = 0;
 
   @override
@@ -138,4 +193,10 @@ final class FixedGraphScanRunner implements GraphScanRunner {
     if (r == null) return null;
     return GraphScanOutcome(result: r, histogram: _histogram);
   }
+
+  @override
+  Future<GraphRetainingPath?> retainingPathForClass(
+    String className, {
+    required int maxObjects,
+  }) async => _pathForClass?.call(className);
 }
