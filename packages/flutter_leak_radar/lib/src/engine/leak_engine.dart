@@ -11,6 +11,7 @@ import '../model/leak_finding.dart';
 import '../model/leak_kind.dart';
 import '../model/leak_report.dart';
 import '../model/retaining_path.dart';
+import '../precise/force_gc.dart';
 import '../precise/leak_object_registry.dart';
 import '../triggers/navigator_observer.dart';
 import '../triggers/scan_scheduler.dart';
@@ -36,6 +37,7 @@ class LeakEngine {
     AutoScan? autoScan,
     LeakRadarConfig? config,
     HeapGraphSource? graphSource,
+    Future<void> Function()? gcForcer,
   }) : _probe = probe,
        _analyzer = analyzer,
        _history = history ?? SampleHistory(),
@@ -44,7 +46,9 @@ class LeakEngine {
        _logger = logger ?? RateLimitedLogger(),
        _autoScan = autoScan ?? config?.autoScan ?? const AutoScan(),
        _config = config ?? const LeakRadarConfig(),
-       _injectedGraphSource = graphSource;
+       _injectedGraphSource = graphSource,
+       _gcForcer =
+           gcForcer ?? (() => forceGc(timeout: const Duration(seconds: 4)));
 
   final HeapProbe _probe;
   final LeakAnalyzer _analyzer;
@@ -64,6 +68,10 @@ class LeakEngine {
   bool _sourceResolved = false;
   int _navCount = 0;
   bool _graphScanInFlight = false;
+
+  /// Forces a real GC so the precise tracker's reachability barrier advances
+  /// and pending finalizers run. Injectable for tests; defaults to [forceGc].
+  final Future<void> Function() _gcForcer;
 
   final StreamController<LeakReport> _reports =
       StreamController<LeakReport>.broadcast();
@@ -241,6 +249,24 @@ class LeakEngine {
     );
   }
 
+  /// Forces a GC — advancing the precise tracker's reachability barrier and
+  /// running pending finalizers — then runs a full scan. Surfaces
+  /// notGced / notDisposed leaks on demand instead of waiting for an
+  /// incidental GC. Never throws.
+  Future<LeakReport> forceGcAndScan() async {
+    await runSafelyAsync<void>(
+      () => _gcForcer(),
+      fallback: null,
+      logger: _logger,
+    );
+    return scan(trigger: 'force_gc');
+  }
+
+  /// The config the engine is actually running with. Internal: read by the
+  /// facade's test seam to assert [LeakRadar.init] forwards the full config.
+  @internal
+  LeakRadarConfig get debugConfig => _config;
+
   /// Registers [o] for precise leak tracking under the given [tag].
   ///
   /// No-op when [LeakRadarConfig.preciseTracking] is false.
@@ -276,6 +302,18 @@ class LeakEngine {
         } else {
           _history.add(snapshot);
         }
+      }
+      // Force a real GC so the precise tracker's reachability barrier advances
+      // (and pending finalizers run) before we read it. Without this, a
+      // service-triggered GC does not reliably advance developer.reachabilityBarrier,
+      // so disposed-but-retained objects never reach the gcCycles threshold.
+      // Gated on having tracked objects to avoid needless GC pressure.
+      if (_config.preciseTracking && _registry.trackedCount > 0) {
+        await runSafelyAsync<void>(
+          () => _gcForcer(),
+          fallback: null,
+          logger: _logger,
+        );
       }
       final precise = _registry.collectLeaks(gcCycles: _gcCyclesForPreciseLeak);
       final report = _analyzer.analyze(

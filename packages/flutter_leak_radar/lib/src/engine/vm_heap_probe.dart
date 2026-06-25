@@ -32,6 +32,10 @@ class VmHeapProbe implements HeapProbe {
 
   static const Duration _reconnectBackoff = Duration(seconds: 30);
 
+  /// Logged once on first connect failure so repeated retries don't spam the
+  /// console. Reset to false on a successful connect.
+  bool _connectFailureLogged = false;
+
   /// Optional test seam: when set, [_ensureConnected] calls this instead of
   /// the real [vmServiceConnectUri] path.
   Future<VmService> Function()? _connectionFactory;
@@ -89,9 +93,21 @@ class VmHeapProbe implements HeapProbe {
       }
       _service = service;
       _nextRetryAllowedAt = null; // clear on success
+      _connectFailureLogged = false; // re-arm logging for a future failure
       return service;
     } catch (e) {
-      _logger.log('VmHeapProbe connect failed: $e', level: LeakLogLevel.error);
+      // Log once, not on every 30s retry. The VM service is often unreachable
+      // in-process on physical devices (the service URI is host-relative);
+      // precise tracking and file-based graph snapshots still work, only
+      // heap-growth scans need the connection.
+      if (!_connectFailureLogged) {
+        _connectFailureLogged = true;
+        _logger.log(
+          'VmHeapProbe could not connect to the VM service ($e). Heap-growth '
+          'scans are disabled; precise tracking and graph snapshots still work.',
+          level: LeakLogLevel.warning,
+        );
+      }
       _nextRetryAllowedAt = DateTime.now().add(_reconnectBackoff);
       return null;
     }

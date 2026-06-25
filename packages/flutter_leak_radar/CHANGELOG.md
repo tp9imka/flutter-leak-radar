@@ -1,3 +1,21 @@
+## 0.1.1
+
+- **Fix: precise `notGced` leaks are now actually detected.** Each scan now
+  forces a real GC (`forceGc()`) before reading the precise tracker's
+  reachability barrier. Previously the barrier never advanced (a VM-service GC
+  does not move `developer.reachabilityBarrier`), so disposed-but-retained
+  tracked objects were never reported.
+- **Fix: `GraphScan` config is now honoured.** `LeakRadar.init` built the engine
+  without forwarding the config, so `graphScan` (and `reportThreshold` /
+  `preciseTracking`) silently fell back to defaults — the live graph scan never
+  ran.
+- `LeakRadar.forceGcAndScan()` + a "Force GC & rescan" action in the inspector
+  overflow menu: force a GC and rescan on demand to surface precise leaks
+  immediately.
+- VM-service connect failures are logged once as a warning (not on every retry).
+  The detector degrades cleanly to precise + file-snapshot graph scanning when
+  the VM service is unreachable in-process (common on physical devices).
+
 ## 0.1.0
 
 - **Live retaining-path detector** (`GraphScan`): loads a VM heap snapshot after
