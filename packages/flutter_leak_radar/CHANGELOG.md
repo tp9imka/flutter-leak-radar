@@ -1,28 +1,70 @@
 ## 0.1.1
 
-- **Fix: precise `notGced` leaks are now actually detected.** Each scan now
-  forces a real GC (`forceGc()`) before reading the precise tracker's
-  reachability barrier. Previously the barrier never advanced (a VM-service GC
-  does not move `developer.reachabilityBarrier`), so disposed-but-retained
-  tracked objects were never reported.
-- **Fix: `GraphScan` config is now honoured.** `LeakRadar.init` built the engine
-  without forwarding the config, so `graphScan` (and `reportThreshold` /
-  `preciseTracking`) silently fell back to defaults — the live graph scan never
-  ran.
-- `LeakRadar.forceGcAndScan()` + a "Force GC & rescan" action in the inspector
-  overflow menu: force a GC and rescan on demand to surface precise leaks
-  immediately.
-- VM-service connect failures are logged once as a warning (not on every retry).
-  The detector degrades cleanly to precise + file-snapshot graph scanning when
-  the VM service is unreachable in-process (common on physical devices).
-- **Verbose diagnostics:** with `logLevel: LeakLogLevel.verbose`, each scan now
-  logs why it produced N findings — engine status, capture result, `forceGc` +
-  `collectLeaks` counts, the graph-scan acquire path (live / file-fallback /
-  null) and analyzer stats. Makes silent "no findings" observable.
-- **Example self-test:** the example's home screen has a "Run leak self-test"
-  button (`example/lib/leak_self_test.dart`) that drives the leak scenario in
-  the live app and prints a `LEAK-RADAR-SUMMARY` block — no `integration_test`
-  dependency, so it runs on any target including a physical device.
+Makes the detector fully functional on a **physical device with no VM-service
+connection**, and overhauls retaining-path (graph) analysis to work on
+real-world heaps.
+
+### On-device — no VM service required
+
+- **Standalone heap-growth.** Per-class growth is derived from the NativeRuntime
+  heap snapshot the graph scan already captures, so growth works on a physical
+  device without a `getAllocationProfile` (VM-service) call — which the app
+  cannot reliably self-connect to. When the VM service *is* connected, the
+  per-scan profile still feeds growth too.
+- **Standalone retaining paths.** Growth/precise findings now get a retaining
+  path by BFS-walking an on-device snapshot — no `getRetainingPath` VM call.
+  Graph findings render the path they already carry.
+- **VM-service connection state + manual reconnect** in the dashboard: a chip
+  shows whether the per-scan profile is live; tap to reconnect.
+  (`LeakRadar.vmServiceConnected`, `LeakRadar.reconnectVmService()`.)
+
+### Retaining-path (graph) analysis — now works on real heaps
+
+- **Correct GC-root seeding.** BFS starts from the real GC root, not the parser
+  sentinel (which yielded `reachable=0`, so `retainedByNonLiveRoot` never fired
+  on a real snapshot).
+- **Off the UI thread.** Parse + BFS + clustering run in a background isolate
+  (a ~400k-node heap had been ANR-ing the main isolate); analysis dropped from
+  ~127s to ~1s via node/field-map caching and reconstructing paths only for
+  leak candidates.
+- **Leak attribution.** A leak is reported under the **deepest app-owned object**
+  on its retaining path (e.g. `_LeakyScreenState`), not the internal SDK leaf
+  (`_ControllerSubscription`/`_Closure`); the SDK chain becomes the path detail.
+- **No more OOM.** The graph scan is gated on heap size *before* writing the
+  snapshot, with a min-interval cooldown and a file-size backstop, so a bloated
+  heap is skipped cleanly instead of getting the app SIGKILLed.
+- **Accurate counts.** A GC runs immediately before every snapshot, so per-class
+  counts reflect live objects, not transient garbage awaiting collection.
+
+### Noise & UX
+
+- **App-relevance growth filter.** The broad default `*State`/`*Screen` globs
+  only flag app-owned classes (drops framework `_FocusState`/`AnimationController`
+  churn); resource globs (`*Controller`/`*Timer`/`*Stream*`/`*Notifier`) still
+  flag platform-type leaks wherever declared. Fails open on unknown library.
+- **Stable overlay badge** — counts only high-confidence findings (precise +
+  graph-confirmed + critical), so it no longer oscillates with growth churn.
+- **Dashboard summary row reworked:** severity tallies that wrap as the numbers
+  grow, a VM chip + a Force-GC pill, and class/instance totals + scan time shown
+  once in the bottom bar. `forceGcAndScan` re-runs the graph scan so the GC pill
+  refreshes growth; the screen updates live from the report stream.
+- Diagnostics route through `debugPrint`, so verbose logs reach `adb logcat`.
+
+### Precise detection & config (also in this line)
+
+- **Fix: precise `notGced` leaks are now actually detected** — each scan forces
+  a real GC before reading the reachability barrier (a VM-service GC does not
+  move `developer.reachabilityBarrier`).
+- **Fix: `GraphScan` config is now honoured** — `LeakRadar.init` was not
+  forwarding the config, so `graphScan`/`reportThreshold`/`preciseTracking`
+  silently fell back to defaults.
+- VM-service connect failures are logged once; the detector degrades cleanly to
+  precise + file-snapshot scanning when the service is unreachable in-process.
+- **Verbose diagnostics** (`LeakLogLevel.verbose`): each scan logs why it
+  produced N findings.
+- **Example self-test:** a "Run leak self-test" button drives the leak scenario
+  and prints a `LEAK-RADAR-SUMMARY` block (no `integration_test` dependency, so
+  it runs on any physical device).
 
 ## 0.1.0
 

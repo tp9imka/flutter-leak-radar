@@ -1,0 +1,22 @@
+## 0.1.0
+
+Initial release.
+
+Pure-Dart heap-snapshot analysis: load a VM heap snapshot, build an object
+graph, and find the retaining paths that keep suspected leaks alive — with no
+dependency on a live VM-service connection.
+
+- `heapGraphFromBytes` / `loadHeapGraph` — parse a `.data` heap snapshot
+  (e.g. from `NativeRuntime.writeHeapSnapshotToFile`) into a `HeapGraphView`.
+  Never throws on malformed input; returns a sentinel graph instead.
+- `GraphLeakAnalyzer.analyze` — the end-to-end pipeline: BFS shortest retaining
+  paths, leak-prone root classification (timer / stream / closure / finalizer /
+  static), app-relevance filtering, optional live-tree confirmation, and
+  clustering by retaining-path signature. Each leak is attributed to the
+  **deepest app-owned object** on its path, with the SDK chain kept as detail.
+- `retainingPathForClass(graph, className)` — shortest retaining path to the
+  first reachable instance of a class (standalone, no VM service).
+- `HeapGraphView.classHistogram()` — per-class instance counts derived from the
+  snapshot, for VM-service-free heap-growth detection.
+- `bin/analyze.dart` — CLI that analyses a heap-snapshot file and renders a
+  report.
