@@ -19,9 +19,8 @@ import '../util/rate_limited_logger.dart';
 import '../util/safe.dart';
 import 'class_sample.dart';
 import 'graph_finding_mapper.dart';
-import 'heap_graph_source.dart';
+import 'graph_scan_runner.dart';
 import 'heap_probe.dart';
-import 'vm_heap_probe.dart';
 
 /// Orchestrates capture → analyze → report. Internal; reachable from the
 /// facade and tests, but never part of the public API.
@@ -36,7 +35,7 @@ class LeakEngine {
     RateLimitedLogger? logger,
     AutoScan? autoScan,
     LeakRadarConfig? config,
-    HeapGraphSource? graphSource,
+    GraphScanRunner? graphRunner,
     Future<void> Function()? gcForcer,
   }) : _probe = probe,
        _analyzer = analyzer,
@@ -46,7 +45,7 @@ class LeakEngine {
        _logger = logger ?? RateLimitedLogger(),
        _autoScan = autoScan ?? config?.autoScan ?? const AutoScan(),
        _config = config ?? const LeakRadarConfig(),
-       _injectedGraphSource = graphSource,
+       _graphRunner = graphRunner ?? IsolateGraphScanRunner(logger: logger),
        _gcForcer =
            gcForcer ?? (() => forceGc(timeout: const Duration(seconds: 4)));
 
@@ -61,11 +60,9 @@ class LeakEngine {
   ScanScheduler? _scheduler;
   LeakRadarNavigatorObserver? _navObserver;
 
-  // Injectable for tests. When null, falls back to VmHeapGraphSource over the
-  // probe (only when probe is a VmHeapProbe; otherwise no graph scanning).
-  final HeapGraphSource? _injectedGraphSource;
-  HeapGraphSource? _resolvedSource;
-  bool _sourceResolved = false;
+  /// Acquires + analyses a heap snapshot OFF the main isolate. Injectable for
+  /// tests; defaults to [IsolateGraphScanRunner].
+  final GraphScanRunner _graphRunner;
   int _navCount = 0;
   bool _graphScanInFlight = false;
 
@@ -216,55 +213,35 @@ class LeakEngine {
     return _latestFiltered ?? report;
   }
 
-  HeapGraphSource? _resolvedGraphSource() {
-    if (_injectedGraphSource != null) return _injectedGraphSource;
-    if (!_sourceResolved) {
-      _sourceResolved = true;
-      _resolvedSource = _probe is VmHeapProbe
-          ? VmHeapGraphSource(_probe, logger: _logger)
-          : null;
-    }
-    return _resolvedSource;
-  }
-
   Future<void> _runGraphScan(LeakReport baseReport) async {
     if (_graphScanInFlight) return;
+    final gs = _config.graphScan;
+    if (gs == null) return;
     _graphScanInFlight = true;
     try {
-      final source = _resolvedGraphSource();
-      _logger.log(
-        'graphScan: source='
-        '${source?.runtimeType.toString() ?? 'NULL (probe not VmHeapProbe)'}',
-        level: LeakLogLevel.verbose,
-      );
-      if (source == null) return;
-      final gs = _config.graphScan;
-      if (gs == null) return;
       await runSafelyAsync<void>(
         () async {
-          final graph = await source.acquire(maxObjects: gs.maxGraphObjects);
-          if (graph == null) {
-            _logger.log(
-              'graphScan: acquire(maxObjects=${gs.maxGraphObjects}) -> NULL graph '
-              '(no live VM + file-fallback failed, or >=maxObjects) '
-              '-> NO graph findings',
-              level: LeakLogLevel.verbose,
-            );
-            return;
-          }
           _logger.log(
-            'graphScan: acquire(maxObjects=${gs.maxGraphObjects}) -> '
-            '${graph.nodeCount} nodes',
+            'graphScan: capturing snapshot + analysing in a background isolate '
+            '(maxObjects=${gs.maxGraphObjects})',
             level: LeakLogLevel.verbose,
           );
-          final result = GraphLeakAnalyzer().analyze(
-            graph,
+          final result = await _graphRunner.run(
             GraphAnalysisOptions(
               confirmWithReachability: true,
               appPackages: gs.appPackages,
               minClusterSize: gs.minClusterSize,
             ),
+            maxObjects: gs.maxGraphObjects,
           );
+          if (result == null) {
+            _logger.log(
+              'graphScan: no result (snapshot unsupported, too large, or '
+              'analysis failed) -> NO graph findings',
+              level: LeakLogLevel.verbose,
+            );
+            return;
+          }
           final stats = result.stats;
           _logger.log(
             'graphScan analyze: stats{totalObjects=${stats.totalObjects},'

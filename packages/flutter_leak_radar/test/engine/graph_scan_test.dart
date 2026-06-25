@@ -4,7 +4,7 @@ import 'package:flutter_leak_radar/src/analysis/leak_analyzer.dart';
 import 'package:flutter_leak_radar/src/config/graph_scan.dart';
 import 'package:flutter_leak_radar/src/config/leak_radar_config.dart';
 import 'package:flutter_leak_radar/src/config/suspect_set.dart';
-import 'package:flutter_leak_radar/src/engine/heap_graph_source.dart';
+import 'package:flutter_leak_radar/src/engine/graph_scan_runner.dart';
 import 'package:flutter_leak_radar/src/engine/leak_engine.dart';
 import 'package:flutter_leak_radar/src/model/leak_kind.dart';
 import 'package:flutter_leak_radar/src/model/leak_report.dart';
@@ -19,12 +19,7 @@ import '../support/fake_heap_probe.dart';
 // Graph:  root(0) → _Timer(1) → MyLeakyWidget(2)
 //                             → MyLeakyWidget(3)
 //
-// ShortestRetainingPaths BFS from root:
-//   1 reachable via root→1, path = [_Timer]         → RootKind.timer (leakProne)
-//   2 reachable via root→1→2, path = [_Timer,MyLeakyWidget] → timer root
-//   3 reachable via root→1→3, path = [_Timer,MyLeakyWidget] → timer root
-//
-// Nodes 2 & 3 share the same signature → cluster of size 2.
+// Nodes 2 & 3 share the same timer-rooted signature → cluster of size 2.
 // ---------------------------------------------------------------------------
 final class _TimerRetentionGraph implements HeapGraphView {
   @override
@@ -74,31 +69,39 @@ final class _TimerRetentionGraph implements HeapGraphView {
 }
 
 // ---------------------------------------------------------------------------
-// Fake graph sources
+// Fake graph-scan runners (analyse the synthetic graph directly; no isolate)
 // ---------------------------------------------------------------------------
 
-/// Returns the Timer-retention graph on every [acquire] call.
-final class _LeakGraphSource implements HeapGraphSource {
-  int acquireCount = 0;
+/// Analyses the Timer-retention graph on every [run] call.
+final class _LeakGraphRunner implements GraphScanRunner {
+  int runCount = 0;
 
   @override
-  Future<HeapGraphView?> acquire({required int maxObjects}) async {
-    acquireCount++;
-    return _TimerRetentionGraph();
+  Future<GraphAnalysisResult?> run(
+    GraphAnalysisOptions options, {
+    required int maxObjects,
+  }) async {
+    runCount++;
+    return GraphLeakAnalyzer().analyze(_TimerRetentionGraph(), options);
   }
 }
 
 /// Always returns null (simulates unavailable / size-exceeded graph).
-final class _NullGraphSource implements HeapGraphSource {
+final class _NullGraphRunner implements GraphScanRunner {
   @override
-  Future<HeapGraphView?> acquire({required int maxObjects}) async => null;
+  Future<GraphAnalysisResult?> run(
+    GraphAnalysisOptions options, {
+    required int maxObjects,
+  }) async => null;
 }
 
-/// Throws synchronously on acquire.
-final class _ThrowingGraphSource implements HeapGraphSource {
+/// Throws on run.
+final class _ThrowingGraphRunner implements GraphScanRunner {
   @override
-  Future<HeapGraphView?> acquire({required int maxObjects}) async =>
-      throw StateError('graph source failure');
+  Future<GraphAnalysisResult?> run(
+    GraphAnalysisOptions options, {
+    required int maxObjects,
+  }) async => throw StateError('graph runner failure');
 }
 
 // ---------------------------------------------------------------------------
@@ -106,7 +109,7 @@ final class _ThrowingGraphSource implements HeapGraphSource {
 // ---------------------------------------------------------------------------
 
 LeakEngine _makeEngine({
-  required HeapGraphSource graphSource,
+  required GraphScanRunner graphRunner,
   required GraphScan graphScan,
 }) => LeakEngine(
   probe: FakeHeapProbe([]),
@@ -118,7 +121,7 @@ LeakEngine _makeEngine({
     ),
     graphScan: graphScan,
   ),
-  graphSource: graphSource,
+  graphRunner: graphRunner,
 );
 
 /// Fires [count] navigation pops through the engine's observer and waits for
@@ -138,9 +141,9 @@ void main() {
     test(
       'graph scan runs on the Nth navigation and finding appears in report',
       () async {
-        final graphSource = _LeakGraphSource();
+        final graphRunner = _LeakGraphRunner();
         final engine = _makeEngine(
-          graphSource: graphSource,
+          graphRunner: graphRunner,
           graphScan: const GraphScan(
             everyNthNavigation: 3,
             maxGraphObjects: 100000,
@@ -157,8 +160,7 @@ void main() {
         await _navigate(engine, count: 1);
         await _navigate(engine, count: 1);
 
-        final countBeforeNth = graphSource.acquireCount;
-        expect(countBeforeNth, 0, reason: 'no graph scan before Nth nav');
+        expect(graphRunner.runCount, 0, reason: 'no graph scan before Nth nav');
 
         // Navigation 3: graph scan fires.
         await _navigate(engine, count: 1);
@@ -166,9 +168,9 @@ void main() {
         await engine.stop();
 
         expect(
-          graphSource.acquireCount,
+          graphRunner.runCount,
           1,
-          reason: 'acquire called once on the 3rd navigation',
+          reason: 'run called once on the 3rd navigation',
         );
 
         final graphReport = reports.lastWhere(
@@ -190,9 +192,9 @@ void main() {
     );
 
     test('graph scan does NOT run on non-Nth navigations', () async {
-      final graphSource = _LeakGraphSource();
+      final graphRunner = _LeakGraphRunner();
       final engine = _makeEngine(
-        graphSource: graphSource,
+        graphRunner: graphRunner,
         graphScan: const GraphScan(
           everyNthNavigation: 5,
           maxGraphObjects: 100000,
@@ -211,17 +213,17 @@ void main() {
       await engine.stop();
 
       expect(
-        graphSource.acquireCount,
+        graphRunner.runCount,
         0,
-        reason: 'graph acquire must not be called before the 5th nav',
+        reason: 'graph run must not be called before the 5th nav',
       );
     });
 
     test(
-      'null-returning source degrades gracefully — normal report emitted',
+      'null-returning runner degrades gracefully — normal report emitted',
       () async {
         final engine = _makeEngine(
-          graphSource: _NullGraphSource(),
+          graphRunner: _NullGraphRunner(),
           graphScan: const GraphScan(
             everyNthNavigation: 1,
             maxGraphObjects: 100000,
@@ -238,21 +240,21 @@ void main() {
 
         // Must have emitted at least one report (normal nav report).
         expect(reports, isNotEmpty);
-        // Must NOT have any graph findings (null source → no clusters).
+        // Must NOT have any graph findings (null runner → no clusters).
         expect(
           reports.any(
             (r) =>
                 r.findings.any((f) => f.kind == LeakKind.retainedByNonLiveRoot),
           ),
           isFalse,
-          reason: 'null source must not produce graph findings',
+          reason: 'null runner must not produce graph findings',
         );
       },
     );
 
-    test('throwing source degrades gracefully — engine never throws', () async {
+    test('throwing runner degrades gracefully — engine never throws', () async {
       final engine = _makeEngine(
-        graphSource: _ThrowingGraphSource(),
+        graphRunner: _ThrowingGraphRunner(),
         graphScan: const GraphScan(
           everyNthNavigation: 1,
           maxGraphObjects: 100000,
@@ -261,13 +263,13 @@ void main() {
       );
 
       await engine.start();
-      // Must not throw even though the source throws.
+      // Must not throw even though the runner throws.
       await expectLater(() => _navigate(engine, count: 1), returnsNormally);
       await engine.stop();
     });
 
     test('graphScan null disables graph scanning entirely', () async {
-      final graphSource = _LeakGraphSource();
+      final graphRunner = _LeakGraphRunner();
       final engine = LeakEngine(
         probe: FakeHeapProbe([]),
         analyzer: LeakAnalyzer(SuspectSet.empty()),
@@ -277,7 +279,7 @@ void main() {
             navigationDebounce: Duration(milliseconds: 10),
           ),
         ),
-        graphSource: graphSource,
+        graphRunner: graphRunner,
       );
 
       await engine.start();
@@ -285,9 +287,9 @@ void main() {
       await engine.stop();
 
       expect(
-        graphSource.acquireCount,
+        graphRunner.runCount,
         0,
-        reason: 'null graphScan must never call acquire',
+        reason: 'null graphScan must never call run',
       );
     });
   });
