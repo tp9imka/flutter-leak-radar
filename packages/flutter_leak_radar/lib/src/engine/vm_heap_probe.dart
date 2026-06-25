@@ -13,7 +13,7 @@ import 'heap_probe.dart';
 
 /// The sole unit that imports `package:vm_service`. Connects to the running
 /// app's own VM service (debug/profile) and never throws into callers.
-class VmHeapProbe implements HeapProbe {
+class VmHeapProbe implements HeapProbe, VmConnectable {
   VmHeapProbe({RateLimitedLogger? logger, this.maxRetainingPathRequests = 5})
     : _logger = logger ?? RateLimitedLogger();
 
@@ -123,6 +123,19 @@ class VmHeapProbe implements HeapProbe {
     } catch (_) {
       return false;
     }
+  }
+
+  @override
+  bool get isConnected => _service != null;
+
+  @override
+  Future<bool> reconnect() async {
+    // Clear the back-off and re-arm one-shot failure logging, then attempt to
+    // connect now. A cheap no-op when already connected. Never throws.
+    _nextRetryAllowedAt = null;
+    _connectFailureLogged = false;
+    final service = await _ensureConnected();
+    return service != null;
   }
 
   @override

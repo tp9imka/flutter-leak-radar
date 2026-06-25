@@ -233,6 +233,25 @@ abstract final class LeakRadar {
     logger: _logger,
   );
 
+  /// Whether the VM-service connection that backs the per-scan allocation
+  /// profile (heap-growth) is currently live.
+  ///
+  /// Returns `null` when the engine is not running or the probe is not
+  /// VM-backed (release builds / unsupported platforms). Growth still works
+  /// without it via the on-device heap-snapshot histogram, so `false` here
+  /// means "richer per-scan growth unavailable", not "no growth".
+  static bool? get vmServiceConnected =>
+      runSafely(() => _engine?.vmConnected, fallback: null, logger: _logger);
+
+  /// Manually attempts to (re)connect the VM service, then rescans so the UI
+  /// refreshes. Returns whether it connected. Returns `false` when the engine
+  /// is not running or the probe is not VM-backed. Never throws.
+  static Future<bool> reconnectVmService() => runSafelyAsync<bool>(
+    () => _engine?.reconnectVm() ?? Future<bool>.value(false),
+    fallback: false,
+    logger: _logger,
+  );
+
   /// Returns the [NavigatorObserver] wired to navigation-triggered scans when
   /// the engine is active and [AutoScan.onNavigation] is true. Falls back to
   /// an inert no-op observer when disabled, in release builds, or on error —
