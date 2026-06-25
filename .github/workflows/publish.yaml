@@ -10,17 +10,31 @@ name: Publish
 #   - Enable "Publishing from GitHub Actions" for each package.
 #   - Set the repository to tp9imka/flutter-leak-radar.
 #   - Set the tag pattern to "{{package}}-v{{version}}", e.g.
-#     flutter_leak_radar-v{{version}} and flutter_leak_radar_lint-v{{version}}.
+#     leak_graph-v{{version}}, flutter_leak_radar-v{{version}} and
+#     flutter_leak_radar_lint-v{{version}}.
 # Also ensure the package's pubspec uses version (not path) dependencies before
 # the first release.
+#
+# Release ORDER matters: publish leak_graph first — flutter_leak_radar depends
+# on it (`leak_graph: ^0.1.0`), so that version must already be on pub.dev when
+# flutter_leak_radar is published.
 
 on:
   push:
     tags:
+      - 'leak_graph-v*'
       - 'flutter_leak_radar-v*'
       - 'flutter_leak_radar_lint-v*'
 
 jobs:
+  leak_graph:
+    if: startsWith(github.ref_name, 'leak_graph-v')
+    permissions:
+      id-token: write # mint the OIDC token pub.dev verifies against the tag
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
+    with:
+      working-directory: packages/leak_graph
+
   flutter_leak_radar:
     if: startsWith(github.ref_name, 'flutter_leak_radar-v')
     permissions:
