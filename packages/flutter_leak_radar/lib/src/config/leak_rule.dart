@@ -22,22 +22,32 @@ final class LeakRule {
     required this.mode,
     this.maxLive,
     this.minGrowth = 1,
+    this.appOnly = false,
     this.severityHint,
   });
 
   /// Flag classes whose names match [pattern] when their instance count grows
   /// by at least [minGrowth] across the rolling snapshot window.
+  ///
+  /// Set [appOnly] to restrict the rule to app-owned classes (skips
+  /// framework/SDK matches). The broad [SuspectSet.defaults] globs use this so
+  /// `_FocusState`/`AnimationController` churn is ignored; explicit user rules
+  /// default to false (you named the class, so it is always considered).
   const factory LeakRule.growth(
     String pattern, {
     int minGrowth,
+    bool appOnly,
     LeakSeverity? severityHint,
   }) = _GrowthRule;
 
   /// Flag classes whose names match [pattern] when more than [max] instances
   /// are live at scan time.
+  ///
+  /// Set [appOnly] to restrict the rule to app-owned classes.
   const factory LeakRule.maxLive(
     String pattern,
     int max, {
+    bool appOnly,
     LeakSeverity? severityHint,
   }) = _MaxLiveRule;
 
@@ -58,6 +68,11 @@ final class LeakRule {
 
   /// Minimum growth threshold for [LeakDetectionMode.growth] rules.
   final int minGrowth;
+
+  /// When true, the rule only applies to app-owned classes (its library is a
+  /// non-SDK/non-framework `package:` URI). Drops framework noise for broad
+  /// default globs; explicit user rules leave this false.
+  final bool appOnly;
 
   /// Optional severity override; defaults to engine heuristics when null.
   final LeakSeverity? severityHint;
@@ -85,21 +100,30 @@ final class LeakRule {
       other.mode == mode &&
       other.maxLive == maxLive &&
       other.minGrowth == minGrowth &&
+      other.appOnly == appOnly &&
       other.severityHint == severityHint;
 
   @override
   int get hashCode =>
-      Object.hash(pattern, mode, maxLive, minGrowth, severityHint);
+      Object.hash(pattern, mode, maxLive, minGrowth, appOnly, severityHint);
 }
 
 final class _GrowthRule extends LeakRule {
-  const _GrowthRule(String pattern, {super.minGrowth = 1, super.severityHint})
-    : super._(pattern: pattern, mode: LeakDetectionMode.growth);
+  const _GrowthRule(
+    String pattern, {
+    super.minGrowth = 1,
+    super.appOnly = false,
+    super.severityHint,
+  }) : super._(pattern: pattern, mode: LeakDetectionMode.growth);
 }
 
 final class _MaxLiveRule extends LeakRule {
-  const _MaxLiveRule(String pattern, int max, {super.severityHint})
-    : super._(pattern: pattern, mode: LeakDetectionMode.maxLive, maxLive: max);
+  const _MaxLiveRule(
+    String pattern,
+    int max, {
+    super.appOnly = false,
+    super.severityHint,
+  }) : super._(pattern: pattern, mode: LeakDetectionMode.maxLive, maxLive: max);
 }
 
 final class _IgnoreRule extends LeakRule {

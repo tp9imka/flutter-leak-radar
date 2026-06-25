@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../config/leak_radar_config.dart';
+import '../model/leak_finding.dart';
 import '../model/leak_kind.dart';
 import '../model/leak_report.dart';
 import '../leak_radar.dart';
@@ -136,9 +137,26 @@ class _LeakRadarOverlayState extends State<LeakRadarOverlay>
 
   Widget _buildOverlay(BuildContext context) {
     final report = _report;
-    final count = report?.findings.length ?? 0;
+    // Count only HIGH-CONFIDENCE leaks — precise (notGced/notDisposed),
+    // graph-confirmed (retainedByNonLiveRoot), and critical growth. The
+    // warning/info growth churn that made the count oscillate (36→9→54→8) is
+    // excluded, so the badge shows a small, stable number.
+    final shown = (report?.findings ?? const <LeakFinding>[])
+        .where(
+          (f) =>
+              f.severity == LeakSeverity.critical ||
+              f.kind == LeakKind.notGced ||
+              f.kind == LeakKind.notDisposed ||
+              f.kind == LeakKind.retainedByNonLiveRoot,
+        )
+        .toList();
+    final count = shown.length;
     final hasFindings = count > 0;
-    final severity = hasFindings ? report?.worstSeverity : null;
+    final severity = hasFindings
+        ? shown
+              .map((f) => f.severity)
+              .reduce((a, b) => a.index >= b.index ? a : b)
+        : null;
     final colors = _badgeColors(severity);
 
     // MediaQuery may not be available when placed above MaterialApp — guard.

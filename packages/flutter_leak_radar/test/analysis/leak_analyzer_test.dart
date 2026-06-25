@@ -21,7 +21,61 @@ HeapSnapshot snap(Map<String, int> counts, int t) => HeapSnapshot(
   ],
 );
 
+HeapSnapshot snapLib(List<(String name, int count, String? lib)> rows, int t) =>
+    HeapSnapshot(
+      capturedAt: DateTime(2026, 1, 1, 0, 0, t),
+      samples: [
+        for (final r in rows)
+          ClassSample(
+            className: r.$1,
+            instancesCurrent: r.$2,
+            bytesCurrent: 0,
+            library: r.$3,
+            timestamp: DateTime(2026, 1, 1, 0, 0, t),
+          ),
+      ],
+    );
+
 void main() {
+  test('appOnly default rule skips framework-owned but keeps app-owned', () {
+    const fw = 'package:flutter/src/widgets/focus_manager.dart';
+    const app = 'package:my_app/home.dart';
+    final h = SampleHistory()
+      ..add(snapLib([('_FocusState', 1, fw), ('HomeState', 1, app)], 1))
+      ..add(snapLib([('_FocusState', 3, fw), ('HomeState', 3, app)], 2));
+    final report = LeakAnalyzer(
+      SuspectSet.defaults(),
+    ).analyze(h, trigger: 'm', status: LeakRadarStatus.active);
+    final classes = report.findings.map((f) => f.className).toSet();
+    expect(classes, contains('HomeState'));
+    expect(classes, isNot(contains('_FocusState')));
+  });
+
+  test('appOnly filter fails OPEN when the library is unknown', () {
+    // No library on the samples → keep rather than silently drop.
+    final h = SampleHistory()
+      ..add(snap({'_FocusState': 1}, 1))
+      ..add(snap({'_FocusState': 3}, 2));
+    final report = LeakAnalyzer(
+      SuspectSet.defaults(),
+    ).analyze(h, trigger: 'm', status: LeakRadarStatus.active);
+    expect(report.findings.any((f) => f.className == '_FocusState'), isTrue);
+  });
+
+  test('an explicit (non-appOnly) rule still flags a framework class', () {
+    const fw = 'package:flutter/src/widgets/editable_text.dart';
+    final h = SampleHistory()
+      ..add(snapLib([('TextEditingController', 1, fw)], 1))
+      ..add(snapLib([('TextEditingController', 3, fw)], 2));
+    final report = LeakAnalyzer(
+      const SuspectSet(<LeakRule>[LeakRule.growth('TextEditingController')]),
+    ).analyze(h, trigger: 'm', status: LeakRadarStatus.active);
+    final f = report.findings.singleWhere(
+      (f) => f.className == 'TextEditingController',
+    );
+    expect(f.library, fw);
+  });
+
   test('flat series produces no finding', () {
     final h = SampleHistory()
       ..add(snap({'HomeBloc': 1}, 1))

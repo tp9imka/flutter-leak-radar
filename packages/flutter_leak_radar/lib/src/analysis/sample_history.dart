@@ -27,6 +27,20 @@ class SampleHistory {
       for (final sample in s.samples) sample.className,
   };
 
+  /// The declaring library URI for [className] from the most recent snapshot
+  /// that carries it, or null when unknown (e.g. the VM allocation profile did
+  /// not include library info). Used by the analyzer's app-relevance filter.
+  String? libraryFor(String className) {
+    for (final s in _snapshots.toList().reversed) {
+      for (final sample in s.samples) {
+        if (sample.className == className && sample.library != null) {
+          return sample.library;
+        }
+      }
+    }
+    return null;
+  }
+
   /// Live-instance counts oldest→newest; 0 where the class is absent.
   List<int> seriesFor(String className) => [
     for (final s in _snapshots) _countIn(s, className),
