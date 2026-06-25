@@ -23,6 +23,12 @@ abstract interface class GraphScanRunner {
   });
 }
 
+/// Heuristic upper bound on heap-snapshot bytes per object. Caps the snapshot
+/// file size so a too-large heap is skipped BEFORE it is read + parsed — the
+/// secondary OOM guard for the no-VM-service path, where the engine's pre-write
+/// object-count gate has no allocation profile to consult.
+const int _snapshotBytesPerObject = 96;
+
 /// Production runner: writes a heap snapshot to a file on the **main** isolate
 /// (NativeRuntime captures the *current* isolate's heap, so this must run here),
 /// then parses + analyses it in a **background** isolate so the UI never blocks.
@@ -47,6 +53,20 @@ final class IsolateGraphScanRunner implements GraphScanRunner {
       return null;
     }
     try {
+      // Backstop size gate before the heavy read+parse: skip a snapshot file
+      // far too large to analyse in-app. Covers the on-device path where no VM
+      // allocation profile exists for the engine's pre-write gate to use.
+      final lengthBytes = await File(path).length();
+      final maxBytes = maxObjects * _snapshotBytesPerObject;
+      if (lengthBytes > maxBytes) {
+        _logger?.log(
+          'graphScan: snapshot file too large '
+          '(${lengthBytes ~/ (1024 * 1024)}MB > ${maxBytes ~/ (1024 * 1024)}MB)'
+          ' -> skipped before parse',
+          level: LeakLogLevel.verbose,
+        );
+        return null;
+      }
       // Parse + BFS + cluster in a background isolate — the expensive part.
       return await Isolate.run(
         () => _analyzeSnapshotFile(path, options, maxObjects),

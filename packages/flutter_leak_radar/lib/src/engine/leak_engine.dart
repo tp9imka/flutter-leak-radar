@@ -66,6 +66,12 @@ class LeakEngine {
   int _navCount = 0;
   bool _graphScanInFlight = false;
 
+  /// When the last navigation-triggered graph scan ran. A min-interval cooldown
+  /// keyed off this neutralises bursty push/pop (which `_graphScanInFlight` does
+  /// not — it only blocks overlap, not back-to-back sequential scans).
+  DateTime? _lastGraphScanAt;
+  static const Duration _graphScanCooldown = Duration(seconds: 30);
+
   /// Forces a real GC so the precise tracker's reachability barrier advances
   /// and pending finalizers run. Injectable for tests; defaults to [forceGc].
   final Future<void> Function() _gcForcer;
@@ -208,7 +214,19 @@ class LeakEngine {
       );
     }
     if (triggers) {
-      await _runGraphScan(report);
+      final now = DateTime.now();
+      final since = _lastGraphScanAt == null
+          ? null
+          : now.difference(_lastGraphScanAt!);
+      if (since != null && since < _graphScanCooldown) {
+        _logger.log(
+          'navScan: graphScan skipped (cooldown, last ${since.inSeconds}s ago)',
+          level: LeakLogLevel.verbose,
+        );
+      } else {
+        _lastGraphScanAt = now;
+        await _runGraphScan(report);
+      }
     }
     return _latestFiltered ?? report;
   }
@@ -217,6 +235,20 @@ class LeakEngine {
     if (_graphScanInFlight) return;
     final gs = _config.graphScan;
     if (gs == null) return;
+    // Pre-write size gate. When the VM service is connected the latest capture
+    // already gives the live-object total, so skip the ENTIRE snapshot pipeline
+    // (write + read + parse + node cache) for a heap too large to analyse
+    // in-app. This is what stops the per-scan native OOM on a bloated heap —
+    // the runner's own guard only fires after the heap is already in memory.
+    final total = _history.latestObjectTotal;
+    if (total != null && total > gs.maxGraphObjects) {
+      _logger.log(
+        'graphScan: skipped pre-write (total=$total > '
+        'maxGraphObjects=${gs.maxGraphObjects})',
+        level: LeakLogLevel.verbose,
+      );
+      return;
+    }
     _graphScanInFlight = true;
     try {
       await runSafelyAsync<void>(
