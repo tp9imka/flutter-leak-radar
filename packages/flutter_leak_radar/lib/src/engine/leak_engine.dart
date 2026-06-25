@@ -410,7 +410,13 @@ class LeakEngine {
       fallback: null,
       logger: _logger,
     );
-    return scan(trigger: 'force_gc');
+    final report = await scan(trigger: 'force_gc');
+    // Also refresh the snapshot histogram so heap-growth reflects the post-GC
+    // counts (its standalone source); the graph scan force-GCs + recaptures.
+    if (_config.graphScan != null) {
+      await _runGraphScan(report);
+    }
+    return _latestFiltered ?? report;
   }
 
   /// The config the engine is actually running with. Internal: read by the
