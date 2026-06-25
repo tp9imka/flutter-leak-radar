@@ -5,7 +5,6 @@ import '../model/root_kind.dart';
 import 'app_package_set.dart';
 import 'clustering.dart';
 import 'live_tree.dart';
-import 'root_classifier.dart';
 import 'shortest_retaining_paths.dart';
 
 /// Pairs each retaining-path [links] entry with its class name from
@@ -115,6 +114,13 @@ final class GraphLeakAnalyzer {
       if (!paths.isReachable(id)) continue;
       reachableObjects++;
 
+      // O(1) root classification (propagated during BFS). Skip the ~99% of
+      // reachable nodes that are not leak candidates BEFORE reconstructing any
+      // retaining path — the expensive path materialisation below runs only for
+      // the few thousand actual candidates, not all reachable objects.
+      final rootKind = paths.rootKindOf(id);
+      if (!rootKind.isLeakProne) continue;
+
       final pathLinks = paths.pathTo(id);
       if (pathLinks == null || pathLinks.isEmpty) continue;
 
@@ -126,9 +132,6 @@ final class GraphLeakAnalyzer {
           return '';
         }
       }).toList();
-
-      final rootKind = classifyRoot(pathClassNames);
-      if (!rootKind.isLeakProne) continue;
 
       final pathLibraries = pathLinks.map((l) {
         try {

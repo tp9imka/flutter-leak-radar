@@ -8,16 +8,31 @@ RootKind classifyRoot(List<String> pathClassNames) {
   if (pathClassNames.isEmpty) return RootKind.other;
 
   for (final name in pathClassNames) {
-    if (_isTimer(name)) return RootKind.timer;
-    if (_isStream(name)) return RootKind.stream;
-    if (_isFinalizer(name)) return RootKind.finalizer;
-    if (_isClosure(name)) return RootKind.closure;
+    final kind = leakProneClassKind(name);
+    if (kind != null) return kind;
   }
 
-  if (_isStaticOrGlobal(pathClassNames.first)) return RootKind.staticOrGlobal;
+  if (isStaticOrGlobalClass(pathClassNames.first)) {
+    return RootKind.staticOrGlobal;
+  }
 
   return RootKind.other;
 }
+
+/// The leak-prone [RootKind] a single class name denotes as a retaining root,
+/// or `null` when the class is not itself a leak-prone retainer. Used by the
+/// BFS to propagate the root kind in O(1) per node instead of re-scanning the
+/// whole path.
+RootKind? leakProneClassKind(String name) {
+  if (_isTimer(name)) return RootKind.timer;
+  if (_isStream(name)) return RootKind.stream;
+  if (_isFinalizer(name)) return RootKind.finalizer;
+  if (_isClosure(name)) return RootKind.closure;
+  return null;
+}
+
+/// Whether a single class name is a static/global retaining root.
+bool isStaticOrGlobalClass(String name) => _isStaticOrGlobal(name);
 
 bool _isTimer(String name) => name == 'Timer' || name == '_Timer';
 

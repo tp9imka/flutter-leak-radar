@@ -90,5 +90,33 @@ void main() {
       expect(paths.isReachable(1), isTrue);
       expect(paths.isReachable(2), isTrue);
     });
+
+    test('rootKindOf propagates the first leak-prone kind down the path', () {
+      HeapNode n(int id, String cls, List<HeapEdge> edges) => HeapNode(
+        id: id,
+        className: cls,
+        libraryUri: Uri.parse('package:test/test.dart'),
+        shallowSize: 0,
+        edges: edges,
+      );
+      // 0(Root) -> 1(Foo) -> 2(_Timer) -> 3(LeakyState)
+      //         -> 4(Library) -> 5(Global)
+      final graph = InMemoryHeapGraph.of({
+        0: n(0, 'Root', const [HeapEdge(targetId: 1), HeapEdge(targetId: 4)]),
+        1: n(1, 'Foo', const [HeapEdge(targetId: 2)]),
+        2: n(2, '_Timer', const [HeapEdge(targetId: 3)]),
+        3: n(3, 'LeakyState', const []),
+        4: n(4, 'Library', const [HeapEdge(targetId: 5)]),
+        5: n(5, 'Global', const []),
+      });
+
+      final paths = ShortestRetainingPaths.compute(graph);
+
+      expect(paths.rootKindOf(1), RootKind.other); // Foo: not leak-prone
+      expect(paths.rootKindOf(2), RootKind.timer); // _Timer
+      expect(paths.rootKindOf(3), RootKind.timer); // inherits timer
+      expect(paths.rootKindOf(4), RootKind.staticOrGlobal); // Library root
+      expect(paths.rootKindOf(5), RootKind.staticOrGlobal); // inherits
+    });
   });
 }
