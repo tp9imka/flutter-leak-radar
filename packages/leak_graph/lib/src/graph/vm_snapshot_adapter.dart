@@ -5,16 +5,33 @@ import 'heap_graph_view.dart';
 /// Wraps a [HeapSnapshotGraph] as a [HeapGraphView] with contiguous 0-based
 /// node ids mapping 1:1 to [HeapSnapshotGraph.objects] indices.
 ///
-/// [rootId] is always 0 (the sentinel object at `objects[0]`). The analyzer
-/// iterates `0..nodeCount-1` and calls [node(i)] for each, so ids must never
-/// be remapped.
+/// Node ids map 1:1 to `objects` indices (the analyzer iterates
+/// `0..nodeCount-1`), so ids are never remapped. But [rootId] is NOT 0:
+/// in a parsed snapshot `objects[0]` is a synthetic sentinel with no
+/// successors — the real GC root is `objects[1]` (the `Root` pseudo-class).
+/// Seeding the BFS from the sentinel reaches nothing (`reachable=0`), so
+/// [rootId] resolves to the GC root instead.
 final class VmSnapshotGraphView implements HeapGraphView {
   final HeapSnapshotGraph _graph;
+  final int _rootId;
 
-  VmSnapshotGraphView(this._graph);
+  VmSnapshotGraphView(this._graph) : _rootId = _resolveRootId(_graph);
+
+  /// Resolves the GC-root node. `objects[0]` is the parser's empty sentinel, so
+  /// the root is the `Root` pseudo-class object that follows it (conventionally
+  /// `objects[1]`). Scans the first few objects for the `Root` class, falls
+  /// back to index 1, and never returns the sentinel for a non-trivial graph.
+  static int _resolveRootId(HeapSnapshotGraph graph) {
+    final objects = graph.objects;
+    if (objects.length <= 1) return 0;
+    for (var i = 1; i < objects.length && i < 8; i++) {
+      if (objects[i].klass.name == 'Root') return i;
+    }
+    return 1;
+  }
 
   @override
-  int get rootId => 0;
+  int get rootId => _rootId;
 
   @override
   int get nodeCount => _graph.objects.length;

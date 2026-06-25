@@ -15,9 +15,20 @@ void main() {
       return;
     }
     final graph = await loadHeapGraph(File(path));
-    expect(graph.nodeCount, greaterThan(0));
-    // ignore: unused_local_variable
+    expect(graph.nodeCount, greaterThan(1));
     final paths = ShortestRetainingPaths.compute(graph);
+    // The BFS from the GC root must actually reach the heap. Guards against
+    // seeding from the empty sentinel (objects[0]) instead of the real GC root
+    // (objects[1]) — the regression that made reachable=0 on real snapshots.
+    final reachable = List.generate(
+      graph.nodeCount,
+      (i) => i,
+    ).where(paths.isReachable).length;
+    expect(
+      reachable,
+      greaterThan(graph.nodeCount ~/ 2),
+      reason: 'BFS from rootId must reach most of the heap, not just the root',
+    );
     // At least one well-known core class should be present and reachable.
     final hasString = List.generate(graph.nodeCount, (i) => i).any((i) {
       final n = graph.node(i);

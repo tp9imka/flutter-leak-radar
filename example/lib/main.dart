@@ -25,7 +25,14 @@ Future<void> main() async {
       // minClusterSize:1 surfaces a single-instance demo leak: one retained
       // _LeakyScreenState (a cluster of 1) is reported after a single pop.
       // Production may prefer 2 to require a repeated pattern before flagging.
-      graphScan: const GraphScan(everyNthNavigation: 1, minClusterSize: 1),
+      // maxGraphObjects raised: this leaky demo's heap climbs past the 500k
+      // default, which would drop the whole graph. Real apps can keep the
+      // default (analysing >500k nodes in-app is heavy).
+      graphScan: const GraphScan(
+        everyNthNavigation: 1,
+        minClusterSize: 1,
+        maxGraphObjects: 2000000,
+      ),
       // Surface precise (track + markDisposed) leaks quickly in the demo:
       // 1 GC cycle + 1s grace, instead of the 3-cycle / 2s production defaults.
       // This is why popping a leaky screen once flags it within a scan or two.
