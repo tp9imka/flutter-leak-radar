@@ -72,4 +72,14 @@ final class _InMemoryHeapGraph implements HeapGraphView {
       edges: const [],
     );
   }
+
+  @override
+  List<ClassCount> classHistogram() => [
+    ClassCount(
+      className: 'Sentinel',
+      libraryUri: Uri.parse('dart:core'),
+      instanceCount: nodeCount,
+      shallowBytes: 0,
+    ),
+  ];
 }

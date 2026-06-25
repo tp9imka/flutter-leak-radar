@@ -258,7 +258,7 @@ class LeakEngine {
             '(maxObjects=${gs.maxGraphObjects})',
             level: LeakLogLevel.verbose,
           );
-          final result = await _graphRunner.run(
+          final outcome = await _graphRunner.run(
             GraphAnalysisOptions(
               confirmWithReachability: true,
               appPackages: gs.appPackages,
@@ -266,7 +266,7 @@ class LeakEngine {
             ),
             maxObjects: gs.maxGraphObjects,
           );
-          if (result == null) {
+          if (outcome == null) {
             _logger.log(
               'graphScan: no result (snapshot unsupported, too large, or '
               'analysis failed) -> NO graph findings',
@@ -274,7 +274,7 @@ class LeakEngine {
             );
             return;
           }
-          final stats = result.stats;
+          final stats = outcome.result.stats;
           _logger.log(
             'graphScan analyze: stats{totalObjects=${stats.totalObjects},'
             'reachable=${stats.reachableObjects},'
@@ -286,23 +286,44 @@ class LeakEngine {
             'minClusterSize=${gs.minClusterSize}',
             level: LeakLogLevel.verbose,
           );
-          if (result.clusters.isEmpty) {
+
+          // Standalone growth: feed the class histogram derived from THIS heap
+          // snapshot into the growth history (no VM-service profile required),
+          // then re-derive growth so the merged report reflects it even when
+          // the allocation-profile capture came back empty.
+          if (outcome.histogram.isNotEmpty) {
+            _history.add(_snapshotFromHistogram(outcome.histogram));
             _logger.log(
-              'graphScan result: rawClusters=0 -> mappedFindings=0 '
-              '(NO retainedByNonLiveRoot produced)',
+              'graphScan histogram: ${outcome.histogram.length} classes -> '
+              'growth history (historySize=${_history.length})',
               level: LeakLogLevel.verbose,
             );
-            return;
           }
-          final graphFindings = result.clusters.map(mapGraphCluster).toList();
+          final precise = baseReport.findings
+              .where(
+                (f) =>
+                    f.kind == LeakKind.notGced ||
+                    f.kind == LeakKind.notDisposed,
+              )
+              .toList();
+          final reAnalyzed = _analyzer.analyze(
+            _history,
+            trigger: baseReport.trigger,
+            status: _status,
+            preciseFindings: precise,
+          );
+
+          final graphFindings = outcome.result.clusters
+              .map(mapGraphCluster)
+              .toList();
           _logger.log(
-            'graphScan result: rawClusters=${result.clusters.length} -> '
-            'mappedFindings=${graphFindings.length} '
-            '(retainedByNonLiveRoot added)',
+            'graphScan result: rawClusters=${outcome.result.clusters.length} '
+            '-> mappedFindings=${graphFindings.length} (retainedByNonLiveRoot)',
             level: LeakLogLevel.verbose,
           );
+
           final merged = LeakReport(
-            findings: [...baseReport.findings, ...graphFindings],
+            findings: [...reAnalyzed.findings, ...graphFindings],
             capturedAt: baseReport.capturedAt,
             trigger: baseReport.trigger,
             status: baseReport.status,
@@ -319,6 +340,26 @@ class LeakEngine {
     } finally {
       _graphScanInFlight = false;
     }
+  }
+
+  /// Builds a [HeapSnapshot] from a leak_graph class histogram so the standalone
+  /// (VM-service-free) per-class counts feed the same growth pipeline as the VM
+  /// allocation profile.
+  HeapSnapshot _snapshotFromHistogram(List<ClassCount> histogram) {
+    final now = DateTime.now();
+    return HeapSnapshot(
+      capturedAt: now,
+      samples: [
+        for (final c in histogram)
+          ClassSample(
+            className: c.className,
+            library: c.libraryUri.toString(),
+            instancesCurrent: c.instanceCount,
+            bytesCurrent: c.shallowBytes,
+            timestamp: now,
+          ),
+      ],
+    );
   }
 
   /// Runs a one-shot graph scan and merges findings into the latest report.
@@ -387,6 +428,16 @@ class LeakEngine {
           _logger.log(
             'scan[$trigger]: capture -> NULL snapshot '
             '(VM unreachable, history NOT advanced); historySize=${_history.length}',
+            level: LeakLogLevel.verbose,
+          );
+        } else if (snapshot.samples.isEmpty) {
+          // Empty allocation profile = the VM service is not providing data this
+          // scan. Do NOT advance history with an empty snapshot — it would
+          // dilute the growth series with zeros. Growth is instead fed by the
+          // graph-scan class histogram, which needs no VM service.
+          _logger.log(
+            'scan[$trigger]: capture -> 0 class samples (VM allocation profile '
+            'unavailable; growth uses the graph-snapshot histogram instead)',
             level: LeakLogLevel.verbose,
           );
         } else {

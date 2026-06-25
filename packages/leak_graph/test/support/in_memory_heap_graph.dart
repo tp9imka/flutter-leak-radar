@@ -23,6 +23,27 @@ final class InMemoryHeapGraph implements HeapGraphView {
   int get nodeCount => _nodes.length;
 
   @override
+  List<ClassCount> classHistogram() {
+    final counts = <String, int>{};
+    final bytes = <String, int>{};
+    final libs = <String, Uri>{};
+    for (final n in _nodes.values) {
+      counts[n.className] = (counts[n.className] ?? 0) + 1;
+      bytes[n.className] = (bytes[n.className] ?? 0) + n.shallowSize;
+      libs.putIfAbsent(n.className, () => n.libraryUri);
+    }
+    return [
+      for (final e in counts.entries)
+        ClassCount(
+          className: e.key,
+          libraryUri: libs[e.key]!,
+          instanceCount: e.value,
+          shallowBytes: bytes[e.key]!,
+        ),
+    ];
+  }
+
+  @override
   HeapNode node(int id) {
     final n = _nodes[id];
     if (n == null) throw StateError('No node with id $id in graph');

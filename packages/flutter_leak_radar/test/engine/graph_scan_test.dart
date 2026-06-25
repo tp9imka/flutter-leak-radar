@@ -67,6 +67,26 @@ final class _TimerRetentionGraph implements HeapGraphView {
     ),
     _ => throw StateError('id $id out of range'),
   };
+
+  @override
+  List<ClassCount> classHistogram() {
+    final counts = <String, int>{};
+    final libs = <String, Uri>{};
+    for (var id = 0; id < nodeCount; id++) {
+      final n = node(id);
+      counts[n.className] = (counts[n.className] ?? 0) + 1;
+      libs.putIfAbsent(n.className, () => n.libraryUri);
+    }
+    return [
+      for (final e in counts.entries)
+        ClassCount(
+          className: e.key,
+          libraryUri: libs[e.key]!,
+          instanceCount: e.value,
+          shallowBytes: 0,
+        ),
+    ];
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -78,19 +98,23 @@ final class _LeakGraphRunner implements GraphScanRunner {
   int runCount = 0;
 
   @override
-  Future<GraphAnalysisResult?> run(
+  Future<GraphScanOutcome?> run(
     GraphAnalysisOptions options, {
     required int maxObjects,
   }) async {
     runCount++;
-    return GraphLeakAnalyzer().analyze(_TimerRetentionGraph(), options);
+    final graph = _TimerRetentionGraph();
+    return GraphScanOutcome(
+      result: GraphLeakAnalyzer().analyze(graph, options),
+      histogram: graph.classHistogram(),
+    );
   }
 }
 
 /// Always returns null (simulates unavailable / size-exceeded graph).
 final class _NullGraphRunner implements GraphScanRunner {
   @override
-  Future<GraphAnalysisResult?> run(
+  Future<GraphScanOutcome?> run(
     GraphAnalysisOptions options, {
     required int maxObjects,
   }) async => null;
@@ -99,10 +123,37 @@ final class _NullGraphRunner implements GraphScanRunner {
 /// Throws on run.
 final class _ThrowingGraphRunner implements GraphScanRunner {
   @override
-  Future<GraphAnalysisResult?> run(
+  Future<GraphScanOutcome?> run(
     GraphAnalysisOptions options, {
     required int maxObjects,
   }) async => throw StateError('graph runner failure');
+}
+
+/// Returns a class histogram whose app-owned `GrowingState` count climbs by 2
+/// each run — exercises standalone (VM-service-free) growth from the snapshot
+/// histogram.
+final class _GrowingHistogramRunner implements GraphScanRunner {
+  int _count = 0;
+
+  @override
+  Future<GraphScanOutcome?> run(
+    GraphAnalysisOptions options, {
+    required int maxObjects,
+  }) async {
+    _count += 2;
+    final graph = _TimerRetentionGraph();
+    return GraphScanOutcome(
+      result: GraphLeakAnalyzer().analyze(graph, options),
+      histogram: [
+        ClassCount(
+          className: 'GrowingState',
+          libraryUri: Uri.parse('package:myapp/g.dart'),
+          instanceCount: _count,
+          shallowBytes: _count * 10,
+        ),
+      ],
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -339,6 +390,41 @@ void main() {
         reason: 'cooldown allows only the first back-to-back graph scan',
       );
     });
+
+    test(
+      'growth is derived from the graph-snapshot histogram with no VM profile',
+      () async {
+        // FakeHeapProbe([]) → every allocation-profile capture is empty, so the
+        // ONLY growth source is the histogram from the graph snapshot.
+        final engine = LeakEngine(
+          probe: FakeHeapProbe([]),
+          analyzer: LeakAnalyzer(SuspectSet.defaults()),
+          config: const LeakRadarConfig(
+            graphScan: GraphScan(
+              everyNthNavigation: 1,
+              maxGraphObjects: 100000,
+              appPackages: ['myapp'],
+              minClusterSize: 2,
+            ),
+          ),
+          graphRunner: _GrowingHistogramRunner(),
+        );
+
+        await engine.start();
+        // Two manual scans (bypass the nav cooldown): GrowingState 2 → 4.
+        await engine.graphScanNow();
+        await engine.graphScanNow();
+        await engine.stop();
+
+        expect(
+          engine.latest?.findings.any(
+            (f) => f.className == 'GrowingState' && f.kind == LeakKind.growth,
+          ),
+          isTrue,
+          reason: 'app-owned GrowingState must be flagged from the histogram',
+        );
+      },
+    );
 
     test('graphScan null disables graph scanning entirely', () async {
       final graphRunner = _LeakGraphRunner();
