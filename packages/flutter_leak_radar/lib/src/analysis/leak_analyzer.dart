@@ -25,6 +25,15 @@ class LeakAnalyzer {
       final rule = suspects.ruleFor(className);
       if (rule == null || rule.mode == LeakDetectionMode.ignore) continue;
 
+      // App-relevance: a broad default glob ([LeakRule.appOnly]) only flags
+      // app-owned classes — drops framework churn (_FocusState,
+      // AnimationController, _Timer, ValueNotifier). Fail OPEN: drop only a
+      // class positively known to be framework/SDK-owned; if the library is
+      // unknown, keep it rather than silently dropping everything when the
+      // allocation profile lacks library info.
+      final library = history.libraryFor(className);
+      if (rule.appOnly && library != null && !_isAppOwned(library)) continue;
+
       final series = history.seriesFor(className);
       if (series.isEmpty) continue;
       final liveCount = series.last;
@@ -65,6 +74,7 @@ class LeakAnalyzer {
           ),
           liveCount: liveCount,
           growth: growth,
+          library: library,
           series: series,
           captureTimes: history.captureTimestamps,
         ),
@@ -85,5 +95,23 @@ class LeakAnalyzer {
       if (series[i] < series[i - 1]) return false;
     }
     return series.length >= 2 && series.last > series.first;
+  }
+
+  static const Set<String> _frameworkPackages = {
+    'flutter',
+    'flutter_test',
+    'flutter_localizations',
+    'flutter_web_plugins',
+    'sky_engine',
+    'vm_service',
+  };
+
+  /// Whether [library] is an app-owned (non-SDK, non-framework) `package:` URI.
+  /// `dart:*` URIs and framework packages are not app-owned.
+  static bool _isAppOwned(String library) {
+    final uri = Uri.tryParse(library);
+    if (uri == null || uri.scheme != 'package') return false;
+    final pkg = uri.pathSegments.isEmpty ? '' : uri.pathSegments.first;
+    return !_frameworkPackages.contains(pkg);
   }
 }
