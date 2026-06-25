@@ -433,12 +433,93 @@ class _SummaryRow extends StatelessWidget {
           if (criticalCount == 0 && warningCount == 0 && infoCount == 0)
             Text('—', style: LeakRadarText.label),
           const Spacer(),
-          if (report != null)
+          const _VmConnectionChip(),
+          if (report != null) ...[
+            const SizedBox(width: 12),
             Text(
               'scan ${formatTime(report!.capturedAt)}',
               style: monoFont(fontSize: 11, color: LeakRadarColors.text40),
             ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+/// VM-service connection indicator + manual reconnect. A green dot means the
+/// per-scan allocation-profile (growth) source is live; amber means growth is
+/// running off the on-device snapshot histogram instead. Tap to reconnect.
+/// Hidden when the probe is not VM-backed (release / unsupported).
+class _VmConnectionChip extends StatefulWidget {
+  const _VmConnectionChip();
+
+  @override
+  State<_VmConnectionChip> createState() => _VmConnectionChipState();
+}
+
+class _VmConnectionChipState extends State<_VmConnectionChip> {
+  bool _busy = false;
+
+  Future<void> _reconnect() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    await LeakRadar.reconnectVmService();
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final connected = LeakRadar.vmServiceConnected;
+    if (connected == null) return const SizedBox.shrink();
+
+    final color = connected
+        ? severityTokens(LeakSeverity.info).text
+        : severityTokens(LeakSeverity.warning).text;
+
+    return Tooltip(
+      message: connected
+          ? 'VM service connected — per-scan growth profile is live.\nTap to reconnect.'
+          : 'VM service offline — growth uses the on-device snapshot '
+                'histogram.\nTap to reconnect.',
+      child: InkWell(
+        onTap: _reconnect,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: color.withValues(alpha: 0.4)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_busy)
+                SizedBox(
+                  width: 9,
+                  height: 9,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.4,
+                    color: color,
+                  ),
+                )
+              else
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              const SizedBox(width: 6),
+              Text(
+                connected ? 'VM' : 'VM off',
+                style: monoFont(fontSize: 11, color: color),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

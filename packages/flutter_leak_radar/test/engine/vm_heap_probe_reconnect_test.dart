@@ -159,6 +159,35 @@ void main() {
     });
 
     test(
+      'isConnected tracks state; reconnect bypasses the backoff window',
+      () async {
+        final fakeService = _FakeService();
+        var callCount = 0;
+        final probe = VmHeapProbe();
+        probe.debugInjectConnectionFactory(() async {
+          callCount++;
+          if (callCount == 1) throw const SocketException('transient');
+          return fakeService;
+        });
+
+        expect(
+          probe.isConnected,
+          isFalse,
+          reason: 'offline before any connect',
+        );
+
+        // First capture fails to connect and arms the 30s backoff.
+        await probe.capture(forceGc: false);
+        expect(probe.isConnected, isFalse);
+
+        // Manual reconnect ignores the backoff and connects on the 2nd attempt.
+        final ok = await probe.reconnect();
+        expect(ok, isTrue, reason: 'reconnect should connect past the backoff');
+        expect(probe.isConnected, isTrue);
+      },
+    );
+
+    test(
       'permanent failure does not retry immediately (backoff respected)',
       () async {
         var callCount = 0;

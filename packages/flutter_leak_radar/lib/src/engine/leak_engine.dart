@@ -97,6 +97,31 @@ class LeakEngine {
   /// Current operational status of the engine.
   LeakRadarStatus get status => _status;
 
+  /// Whether the VM-service-backed probe currently holds a live connection, or
+  /// null when the probe is not VM-backed (e.g. [NoopHeapProbe] / release).
+  /// Growth still works without it via the on-device snapshot histogram.
+  bool? get vmConnected {
+    final p = _probe;
+    return p is VmConnectable ? (p as VmConnectable).isConnected : null;
+  }
+
+  /// Manually (re)connects the VM-service probe, then rescans so the report
+  /// refreshes. Returns whether the probe is connected afterwards. No-op
+  /// (false) when the probe is not VM-backed. Never throws.
+  Future<bool> reconnectVm() async {
+    final p = _probe;
+    if (p is! VmConnectable) return false;
+    final connectable = p as VmConnectable;
+    final ok = await runSafelyAsync<bool>(
+      () => connectable.reconnect(),
+      fallback: false,
+      logger: _logger,
+    );
+    _logger.log('vmReconnect: connected=$ok', level: LeakLogLevel.verbose);
+    await scan(trigger: 'reconnect');
+    return ok;
+  }
+
   /// The navigator observer wired to [scan] with trigger `'navigation'`, or
   /// `null` when [AutoScan.onNavigation] is false.
   LeakRadarNavigatorObserver? get navigatorObserver => _navObserver;
