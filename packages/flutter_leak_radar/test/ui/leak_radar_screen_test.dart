@@ -32,6 +32,68 @@ Finder get _scanBtn => find.byKey(const Key('leak_radar_scan_btn'));
 void main() {
   tearDown(() => LeakRadar.dispose());
 
+  // ── Summary row: actions + stats ────────────────────────────────────────────
+
+  group('_SummaryRow', () {
+    testWidgets('shows the GC action and the class/instance stats line', (
+      tester,
+    ) async {
+      final probe = FakeHeapProbe([
+        snap({'HomeBloc': 1}),
+        snap({'HomeBloc': 2}),
+        snap({'HomeBloc': 3}),
+      ]);
+      await LeakRadar.debugInstall(
+        LeakEngine(
+          probe: probe,
+          analyzer: const LeakAnalyzer(
+            SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+          ),
+        ),
+      );
+      await LeakRadar.scan();
+      await LeakRadar.scan();
+      await LeakRadar.scan();
+
+      await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Force GC and rescan'), findsOneWidget);
+      expect(find.text('GC'), findsOneWidget);
+      expect(find.textContaining('instance'), findsWidgets);
+    });
+
+    testWidgets('summary row does not overflow at 320 px with many findings', (
+      tester,
+    ) async {
+      // 40 distinct growing classes → wide severity tallies + the action pills.
+      final grown = {for (var i = 0; i < 40; i++) 'Bloc$i': i + 2};
+      final probe = FakeHeapProbe([
+        snap({for (final k in grown.keys) k: 1}),
+        snap(grown),
+      ]);
+      await LeakRadar.debugInstall(
+        LeakEngine(
+          probe: probe,
+          analyzer: const LeakAnalyzer(
+            SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+          ),
+        ),
+      );
+      await LeakRadar.scan();
+      await LeakRadar.scan();
+
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   // ── Overflow regression ───────────────────────────────────────────────────
 
   group('_FindingRow — narrow-width overflow regression', () {
