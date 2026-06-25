@@ -106,6 +106,19 @@ class LeakEngine {
       logger: _logger,
     );
     _status = available ? LeakRadarStatus.active : LeakRadarStatus.preciseOnly;
+    final gs = _config.graphScan;
+    final graphScanDesc = gs == null
+        ? 'off'
+        : 'every ${gs.everyNthNavigation} nav,minCluster=${gs.minClusterSize},'
+              'appPackages=${gs.appPackages}';
+    _logger.log(
+      'engine.start: isAvailable=$available status=$_status '
+      'preciseTracking=${_config.preciseTracking} '
+      'autoScan=${_autoScan.hasPeriodic ? 'periodic ${_autoScan.period}' : ''}'
+      '${_autoScan.onNavigation ? '+nav' : ''} '
+      'graphScan=$graphScanDesc rules=${_config.rules.length}',
+      level: LeakLogLevel.verbose,
+    );
     _startAutoScan();
   }
 
@@ -177,7 +190,27 @@ class LeakEngine {
     final report = await scan(trigger: 'navigation');
     _navCount++;
     final gs = _config.graphScan;
-    if (gs != null && _navCount % gs.everyNthNavigation == 0) {
+    final everyNth = gs?.everyNthNavigation ?? 0;
+    final triggers = gs != null && _navCount % gs.everyNthNavigation == 0;
+    if (gs == null) {
+      _logger.log(
+        'navScan: navCount=$_navCount; graphScan off',
+        level: LeakLogLevel.verbose,
+      );
+    } else if (triggers) {
+      _logger.log(
+        'navScan: navCount=$_navCount; graphScan TRIGGERS this nav '
+        '(everyNth=$everyNth)',
+        level: LeakLogLevel.verbose,
+      );
+    } else {
+      final next = (_navCount ~/ everyNth + 1) * everyNth;
+      _logger.log(
+        'navScan: navCount=$_navCount; graphScan skipped (next at $next)',
+        level: LeakLogLevel.verbose,
+      );
+    }
+    if (triggers) {
       await _runGraphScan(report);
     }
     return _latestFiltered ?? report;
@@ -188,7 +221,7 @@ class LeakEngine {
     if (!_sourceResolved) {
       _sourceResolved = true;
       _resolvedSource = _probe is VmHeapProbe
-          ? VmHeapGraphSource(_probe)
+          ? VmHeapGraphSource(_probe, logger: _logger)
           : null;
     }
     return _resolvedSource;
@@ -199,13 +232,31 @@ class LeakEngine {
     _graphScanInFlight = true;
     try {
       final source = _resolvedGraphSource();
+      _logger.log(
+        'graphScan: source='
+        '${source?.runtimeType.toString() ?? 'NULL (probe not VmHeapProbe)'}',
+        level: LeakLogLevel.verbose,
+      );
       if (source == null) return;
       final gs = _config.graphScan;
       if (gs == null) return;
       await runSafelyAsync<void>(
         () async {
           final graph = await source.acquire(maxObjects: gs.maxGraphObjects);
-          if (graph == null) return;
+          if (graph == null) {
+            _logger.log(
+              'graphScan: acquire(maxObjects=${gs.maxGraphObjects}) -> NULL graph '
+              '(no live VM + file-fallback failed, or >=maxObjects) '
+              '-> NO graph findings',
+              level: LeakLogLevel.verbose,
+            );
+            return;
+          }
+          _logger.log(
+            'graphScan: acquire(maxObjects=${gs.maxGraphObjects}) -> '
+            '${graph.nodeCount} nodes',
+            level: LeakLogLevel.verbose,
+          );
           final result = GraphLeakAnalyzer().analyze(
             graph,
             GraphAnalysisOptions(
@@ -214,8 +265,33 @@ class LeakEngine {
               minClusterSize: gs.minClusterSize,
             ),
           );
-          if (result.clusters.isEmpty) return;
+          final stats = result.stats;
+          _logger.log(
+            'graphScan analyze: stats{totalObjects=${stats.totalObjects},'
+            'reachable=${stats.reachableObjects},'
+            'leakCandidates=${stats.leakCandidates},'
+            'suppressedByAppFilter=${stats.suppressedByAppFilter},'
+            'suppressedByLiveTree=${stats.suppressedByLiveTree},'
+            'clusters=${stats.clusters},'
+            'warnings=${stats.warnings.length}}; '
+            'minClusterSize=${gs.minClusterSize}',
+            level: LeakLogLevel.verbose,
+          );
+          if (result.clusters.isEmpty) {
+            _logger.log(
+              'graphScan result: rawClusters=0 -> mappedFindings=0 '
+              '(NO retainedByNonLiveRoot produced)',
+              level: LeakLogLevel.verbose,
+            );
+            return;
+          }
           final graphFindings = result.clusters.map(mapGraphCluster).toList();
+          _logger.log(
+            'graphScan result: rawClusters=${result.clusters.length} -> '
+            'mappedFindings=${graphFindings.length} '
+            '(retainedByNonLiveRoot added)',
+            level: LeakLogLevel.verbose,
+          );
           final merged = LeakReport(
             findings: [...baseReport.findings, ...graphFindings],
             capturedAt: baseReport.capturedAt,
@@ -299,8 +375,18 @@ class LeakEngine {
         );
         if (snapshot == null) {
           _status = LeakRadarStatus.serviceUnavailable;
+          _logger.log(
+            'scan[$trigger]: capture -> NULL snapshot '
+            '(VM unreachable, history NOT advanced); historySize=${_history.length}',
+            level: LeakLogLevel.verbose,
+          );
         } else {
           _history.add(snapshot);
+          _logger.log(
+            'scan[$trigger]: capture -> ${snapshot.samples.length} class samples; '
+            'historySize=${_history.length}',
+            level: LeakLogLevel.verbose,
+          );
         }
       }
       // Force a real GC so the precise tracker's reachability barrier advances
@@ -308,7 +394,9 @@ class LeakEngine {
       // service-triggered GC does not reliably advance developer.reachabilityBarrier,
       // so disposed-but-retained objects never reach the gcCycles threshold.
       // Gated on having tracked objects to avoid needless GC pressure.
-      if (_config.preciseTracking && _registry.trackedCount > 0) {
+      final trackedBefore = _registry.trackedCount;
+      final gcInvoked = _config.preciseTracking && trackedBefore > 0;
+      if (gcInvoked) {
         await runSafelyAsync<void>(
           () => _gcForcer(),
           fallback: null,
@@ -316,6 +404,15 @@ class LeakEngine {
         );
       }
       final precise = _registry.collectLeaks(gcCycles: _gcCyclesForPreciseLeak);
+      final notGced = precise.where((f) => f.kind == LeakKind.notGced).length;
+      final notDisposed = precise
+          .where((f) => f.kind == LeakKind.notDisposed)
+          .length;
+      _logger.log(
+        'scan[$trigger]: forceGc invoked=$gcInvoked (tracked=$trackedBefore); '
+        'precise=${precise.length} {notGced=$notGced, notDisposed=$notDisposed}',
+        level: LeakLogLevel.verbose,
+      );
       final report = _analyzer.analyze(
         _history,
         trigger: trigger,
@@ -325,6 +422,13 @@ class LeakEngine {
       _latestFullReport = report;
       final filtered = _filtered(report);
       _latestFiltered = filtered;
+      _logger.log(
+        'scan[$trigger] done: full=${report.findings.length} '
+        'by kind=${_countByKind(report.findings)} -> '
+        'afterThreshold(${_config.reportThreshold.name})=${filtered.findings.length}; '
+        'status=$_status',
+        level: LeakLogLevel.verbose,
+      );
       if (!_reports.isClosed) _reports.add(filtered);
       return filtered;
     } finally {
@@ -344,6 +448,15 @@ class LeakEngine {
     _latestFullReport = empty;
     _latestFiltered = empty;
     if (!_reports.isClosed) _reports.add(empty);
+  }
+
+  /// Renders a `kind->count` map string for verbose scan diagnostics.
+  String _countByKind(List<LeakFinding> findings) {
+    final counts = <LeakKind, int>{};
+    for (final f in findings) {
+      counts[f.kind] = (counts[f.kind] ?? 0) + 1;
+    }
+    return '{${counts.entries.map((e) => '${e.key.name}:${e.value}').join(',')}}';
   }
 
   /// Returns a copy of [full] with findings below [LeakRadarConfig.reportThreshold]
