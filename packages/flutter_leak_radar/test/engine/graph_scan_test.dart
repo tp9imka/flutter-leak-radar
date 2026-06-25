@@ -450,6 +450,38 @@ void main() {
       },
     );
 
+    test('forceGcAndScan re-runs the graph scan and refreshes growth', () async {
+      // FakeHeapProbe([]) → no VM growth source. forceGcAndScan must re-run the
+      // graph scan so the snapshot histogram refreshes growth (GrowingState
+      // climbs 2 -> 4 across the two calls).
+      final engine = LeakEngine(
+        probe: FakeHeapProbe([]),
+        analyzer: LeakAnalyzer(SuspectSet.defaults()),
+        config: const LeakRadarConfig(
+          graphScan: GraphScan(
+            everyNthNavigation: 1,
+            maxGraphObjects: 100000,
+            appPackages: ['myapp'],
+            minClusterSize: 2,
+          ),
+        ),
+        graphRunner: _GrowingHistogramRunner(),
+      );
+
+      await engine.start();
+      await engine.forceGcAndScan();
+      await engine.forceGcAndScan();
+      await engine.stop();
+
+      expect(
+        engine.latest?.findings.any(
+          (f) => f.className == 'GrowingState' && f.kind == LeakKind.growth,
+        ),
+        isTrue,
+        reason: 'forceGcAndScan must re-run the graph scan so growth refreshes',
+      );
+    });
+
     test(
       'retainingPath falls back to the snapshot lookup when the VM has none',
       () async {

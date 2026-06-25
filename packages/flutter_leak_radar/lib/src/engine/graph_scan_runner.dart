@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:leak_graph/leak_graph.dart';
 import 'package:meta/meta.dart';
 
+import '../precise/force_gc.dart';
 import '../util/rate_limited_logger.dart';
 import 'heap_snapshot_file.dart';
 
@@ -51,17 +52,36 @@ const int _snapshotBytesPerObject = 96;
 /// (NativeRuntime captures the *current* isolate's heap, so this must run here),
 /// then parses + analyses it in a **background** isolate so the UI never blocks.
 final class IsolateGraphScanRunner implements GraphScanRunner {
-  IsolateGraphScanRunner({RateLimitedLogger? logger}) : _logger = logger;
+  IsolateGraphScanRunner({
+    RateLimitedLogger? logger,
+    Future<void> Function()? gcForcer,
+  }) : _logger = logger,
+       _gcForcer =
+           gcForcer ?? (() => forceGc(timeout: const Duration(seconds: 4)));
 
   final RateLimitedLogger? _logger;
+  final Future<void> Function() _gcForcer;
+
+  /// Forces a GC right before a snapshot so it counts LIVE objects, not the
+  /// transient garbage awaiting collection that otherwise inflates per-class
+  /// counts (a leaked-vs-garbage `_Timer` mismatch). Best-effort — never throws.
+  Future<void> _forceGcSafely() async {
+    try {
+      await _gcForcer();
+    } catch (_) {
+      // A GC failure must never break the scan.
+    }
+  }
 
   @override
   Future<GraphScanOutcome?> run(
     GraphAnalysisOptions options, {
     required int maxObjects,
   }) async {
-    // Capture on the main isolate (a spawned isolate would snapshot its own
-    // empty heap). This briefly pauses the isolate but is far short of an ANR.
+    // GC first so the snapshot (and its class histogram) counts live objects,
+    // not transient garbage. Capture on the main isolate (a spawned isolate
+    // would snapshot its own empty heap) — briefly pauses, far short of an ANR.
+    await _forceGcSafely();
     final String? path = await writeHeapSnapshotFile();
     if (path == null) {
       _logger?.log(
@@ -109,6 +129,7 @@ final class IsolateGraphScanRunner implements GraphScanRunner {
     String className, {
     required int maxObjects,
   }) async {
+    await _forceGcSafely();
     final String? path = await writeHeapSnapshotFile();
     if (path == null) return null;
     try {
