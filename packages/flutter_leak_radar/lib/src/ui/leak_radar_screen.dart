@@ -1,4 +1,6 @@
 // lib/src/ui/leak_radar_screen.dart
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -47,10 +49,24 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
   // detects these leaks — a fresh scan re-adds them if still leaking.
   final Set<String> _dismissed = {};
 
+  StreamSubscription<LeakReport>? _sub;
+
   @override
   void initState() {
     super.initState();
     _report = LeakRadar.latest;
+    // Refresh on EVERY report (background nav scans, the summary-row GC button,
+    // a VM reconnect) so the counters/stats stay live without each action
+    // having to push state into the screen.
+    _sub = LeakRadar.reports.listen((r) {
+      if (mounted) setState(() => _report = r);
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 
   // ── Data ──────────────────────────────────────────────────────────────────
@@ -397,51 +413,134 @@ class _SummaryRow extends StatelessWidget {
     final infoCount = findings
         .where((f) => f.severity == LeakSeverity.info)
         .length;
+    final classCount = findings.map((f) => f.className).toSet().length;
+    final instanceCount = findings.fold<int>(0, (s, f) => s + f.liveCount);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (criticalCount > 0) ...[
-            Text(
-              '● $criticalCount critical',
-              style: monoFont(
-                fontSize: 11.5,
-                color: severityTokens(LeakSeverity.critical).text,
+          // Severity breakdown (wraps when the numbers get wide) + actions on
+          // the right, with guaranteed spacing via the Expanded.
+          Row(
+            children: [
+              Expanded(
+                child: Wrap(
+                  spacing: 14,
+                  runSpacing: 4,
+                  children: [
+                    if (criticalCount > 0)
+                      _SeverityCount(
+                        LeakSeverity.critical,
+                        criticalCount,
+                        'critical',
+                      ),
+                    if (warningCount > 0)
+                      _SeverityCount(
+                        LeakSeverity.warning,
+                        warningCount,
+                        'warning',
+                      ),
+                    if (infoCount > 0)
+                      _SeverityCount(LeakSeverity.info, infoCount, 'info'),
+                    if (findings.isEmpty)
+                      Text('No leaks', style: LeakRadarText.label),
+                  ],
+                ),
               ),
-            ),
-            if (warningCount > 0 || infoCount > 0) const SizedBox(width: 12),
-          ],
-          if (warningCount > 0) ...[
-            Text(
-              '● $warningCount warning',
-              style: monoFont(
-                fontSize: 11.5,
-                color: severityTokens(LeakSeverity.warning).text,
-              ),
-            ),
-            if (infoCount > 0) const SizedBox(width: 12),
-          ],
-          if (infoCount > 0)
-            Text(
-              '● $infoCount info',
-              style: monoFont(
-                fontSize: 11.5,
-                color: severityTokens(LeakSeverity.info).text,
-              ),
-            ),
-          if (criticalCount == 0 && warningCount == 0 && infoCount == 0)
-            Text('—', style: LeakRadarText.label),
-          const Spacer(),
-          const _VmConnectionChip(),
+              const SizedBox(width: 12),
+              const _VmConnectionChip(),
+              const SizedBox(width: 8),
+              const _GcButton(),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '$classCount ${classCount == 1 ? 'class' : 'classes'} · '
+            '$instanceCount ${instanceCount == 1 ? 'instance' : 'instances'}',
+            style: monoFont(fontSize: 11, color: LeakRadarColors.text40),
+          ),
           if (report != null) ...[
-            const SizedBox(width: 12),
+            const SizedBox(height: 2),
             Text(
               'scan ${formatTime(report!.capturedAt)}',
               style: monoFont(fontSize: 11, color: LeakRadarColors.text40),
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// A single colored severity tally, e.g. `● 10 critical`.
+class _SeverityCount extends StatelessWidget {
+  const _SeverityCount(this.severity, this.count, this.label);
+
+  final LeakSeverity severity;
+  final int count;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    '● $count $label',
+    style: monoFont(fontSize: 11.5, color: severityTokens(severity).text),
+  );
+}
+
+/// "Force GC and rescan" pill — collects garbage so counts reflect live objects,
+/// then rescans. Self-contained: the screen rebuilds via the report stream.
+class _GcButton extends StatefulWidget {
+  const _GcButton();
+
+  @override
+  State<_GcButton> createState() => _GcButtonState();
+}
+
+class _GcButtonState extends State<_GcButton> {
+  bool _busy = false;
+
+  Future<void> _run() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    await LeakRadar.forceGcAndScan();
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const color = LeakRadarColors.accent;
+    return Tooltip(
+      message: 'Force GC and rescan',
+      child: InkWell(
+        onTap: _busy ? null : _run,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: color.withValues(alpha: 0.45)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_busy)
+                const SizedBox(
+                  width: 9,
+                  height: 9,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.4,
+                    color: color,
+                  ),
+                )
+              else
+                const Icon(Icons.refresh, size: 12, color: color),
+              const SizedBox(width: 5),
+              Text('GC', style: monoFont(fontSize: 11, color: color)),
+            ],
+          ),
+        ),
       ),
     );
   }
