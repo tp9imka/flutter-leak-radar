@@ -563,15 +563,41 @@ class LeakEngine {
     status: _status,
   );
 
-  /// Fetches the retaining path for [className] from the underlying probe.
+  /// Fetches the retaining path for [className].
   ///
-  /// Returns null when the probe does not support retaining paths or when the
-  /// engine is unavailable. Never throws.
-  Future<RetainingPathView?> retainingPath(String className) => runSafelyAsync(
-    () => _probe.retainingPath(className),
-    fallback: null,
-    logger: _logger,
-  );
+  /// Tries the VM-service probe first (richest, when connected); on null falls
+  /// back to a STANDALONE lookup that BFS-walks a fresh on-device heap snapshot
+  /// for the class — so growth / precise findings get a retaining path even
+  /// when the VM service is offline. Never throws.
+  Future<RetainingPathView?> retainingPath(String className) async {
+    final viaVm = await runSafelyAsync<RetainingPathView?>(
+      () => _probe.retainingPath(className),
+      fallback: null,
+      logger: _logger,
+    );
+    if (viaVm != null) return viaVm;
+
+    // The standalone fallback captures a heap snapshot (like the graph scan),
+    // so it only runs when graph features are enabled.
+    final gs = _config.graphScan;
+    if (gs == null) return null;
+    final graphPath = await runSafelyAsync<GraphRetainingPath?>(
+      () => _graphRunner.retainingPathForClass(
+        className,
+        maxObjects: gs.maxGraphObjects,
+      ),
+      fallback: null,
+      logger: _logger,
+    );
+    if (graphPath == null) {
+      _logger.log(
+        'retainingPath[$className]: no VM path and no snapshot instance found',
+        level: LeakLogLevel.verbose,
+      );
+      return null;
+    }
+    return mapGraphPath(graphPath);
+  }
 
   /// Disposes the probe, clears tracking state, and closes the reports stream.
   Future<void> stop() async {

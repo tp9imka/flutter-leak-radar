@@ -14,7 +14,7 @@ LeakFinding mapGraphCluster(GraphLeakCluster c) => LeakFinding(
   growth: 0,
   library: c.libraryUri?.toString(),
   tag: c.rootKind.label,
-  retainingPath: _mapPath(c.representativePath),
+  retainingPath: mapGraphPath(c.representativePath),
 );
 
 LeakSeverity _severity(GraphLeakCluster c) =>
@@ -22,7 +22,10 @@ LeakSeverity _severity(GraphLeakCluster c) =>
     ? LeakSeverity.critical
     : LeakSeverity.warning;
 
-RetainingPathView _mapPath(GraphRetainingPath path) => RetainingPathView(
+/// Maps a leak_graph [GraphRetainingPath] to the runtime UI's
+/// [RetainingPathView]. Shared by graph-cluster findings and the standalone
+/// (snapshot-based) retaining-path lookup.
+RetainingPathView mapGraphPath(GraphRetainingPath path) => RetainingPathView(
   gcRootType: path.rootKind.label,
   elements: [
     for (final h in path.hops)

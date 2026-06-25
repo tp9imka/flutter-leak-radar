@@ -25,6 +25,44 @@ List<GraphHop> buildHops(List<PathLink> links, List<String> classNames) {
   ];
 }
 
+/// Finds the shortest retaining path to the first reachable instance of
+/// [className] in [graph], or null when no reachable instance exists.
+///
+/// Standalone (no VM service): lets a growth/precise leak finding show its
+/// retaining path on a physical device straight from a heap snapshot, instead
+/// of a `getRetainingPath` VM call. Runs a single BFS over the graph.
+GraphRetainingPath? retainingPathForClass(
+  HeapGraphView graph,
+  String className,
+) {
+  final paths = ShortestRetainingPaths.compute(graph);
+  for (var id = 0; id < graph.nodeCount; id++) {
+    if (id == graph.rootId) continue;
+    HeapNode node;
+    try {
+      node = graph.node(id);
+    } catch (_) {
+      continue;
+    }
+    if (node.className != className) continue;
+    if (!paths.isReachable(id)) continue;
+    final links = paths.pathTo(id);
+    if (links == null || links.isEmpty) continue;
+    final classNames = links.map((l) {
+      try {
+        return graph.node(l.nodeId).className;
+      } catch (_) {
+        return '';
+      }
+    }).toList();
+    return GraphRetainingPath(
+      hops: buildHops(links, classNames),
+      rootKind: paths.rootKindOf(id),
+    );
+  }
+  return null;
+}
+
 /// Configuration for a single [GraphLeakAnalyzer.analyze] run.
 final class GraphAnalysisOptions {
   /// Explicit package names that belong to the app under analysis.
