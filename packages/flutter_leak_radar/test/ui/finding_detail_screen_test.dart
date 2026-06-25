@@ -191,6 +191,41 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('HomeBloc'), findsWidgets);
     });
+
+    testWidgets('graph finding shows its carried path with no VM fetch', (
+      tester,
+    ) async {
+      // NoopHeapProbe → a live VM lookup would return null. The path carried on
+      // the finding (from the on-device snapshot) must render regardless.
+      await LeakRadar.debugInstall(
+        LeakEngine(
+          probe: const NoopHeapProbe(),
+          analyzer: LeakAnalyzer(SuspectSet.empty()),
+        ),
+      );
+      const finding = LeakFinding(
+        className: 'LeakyController',
+        kind: LeakKind.retainedByNonLiveRoot,
+        severity: LeakSeverity.critical,
+        liveCount: 2,
+        growth: 0,
+        series: <int>[],
+        retainingPath: RetainingPathView(
+          gcRootType: 'Timer',
+          elements: [
+            RetainingHop(objectType: 'CarriedRootMarker', field: '_callback'),
+            RetainingHop(objectType: 'LeakyController'),
+          ],
+        ),
+      );
+      await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('CarriedRootMarker'),
+        findsWidgets,
+        reason: 'carried snapshot path must render without a VM connection',
+      );
+    });
   });
 
   group('FindingDetailScreen — navigation', () {
