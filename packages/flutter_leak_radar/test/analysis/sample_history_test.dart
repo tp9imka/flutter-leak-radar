@@ -44,4 +44,16 @@ void main() {
     expect(h.latestCountFor('A'), 4);
     expect(h.latestCountFor('Z'), 0);
   });
+
+  test('latestObjectTotal sums the newest snapshot across classes', () {
+    final h = SampleHistory(maxSnapshots: 5);
+    h
+      ..add(snap({'A': 1, 'B': 2}, 1))
+      ..add(snap({'A': 10, 'B': 20, 'C': 5}, 2));
+    expect(h.latestObjectTotal, 35);
+  });
+
+  test('latestObjectTotal is null when no snapshot captured', () {
+    expect(SampleHistory().latestObjectTotal, isNull);
+  });
 }

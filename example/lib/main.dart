@@ -25,13 +25,15 @@ Future<void> main() async {
       // minClusterSize:1 surfaces a single-instance demo leak: one retained
       // _LeakyScreenState (a cluster of 1) is reported after a single pop.
       // Production may prefer 2 to require a repeated pattern before flagging.
-      // maxGraphObjects raised: this leaky demo's heap climbs past the 500k
-      // default, which would drop the whole graph. Real apps can keep the
-      // default (analysing >500k nodes in-app is heavy).
+      // everyNthNavigation:5 + the engine's 30s cooldown keep graph scans
+      // infrequent; maxGraphObjects:500000 (the default) lets the pre-write
+      // size gate SKIP the snapshot once this leaky demo's heap bloats past it,
+      // rather than OOM-ing. The graph still surfaces early (fresh heap < 500k);
+      // once bloated it is safely skipped (logged), as it would be in a real app.
       graphScan: const GraphScan(
-        everyNthNavigation: 1,
+        everyNthNavigation: 5,
         minClusterSize: 1,
-        maxGraphObjects: 2000000,
+        maxGraphObjects: 500000,
       ),
       // Surface precise (track + markDisposed) leaks quickly in the demo:
       // 1 GC cycle + 1s grace, instead of the 3-cycle / 2s production defaults.

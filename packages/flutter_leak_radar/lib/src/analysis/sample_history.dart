@@ -35,6 +35,14 @@ class SampleHistory {
   int latestCountFor(String className) =>
       _snapshots.isEmpty ? 0 : _countIn(_snapshots.last, className);
 
+  /// Total live-object count across all classes in the most recent snapshot,
+  /// or null when no snapshot has been captured (e.g. the VM service is not
+  /// connected). Lets the engine gate the graph scan on heap size BEFORE
+  /// writing a snapshot, avoiding the write+parse OOM on a bloated heap.
+  int? get latestObjectTotal => _snapshots.isEmpty
+      ? null
+      : _snapshots.last.samples.fold<int>(0, (a, s) => a + s.instancesCurrent);
+
   /// [capturedAt] timestamps oldest→newest, parallel to [seriesFor].
   List<DateTime> get captureTimestamps => [
     for (final s in _snapshots) s.capturedAt,

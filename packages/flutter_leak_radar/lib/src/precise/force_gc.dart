@@ -29,6 +29,13 @@ Future<void> forceGc({Duration? timeout, int fullGcCycles = 1}) async {
       throw TimeoutException('forceGc timed out', timeout);
     }
     await Future<void>.delayed(Duration.zero);
+    // Both the per-iteration allocation size AND the retained working set are
+    // load-bearing: together they force a GC aggressive enough to actually
+    // COLLECT weakly-referenced tracked objects, not merely advance the
+    // barrier. Shrinking either breaks precise detection (the registry's
+    // notGced/collection tests), so this is deliberately NOT reduced — the
+    // ~24MB is short-lived churn and is not the graph-scan OOM driver, which
+    // the engine's pre-write size gate handles instead.
     storage.add(List.generate(30000, (n) => n));
     if (storage.length > 100) storage.removeAt(0);
   }
