@@ -49,6 +49,30 @@ final class VmSnapshotGraphView implements HeapGraphView {
   int get nodeCount => _graph.objects.length;
 
   @override
+  List<ClassCount> classHistogram() {
+    final counts = <String, int>{};
+    final bytes = <String, int>{};
+    final libs = <String, Uri>{};
+    for (final obj in _graph.objects) {
+      final klass = obj.klass;
+      final name = klass.name.isEmpty ? '<unknown>' : klass.name;
+      counts[name] = (counts[name] ?? 0) + 1;
+      bytes[name] =
+          (bytes[name] ?? 0) + (obj.shallowSize < 0 ? 0 : obj.shallowSize);
+      libs.putIfAbsent(name, () => klass.libraryUri);
+    }
+    return [
+      for (final e in counts.entries)
+        ClassCount(
+          className: e.key,
+          libraryUri: libs[e.key]!,
+          instanceCount: e.value,
+          shallowBytes: bytes[e.key]!,
+        ),
+    ];
+  }
+
+  @override
   HeapNode node(int id) {
     if (id < 0 || id >= _nodeCache.length) {
       throw StateError('Node id $id out of range [0, ${_nodeCache.length})');

@@ -6,6 +6,10 @@
 /// builds one depends on a concrete implementation.
 library;
 
+import '../model/class_count.dart';
+
+export '../model/class_count.dart';
+
 /// Read-only view over a heap object graph.
 abstract interface class HeapGraphView {
   /// Object id of the GC root that all paths originate from.
@@ -18,6 +22,11 @@ abstract interface class HeapGraphView {
   ///
   /// Throws [StateError] if [id] is not present in the graph.
   HeapNode node(int id);
+
+  /// Per-class instance counts across the whole graph — a class histogram for
+  /// VM-service-free heap-growth detection. Derived from object class ids
+  /// directly, so it does NOT build the (expensive) per-node edge lists.
+  List<ClassCount> classHistogram();
 }
 
 /// A single object in the heap graph.

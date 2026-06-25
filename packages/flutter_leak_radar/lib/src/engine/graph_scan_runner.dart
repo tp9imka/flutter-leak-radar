@@ -16,8 +16,18 @@ import 'heap_snapshot_file.dart';
 /// The contract is "acquire + analyse together" (not "return a graph") so the
 /// heavy BFS/clustering can run OFF the main isolate: a large heap takes
 /// seconds-to-minutes to analyse and would otherwise freeze the UI (ANR).
+/// The product of one graph scan: the retaining-path [result] plus a class
+/// histogram derived from the SAME heap snapshot, so heap-growth can be
+/// measured on-device without a VM-service `getAllocationProfile` call.
+final class GraphScanOutcome {
+  final GraphAnalysisResult result;
+  final List<ClassCount> histogram;
+
+  const GraphScanOutcome({required this.result, required this.histogram});
+}
+
 abstract interface class GraphScanRunner {
-  Future<GraphAnalysisResult?> run(
+  Future<GraphScanOutcome?> run(
     GraphAnalysisOptions options, {
     required int maxObjects,
   });
@@ -38,7 +48,7 @@ final class IsolateGraphScanRunner implements GraphScanRunner {
   final RateLimitedLogger? _logger;
 
   @override
-  Future<GraphAnalysisResult?> run(
+  Future<GraphScanOutcome?> run(
     GraphAnalysisOptions options, {
     required int maxObjects,
   }) async {
@@ -87,11 +97,12 @@ final class IsolateGraphScanRunner implements GraphScanRunner {
   }
 }
 
-/// Runs in the spawned isolate: reads the snapshot file, parses the graph, and
-/// analyses it. Top-level so it is sendable to [Isolate.run]. Returns null when
-/// the graph exceeds [maxObjects] (the size guard) — analysing a multi-million
-/// node heap is too costly even off the UI thread.
-Future<GraphAnalysisResult?> _analyzeSnapshotFile(
+/// Runs in the spawned isolate: reads the snapshot file, parses the graph,
+/// analyses it, and derives the class histogram from the same graph. Top-level
+/// so it is sendable to [Isolate.run]. Returns null when the graph exceeds
+/// [maxObjects] (the size guard) — analysing a multi-million node heap is too
+/// costly even off the UI thread.
+Future<GraphScanOutcome?> _analyzeSnapshotFile(
   String path,
   GraphAnalysisOptions options,
   int maxObjects,
@@ -99,24 +110,32 @@ Future<GraphAnalysisResult?> _analyzeSnapshotFile(
   final Uint8List bytes = await File(path).readAsBytes();
   final HeapGraphView graph = heapGraphFromBytes(bytes);
   if (graph.nodeCount >= maxObjects) return null;
-  return GraphLeakAnalyzer().analyze(graph, options);
+  final result = GraphLeakAnalyzer().analyze(graph, options);
+  // Same snapshot, second cheap pass: the class histogram that lets heap-growth
+  // detection work standalone (no VM-service allocation profile required).
+  final histogram = graph.classHistogram();
+  return GraphScanOutcome(result: result, histogram: histogram);
 }
 
 /// Test seam: a runner backed by an in-memory result, so engine tests need no
 /// real snapshot or isolate.
 @visibleForTesting
 final class FixedGraphScanRunner implements GraphScanRunner {
-  FixedGraphScanRunner(this._result);
+  FixedGraphScanRunner(this._result, {List<ClassCount> histogram = const []})
+    : _histogram = histogram;
 
   final GraphAnalysisResult? Function(GraphAnalysisOptions options) _result;
+  final List<ClassCount> _histogram;
   int runCount = 0;
 
   @override
-  Future<GraphAnalysisResult?> run(
+  Future<GraphScanOutcome?> run(
     GraphAnalysisOptions options, {
     required int maxObjects,
   }) async {
     runCount++;
-    return _result(options);
+    final r = _result(options);
+    if (r == null) return null;
+    return GraphScanOutcome(result: r, histogram: _histogram);
   }
 }
