@@ -61,7 +61,15 @@ final class LiveTreeReachability {
     while (head < queue.length) {
       final id = queue[head++];
       if (!reachable.add(id)) continue;
-      for (final edge in graph.node(id).edges) {
+      final node = graph.node(id);
+      // Do NOT traverse THROUGH leak-prone retainers (timers, stream
+      // subscriptions/controllers, zones). An object reachable only via these
+      // is retained by the leak, not by the live UI tree — so the forward
+      // closure must stop here. Without this boundary the closure floods the
+      // async subsystem (Zone → every scheduled _Timer → its retained State),
+      // marking genuine leaks "live" and suppressing them.
+      if (_isRetainerBoundary(node.className)) continue;
+      for (final edge in node.edges) {
         if (!reachable.contains(edge.targetId)) {
           queue.add(edge.targetId);
         }
@@ -73,4 +81,22 @@ final class LiveTreeReachability {
 
   /// Returns `true` if [nodeId] is reachable from any live-tree anchor.
   bool isReachable(int nodeId) => _reachable.contains(nodeId);
+}
+
+/// Class names the live-tree BFS must not traverse *through* — the leak-prone
+/// retainers (timers, streams, zones). Mirrors the leak-prone roots the
+/// classifier denylists, so live-reachability cannot leak into the async
+/// subsystem that holds genuinely-leaked objects.
+bool _isRetainerBoundary(String className) {
+  if (className == 'Timer' || className == '_Timer') return true;
+  if (className.endsWith('StreamSubscription') ||
+      className.endsWith('StreamController')) {
+    return true;
+  }
+  if (className == '_RootZone' ||
+      className == '_CustomZone' ||
+      className == '_Zone') {
+    return true;
+  }
+  return false;
 }

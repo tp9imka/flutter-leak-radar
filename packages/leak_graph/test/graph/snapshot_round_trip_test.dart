@@ -16,6 +16,9 @@ void main() {
     }
     final graph = await loadHeapGraph(File(path));
     expect(graph.nodeCount, greaterThan(1));
+    // node() is memoised — repeated calls return the same cached instance
+    // (the perf fix that turns O(n·depth) re-fetches into O(1) lookups).
+    expect(identical(graph.node(1), graph.node(1)), isTrue);
     final paths = ShortestRetainingPaths.compute(graph);
     // The BFS from the GC root must actually reach the heap. Guards against
     // seeding from the empty sentinel (objects[0]) instead of the real GC root
