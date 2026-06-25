@@ -15,7 +15,19 @@ final class VmSnapshotGraphView implements HeapGraphView {
   final HeapSnapshotGraph _graph;
   final int _rootId;
 
-  VmSnapshotGraphView(this._graph) : _rootId = _resolveRootId(_graph);
+  /// Memoised [node] results — node metadata is materialised at most once per
+  /// id, so the many re-fetches per node across the analysis pipeline become
+  /// O(1) lookups instead of full rebuilds (the cause of the O(n·depth) cost).
+  final List<HeapNode?> _nodeCache;
+
+  /// Field-index → field-name map cached PER CLASS (keyed by class id), not per
+  /// object: a few thousand classes vs hundreds of thousands of instances, so
+  /// edge labelling stops re-scanning `klass.fields` per object.
+  final Map<int, Map<int, String>> _fieldsByClass = <int, Map<int, String>>{};
+
+  VmSnapshotGraphView(this._graph)
+    : _rootId = _resolveRootId(_graph),
+      _nodeCache = List<HeapNode?>.filled(_graph.objects.length, null);
 
   /// Resolves the GC-root node. `objects[0]` is the parser's empty sentinel, so
   /// the root is the `Root` pseudo-class object that follows it (conventionally
@@ -38,20 +50,22 @@ final class VmSnapshotGraphView implements HeapGraphView {
 
   @override
   HeapNode node(int id) {
-    if (id < 0 || id >= _graph.objects.length) {
-      throw StateError(
-        'Node id $id out of range [0, ${_graph.objects.length})',
-      );
+    if (id < 0 || id >= _nodeCache.length) {
+      throw StateError('Node id $id out of range [0, ${_nodeCache.length})');
     }
+    final cached = _nodeCache[id];
+    if (cached != null) return cached;
     final obj = _graph.objects[id];
     final klass = obj.klass;
-    return HeapNode(
+    final built = HeapNode(
       id: id,
       className: klass.name.isEmpty ? '<unknown>' : klass.name,
       libraryUri: klass.libraryUri,
       shallowSize: obj.shallowSize < 0 ? 0 : obj.shallowSize,
       edges: _buildEdges(obj, klass),
     );
+    _nodeCache[id] = built;
+    return built;
   }
 
   List<HeapEdge> _buildEdges(HeapSnapshotObject obj, HeapSnapshotClass klass) {
@@ -68,11 +82,14 @@ final class VmSnapshotGraphView implements HeapGraphView {
       );
     }
 
-    // Build a lookup from reference-slot index → field name for instance objects.
-    final fieldByIndex = <int, String>{};
-    for (final f in klass.fields) {
-      fieldByIndex[f.index] = f.name;
-    }
+    // Lookup from reference-slot index → field name, cached per class.
+    final fieldByIndex = _fieldsByClass.putIfAbsent(obj.classId, () {
+      final m = <int, String>{};
+      for (final f in klass.fields) {
+        m[f.index] = f.name;
+      }
+      return m;
+    });
 
     return List<HeapEdge>.generate(
       refs.length,

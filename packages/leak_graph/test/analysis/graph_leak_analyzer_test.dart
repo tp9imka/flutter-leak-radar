@@ -256,7 +256,8 @@ void main() {
     });
 
     test(
-      'reachability suppresses a live-reachable candidate and confirms the rest',
+      'leak-prone retainers are a boundary: a State retained only via a _Timer '
+      'under the live tree is NOT suppressed',
       () {
         final graph = _reachabilityGraph();
         final result = analyzer.analyze(
@@ -268,13 +269,26 @@ void main() {
           ),
         );
 
-        // Node 3 (_LeakyState via WidgetsFlutterBinding->_Timer) is live-reachable → suppressed.
-        // Node 5 (_LeakyState via standalone _Timer) is NOT live-reachable → confirmed.
-        expect(result.clusters, hasLength(1));
-        final cluster = result.clusters.first;
-        expect(cluster.className, '_LeakyState');
-        expect(cluster.confidence, LeakConfidence.confirmed);
-        expect(result.stats.suppressedByLiveTree, 1);
+        // The live-tree BFS stops at _Timer (node 2), so node 3 (_LeakyState
+        // retained ONLY via that _Timer under the binding) is NOT live-reachable.
+        // Both node 3 and node 5 are timer-rooted, app-relevant, and not
+        // live-dominated → confirmed leaks; nothing is suppressed. Their
+        // retaining paths differ (node 3 via the binding, node 5 standalone),
+        // so they form two clusters. Previously the unbounded BFS flooded
+        // through _Timer and wrongly suppressed node 3 — the false negative
+        // this guards against.
+        expect(result.clusters, hasLength(2));
+        expect(
+          result.clusters.every((c) => c.className == '_LeakyState'),
+          isTrue,
+        );
+        expect(
+          result.clusters.every(
+            (c) => c.confidence == LeakConfidence.confirmed,
+          ),
+          isTrue,
+        );
+        expect(result.stats.suppressedByLiveTree, 0);
       },
     );
 
