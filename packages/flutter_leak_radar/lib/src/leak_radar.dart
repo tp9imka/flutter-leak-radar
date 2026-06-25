@@ -86,6 +86,10 @@ abstract final class LeakRadar {
           gcCyclesForPreciseLeak: config.gcCyclesForPreciseLeak,
           logger: _logger,
           autoScan: config.autoScan,
+          // Pass the full config so graphScan / preciseTracking / reportThreshold
+          // take effect — without this the engine silently used defaults
+          // (graphScan: null disables live graph scanning).
+          config: config,
         );
         await engine.start();
         _showOverlay = config.showOverlay;
@@ -104,6 +108,11 @@ abstract final class LeakRadar {
     await engine.start();
     _engine = engine;
   }
+
+  /// Test seam: the config the running engine actually holds (null when no
+  /// engine is running). Used to assert [init] forwards the full config.
+  @visibleForTesting
+  static LeakRadarConfig? get debugEngineConfig => _engine?.debugConfig;
 
   /// Triggers a heap scan and returns the resulting [LeakReport].
   ///
@@ -129,6 +138,37 @@ abstract final class LeakRadar {
         findings: const [],
         capturedAt: capturedAt,
         trigger: trigger,
+        status: LeakRadarStatus.serviceUnavailable,
+      ),
+      logger: _logger,
+    );
+  }
+
+  /// Forces a garbage collection, then runs a scan.
+  ///
+  /// Surfaces precise (notGced / notDisposed) leaks immediately instead of
+  /// waiting for an incidental GC — useful from a "Force GC" button in the
+  /// inspector. Returns a disabled empty report when the engine is not
+  /// running. Never throws.
+  static Future<LeakReport> forceGcAndScan() {
+    final capturedAt = DateTime.now();
+    final engine = _engine;
+    if (engine == null) {
+      return Future.value(
+        LeakReport(
+          findings: const [],
+          capturedAt: capturedAt,
+          trigger: 'force_gc',
+          status: LeakRadarStatus.disabled,
+        ),
+      );
+    }
+    return runSafelyAsync(
+      () => engine.forceGcAndScan(),
+      fallback: LeakReport(
+        findings: const [],
+        capturedAt: capturedAt,
+        trigger: 'force_gc',
         status: LeakRadarStatus.serviceUnavailable,
       ),
       logger: _logger,

@@ -83,6 +83,19 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
     return report;
   }
 
+  /// Forces a GC, then rescans — surfaces precise (notGced / notDisposed)
+  /// leaks immediately instead of waiting for an incidental GC.
+  Future<void> _forceGcAndScan() async {
+    setState(() => _scanning = true);
+    final report = await LeakRadar.forceGcAndScan();
+    if (!mounted) return;
+    setState(() {
+      _report = report;
+      _scanning = false;
+      _dismissed.clear();
+    });
+  }
+
   void _showExportSheet(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
@@ -262,6 +275,8 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
           color: LeakRadarColors.appBarBg,
           onSelected: (action) {
             switch (action) {
+              case _HeapMenuAction.forceGc:
+                if (!_scanning && !_collectingHeap) _forceGcAndScan();
               case _HeapMenuAction.heapSnapshot:
                 if (!_scanning && !_collectingHeap) _collectHeapSnapshot();
               case _HeapMenuAction.share:
@@ -277,6 +292,15 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
             }
           },
           itemBuilder: (_) => [
+            PopupMenuItem(
+              value: _HeapMenuAction.forceGc,
+              child: Text(
+                'Force GC & rescan',
+                style: LeakRadarText.label.copyWith(
+                  color: LeakRadarColors.text100,
+                ),
+              ),
+            ),
             PopupMenuItem(
               value: _HeapMenuAction.heapSnapshot,
               child: Text(
@@ -312,7 +336,7 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
   }
 }
 
-enum _HeapMenuAction { heapSnapshot, share, clearLeaks }
+enum _HeapMenuAction { forceGc, heapSnapshot, share, clearLeaks }
 
 // ── Icon button ───────────────────────────────────────────────────────────────
 
