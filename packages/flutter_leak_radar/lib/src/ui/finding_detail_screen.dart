@@ -29,7 +29,17 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchPath();
+    // Prefer the retaining path already carried on the finding: graph
+    // (retainedByNonLiveRoot) findings carry one computed from the on-device
+    // heap snapshot, so it needs NO VM-service connection. Only fall back to a
+    // live VM-service lookup when the finding has none (growth / precise).
+    final carried = widget.finding.retainingPath;
+    if (carried != null) {
+      _path = carried;
+      _fetchedPath = true;
+    } else {
+      _fetchPath();
+    }
   }
 
   Future<void> _fetchPath() async {
