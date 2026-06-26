@@ -5,8 +5,13 @@ name: Publish
 # Release one package by pushing a package-prefixed tag, e.g.:
 #   git tag leak_graph-v0.1.0 && git push origin leak_graph-v0.1.0
 #
-# Release ORDER: leak_graph first — flutter_leak_radar depends on it
-# (`leak_graph: ^0.1.0`), so that version must already be on pub.dev.
+# RELEASE ORDER:
+#   1. leak_graph          (no inter-package deps)
+#   2. radar_trace         (no inter-package deps; pure Dart)
+#   3. flutter_leak_radar  (depends on leak_graph: ^0.1.0)
+#   4. flutter_leak_radar_lint (standalone lints)
+#   5. flutter_perf_radar  (depends on radar_trace: ^0.1.0)
+#   6. radar               (depends on flutter_leak_radar + flutter_perf_radar)
 #
 # Each job runs tool/publish.sh, which strips `resolution: workspace` before
 # publishing: the repo keeps that line for local dev (the lint tests need the
@@ -27,6 +32,9 @@ on:
       - 'leak_graph-v*'
       - 'flutter_leak_radar-v*'
       - 'flutter_leak_radar_lint-v*'
+      - 'radar_trace-v*'
+      - 'flutter_perf_radar-v*'
+      - 'radar-v*'
 
 jobs:
   leak_graph:
@@ -60,3 +68,37 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1
       - run: ./tool/publish.sh packages/flutter_leak_radar_lint --force
+
+  radar_trace:
+    if: startsWith(github.ref_name, 'radar_trace-v')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - run: ./tool/publish.sh packages/radar_trace --force
+
+  flutter_perf_radar:
+    if: startsWith(github.ref_name, 'flutter_perf_radar-v')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: ./tool/publish.sh packages/flutter_perf_radar --force
+
+  radar:
+    if: startsWith(github.ref_name, 'radar-v')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: ./tool/publish.sh packages/radar --force
