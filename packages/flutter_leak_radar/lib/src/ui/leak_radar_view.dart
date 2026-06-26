@@ -41,6 +41,8 @@ class LeakRadarViewState extends State<LeakRadarView> {
   final Set<String> _dismissed = {};
   StreamSubscription<LeakReport>? _sub;
 
+  /// The most recent [LeakReport] received from [LeakRadar], or null
+  /// before any scan.
   LeakReport? get report => _report;
 
   @override
@@ -58,6 +60,8 @@ class LeakRadarViewState extends State<LeakRadarView> {
     super.dispose();
   }
 
+  /// Filtered findings based on the active filter chip, excluding dismissed
+  /// entries.
   List<LeakFinding> get filtered {
     final findings = _report?.findings ?? const <LeakFinding>[];
     final base = switch (_activeFilter) {
@@ -70,6 +74,8 @@ class LeakRadarViewState extends State<LeakRadarView> {
     return base.where((f) => !_dismissed.contains(f.className)).toList();
   }
 
+  /// Clears the set of view-dismissed class names, causing all findings to
+  /// reappear.
   void clearDismissed() => setState(() => _dismissed.clear());
 
   @override
