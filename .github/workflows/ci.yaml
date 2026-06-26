@@ -69,3 +69,11 @@ jobs:
       - name: Test radar_trace
         run: dart test
         working-directory: packages/radar_trace
+
+      - name: Analyze flutter_perf_radar
+        run: flutter analyze
+        working-directory: packages/flutter_perf_radar
+
+      - name: Test flutter_perf_radar
+        run: flutter test
+        working-directory: packages/flutter_perf_radar
