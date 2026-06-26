@@ -54,55 +54,57 @@ class _HistogramTableState extends State<HistogramTable> {
             onChanged: (v) => setState(() => _filter = v),
           ),
         ),
-        Expanded(
-          child: SingleChildScrollView(
-            child: DataTable(
-              sortColumnIndex: _sortColumnIndex,
-              sortAscending: _sortAscending,
-              columns: [
-                DataColumn(
-                  label: const Text('Class'),
-                  onSort: (i, asc) => setState(() {
-                    _sortColumnIndex = i;
-                    _sortAscending = asc;
-                  }),
-                ),
-                DataColumn(
-                  label: const Text('Instances'),
-                  numeric: true,
-                  onSort: (i, asc) => setState(() {
-                    _sortColumnIndex = i;
-                    _sortAscending = asc;
-                  }),
-                ),
-                DataColumn(
-                  label: const Text('Shallow bytes'),
-                  numeric: true,
-                  onSort: (i, asc) => setState(() {
-                    _sortColumnIndex = i;
-                    _sortAscending = asc;
-                  }),
-                ),
-              ],
-              rows: [
-                for (final c in rows)
-                  DataRow(
-                    cells: [
-                      DataCell(
-                        Text(
-                          c.className,
-                          style: const TextStyle(fontFamily: 'monospace'),
-                        ),
-                      ),
-                      DataCell(Text('${c.instanceCount}')),
-                      DataCell(Text(_formatBytes(c.shallowBytes))),
-                    ],
+        Expanded(child: _buildTable(rows)),
+      ],
+    );
+  }
+
+  Widget _buildTable(List<ClassCount> rows) {
+    return SingleChildScrollView(
+      child: DataTable(
+        sortColumnIndex: _sortColumnIndex,
+        sortAscending: _sortAscending,
+        columns: [
+          DataColumn(
+            label: const Text('Class'),
+            onSort: (i, asc) => setState(() {
+              _sortColumnIndex = i;
+              _sortAscending = asc;
+            }),
+          ),
+          DataColumn(
+            label: const Text('Instances'),
+            numeric: true,
+            onSort: (i, asc) => setState(() {
+              _sortColumnIndex = i;
+              _sortAscending = asc;
+            }),
+          ),
+          DataColumn(
+            label: const Text('Shallow bytes'),
+            numeric: true,
+            onSort: (i, asc) => setState(() {
+              _sortColumnIndex = i;
+              _sortAscending = asc;
+            }),
+          ),
+        ],
+        rows: [
+          for (final c in rows)
+            DataRow(
+              cells: [
+                DataCell(
+                  Text(
+                    c.className,
+                    style: const TextStyle(fontFamily: 'monospace'),
                   ),
+                ),
+                DataCell(Text('${c.instanceCount}')),
+                DataCell(Text(_formatBytes(c.shallowBytes))),
               ],
             ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
