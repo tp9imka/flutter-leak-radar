@@ -21,6 +21,7 @@ import 'class_sample.dart';
 import 'graph_finding_mapper.dart';
 import 'graph_scan_runner.dart';
 import 'heap_probe.dart';
+import 'vm_service_status.dart';
 
 /// Orchestrates capture → analyze → report. Internal; reachable from the
 /// facade and tests, but never part of the public API.
@@ -103,6 +104,14 @@ class LeakEngine {
   bool? get vmConnected {
     final p = _probe;
     return p is VmConnectable ? (p as VmConnectable).isConnected : null;
+  }
+
+  /// Typed status of the VM-service connection.
+  ///
+  /// Returns null when the probe is not VM-backed.
+  VmServiceStatus? get vmServiceStatus {
+    final p = _probe;
+    return p is VmConnectable ? (p as VmConnectable).vmStatus : null;
   }
 
   /// Manually (re)connects the VM-service probe, then rescans so the report

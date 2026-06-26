@@ -4,6 +4,7 @@ import 'package:flutter_leak_radar/src/config/suspect_set.dart';
 import 'package:flutter_leak_radar/src/engine/class_sample.dart';
 import 'package:flutter_leak_radar/src/engine/heap_probe.dart';
 import 'package:flutter_leak_radar/src/engine/leak_engine.dart';
+import 'package:flutter_leak_radar/src/engine/vm_service_status.dart';
 import 'package:flutter_leak_radar/src/model/retaining_path.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -19,6 +20,10 @@ class _FakeVmProbe implements HeapProbe, VmConnectable {
 
   @override
   bool get isConnected => connected;
+
+  @override
+  VmServiceStatus get vmStatus =>
+      connected ? const VmConnected() : const VmDisabled();
 
   @override
   Future<bool> reconnect() async {

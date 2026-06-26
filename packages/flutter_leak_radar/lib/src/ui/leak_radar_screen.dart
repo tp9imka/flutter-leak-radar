@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../engine/vm_service_status.dart';
 import '../model/leak_finding.dart';
 import '../model/leak_kind.dart';
 import '../model/leak_report.dart';
@@ -546,18 +547,35 @@ class _VmConnectionChipState extends State<_VmConnectionChip> {
 
   @override
   Widget build(BuildContext context) {
-    final connected = LeakRadar.vmServiceConnected;
-    if (connected == null) return const SizedBox.shrink();
+    final status = LeakRadar.vmServiceStatus;
+    if (status == null) return const SizedBox.shrink();
+    final connected = status is VmConnected;
+
+    final tooltipMsg = switch (status) {
+      VmConnected() =>
+        'VM service connected — per-scan growth profile is live.\n'
+            'Tap to reconnect.',
+      VmNoServiceUri() =>
+        'VM service URI unavailable (profile/release build or service not '
+            'started).\nGrowth uses on-device snapshot histogram instead.\n'
+            'Tap to retry.',
+      VmSocketError(:final message) =>
+        'VM service refused (DDS contention or socket error: $message).\n'
+            'Growth uses on-device snapshot histogram instead.\nTap to retry.',
+      VmDisabled() =>
+        'VM service disabled — growth uses on-device snapshot histogram.',
+      VmUnknown(:final message) =>
+        'VM service status unknown'
+            '${message != null ? ': $message' : ''}.\n'
+            'Growth uses on-device snapshot histogram instead.\nTap to retry.',
+    };
 
     final color = connected
         ? severityTokens(LeakSeverity.info).text
         : severityTokens(LeakSeverity.warning).text;
 
     return Tooltip(
-      message: connected
-          ? 'VM service connected — per-scan growth profile is live.\nTap to reconnect.'
-          : 'VM service offline — growth uses the on-device snapshot '
-                'histogram.\nTap to reconnect.',
+      message: tooltipMsg,
       child: InkWell(
         onTap: _reconnect,
         borderRadius: BorderRadius.circular(999),

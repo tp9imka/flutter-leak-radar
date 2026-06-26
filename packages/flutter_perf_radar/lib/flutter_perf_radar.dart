@@ -1,9 +1,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(P2): TracedSubtree/TracedBuilder — rebuild counter for a widget subtree.
-// Deferred: requires Element.visitChildElements scoping to avoid full-tree O(N).
-
 /// On-device performance and stability tracer for Flutter.
 ///
 /// Key entry points:
@@ -12,6 +9,7 @@
 ///   asynchronous operations.
 /// - [PerfRadar.start] — manual start/stop span for callback-bounded code.
 /// - [PerfRadar.overlay] — wrap your root widget to show the floating badge.
+/// - [TracedSubtree] — counts widget subtree rebuilds via the span system.
 library;
 
 export 'src/config/perf_radar_config.dart';
@@ -24,3 +22,5 @@ export 'src/model/stall_record.dart';
 export 'src/model/stability_snapshot.dart';
 export 'src/ui/perf_radar_overlay.dart';
 export 'src/ui/perf_radar_screen.dart';
+export 'src/ui/widgets/rebuild_counts_panel.dart';
+export 'src/ui/widgets/traced_subtree.dart';

@@ -1,6 +1,7 @@
 // lib/src/engine/heap_probe.dart
 import '../model/retaining_path.dart';
 import 'class_sample.dart';
+import 'vm_service_status.dart';
 
 /// Abstraction over a heap source. Only [VmHeapProbe] talks to vm_service.
 abstract interface class HeapProbe {
@@ -21,6 +22,9 @@ abstract interface class HeapProbe {
 abstract interface class VmConnectable {
   /// Whether the probe currently holds a live VM-service connection.
   bool get isConnected;
+
+  /// Typed status of the VM-service connection.
+  VmServiceStatus get vmStatus;
 
   /// Attempts to connect now, bypassing the reconnect back-off. Returns whether
   /// the probe is connected afterwards. Never throws.
