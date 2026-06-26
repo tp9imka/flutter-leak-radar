@@ -1,0 +1,32 @@
+name: radar
+description: >
+  Umbrella package for Leak Radar + Perf Radar. One import, one overlay,
+  one unified dashboard — composes flutter_leak_radar and flutter_perf_radar
+  without duplicating any domain logic.
+version: 0.1.0
+repository: https://github.com/tp9imka/flutter-leak-radar
+issue_tracker: https://github.com/tp9imka/flutter-leak-radar/issues
+homepage: https://github.com/tp9imka/flutter-leak-radar
+topics:
+  - memory
+  - performance
+  - observability
+  - debugging
+  - flutter
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+  flutter: ">=3.38.0"
+
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_leak_radar: ^0.1.0
+  flutter_perf_radar: ^0.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
