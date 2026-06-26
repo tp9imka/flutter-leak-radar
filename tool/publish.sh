@@ -25,7 +25,14 @@ cd "$ROOT"
 
 [ -f "$PKG/pubspec.yaml" ] || { echo "no pubspec at $PKG/pubspec.yaml" >&2; exit 1; }
 
-restore() { git checkout -- pubspec.yaml "$PKG/pubspec.yaml" "$PKG/example/pubspec.yaml" 2>/dev/null || true; }
+restore() {
+  # Restore each path on its own — a single `git checkout` aborts (restoring
+  # nothing) if any pathspec is missing, and not every package has an example.
+  git checkout -- pubspec.yaml "$PKG/pubspec.yaml" 2>/dev/null || true
+  if [ -f "$PKG/example/pubspec.yaml" ]; then
+    git checkout -- "$PKG/example/pubspec.yaml" 2>/dev/null || true
+  fi
+}
 trap restore EXIT
 
 # Strip `resolution: workspace` from the package (and its bundled example, which
@@ -35,14 +42,17 @@ sed -i.bak '/^resolution: workspace$/d' "$PKG/pubspec.yaml" && rm -f "$PKG/pubsp
 [ -f "$PKG/example/pubspec.yaml" ] && { sed -i.bak '/^resolution: workspace$/d' "$PKG/example/pubspec.yaml" && rm -f "$PKG/example/pubspec.yaml.bak"; }
 sed -i.bak '/^workspace:$/d; /^  - packages\//d' pubspec.yaml && rm -f pubspec.yaml.bak
 
-flags=()
+# Scalar (not an array): macOS bash 3.2 + `set -u` errors on an empty
+# "${array[@]}". An unset-then-set scalar expands to nothing safely when unquoted.
+pubflag=""
 case "$DRY" in
-  --dry-run) flags+=(--dry-run) ;;
-  --force) flags+=(--force) ;;     # non-interactive (CI / OIDC)
+  --dry-run) pubflag="--dry-run" ;;
+  --force) pubflag="--force" ;;    # non-interactive (CI / OIDC)
   "") ;;
   *) echo "unknown flag: $DRY (use --dry-run or --force)" >&2; exit 64 ;;
 esac
 
 echo ">> Publishing $PKG (resolution: workspace stripped)..."
 # Force pub.dev — the repo's default PUB_HOSTED_URL may point at a private mirror.
-( cd "$PKG" && PUB_HOSTED_URL="https://pub.dev" dart pub publish "${flags[@]}" )
+# $pubflag is intentionally unquoted so an empty value expands to no argument.
+( cd "$PKG" && PUB_HOSTED_URL="https://pub.dev" dart pub publish $pubflag )
