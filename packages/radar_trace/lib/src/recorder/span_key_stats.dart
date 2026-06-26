@@ -41,7 +41,7 @@ class SpanKeyStats {
     count: count,
     errorCount: _errorCount,
     histogram: _histogram.snapshot(),
-    outliers: _outlierRing.spans,
+    outliers: List.unmodifiable(_outlierRing.spans),
   );
 }
 
@@ -61,6 +61,7 @@ final class SpanKeyStatsSnapshot {
   final LatencyHistogramSnapshot histogram;
 
   /// Slowest-N retained exemplar spans, sorted slowest-first.
+  /// Unmodifiable.
   final List<Span> outliers;
 
   /// Creates an immutable snapshot of per-key statistics.
