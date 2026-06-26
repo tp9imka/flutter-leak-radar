@@ -5,3 +5,6 @@
 /// exemplar retention, Zone-based async parent/child nesting, and a
 /// [Tracer] façade that never throws into the host.
 library;
+
+export 'src/model/span.dart';
+export 'src/model/trace_key.dart';
