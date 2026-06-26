@@ -5,6 +5,7 @@ import '../recorder/trace_recorder.dart';
 import '../snapshot/trace_snapshot.dart';
 import 'active_span.dart';
 import 'span_handle.dart';
+import 'trace_clock.dart';
 
 /// Ergonomic façade for recording [Span]s.
 ///
@@ -17,7 +18,8 @@ import 'span_handle.dart';
 ///
 /// All three propagate the current span via the ambient [Zone] so
 /// that nested calls automatically set [Span.parentId] correctly
-/// across `await` boundaries.
+/// across `await` boundaries. Span start times and durations come from
+/// the shared [traceClockNowMicros] clock, so spans are comparable.
 ///
 /// Recording errors are swallowed internally — the host always
 /// receives its body result or exception unmodified.
@@ -41,46 +43,19 @@ final class Tracer {
     String? category,
     Map<String, Object?>? attributes,
   }) {
-    final stopwatch = Stopwatch()..start();
-    final parentSpan = activeSpan;
-    final spanId = SpanId.generate();
-    final traceId = parentSpan?.traceId ?? spanId;
-    final pending = Span(
-      spanId: spanId,
-      parentId: parentSpan?.spanId,
-      traceId: traceId,
-      name: name,
-      category: category,
-      startMicros: stopwatch.elapsedMicroseconds,
-      durationMicros: 0,
-      status: SpanStatus.ok,
-      attributes: attributes ?? const {},
-    );
+    final startMicros = traceClockNowMicros();
+    final pending = _begin(name, category, attributes, startMicros);
 
     T result;
-    SpanStatus status;
     try {
       result = Zone.current
           .fork(zoneValues: {kActiveSpanKey: pending})
           .run(body);
-      status = SpanStatus.ok;
     } catch (_) {
-      stopwatch.stop();
-      _safeRecord(
-        pending.copyWith(
-          durationMicros: stopwatch.elapsedMicroseconds,
-          status: SpanStatus.error,
-        ),
-      );
+      _end(pending, startMicros, SpanStatus.error);
       rethrow;
     }
-    stopwatch.stop();
-    _safeRecord(
-      pending.copyWith(
-        durationMicros: stopwatch.elapsedMicroseconds,
-        status: status,
-      ),
-    );
+    _end(pending, startMicros, SpanStatus.ok);
     return result;
   }
 
@@ -96,46 +71,19 @@ final class Tracer {
     String? category,
     Map<String, Object?>? attributes,
   }) async {
-    final stopwatch = Stopwatch()..start();
-    final parentSpan = activeSpan;
-    final spanId = SpanId.generate();
-    final traceId = parentSpan?.traceId ?? spanId;
-    final pending = Span(
-      spanId: spanId,
-      parentId: parentSpan?.spanId,
-      traceId: traceId,
-      name: name,
-      category: category,
-      startMicros: stopwatch.elapsedMicroseconds,
-      durationMicros: 0,
-      status: SpanStatus.ok,
-      attributes: attributes ?? const {},
-    );
+    final startMicros = traceClockNowMicros();
+    final pending = _begin(name, category, attributes, startMicros);
 
     T result;
-    SpanStatus status;
     try {
       result = await Zone.current
           .fork(zoneValues: {kActiveSpanKey: pending})
           .run(() => body());
-      status = SpanStatus.ok;
     } catch (_) {
-      stopwatch.stop();
-      _safeRecord(
-        pending.copyWith(
-          durationMicros: stopwatch.elapsedMicroseconds,
-          status: SpanStatus.error,
-        ),
-      );
+      _end(pending, startMicros, SpanStatus.error);
       rethrow;
     }
-    stopwatch.stop();
-    _safeRecord(
-      pending.copyWith(
-        durationMicros: stopwatch.elapsedMicroseconds,
-        status: status,
-      ),
-    );
+    _end(pending, startMicros, SpanStatus.ok);
     return result;
   }
 
@@ -149,30 +97,44 @@ final class Tracer {
     String? category,
     Map<String, Object?>? attributes,
   }) {
-    final stopwatch = Stopwatch()..start();
-    final parentSpan = activeSpan;
-    final spanId = SpanId.generate();
-    final traceId = parentSpan?.traceId ?? spanId;
-    final pending = Span(
-      spanId: spanId,
-      parentId: parentSpan?.spanId,
-      traceId: traceId,
-      name: name,
-      category: category,
-      startMicros: stopwatch.elapsedMicroseconds,
-      durationMicros: 0,
-      status: SpanStatus.ok,
-      attributes: attributes ?? const {},
-    );
-    return SpanHandle(
-      pendingSpan: pending,
-      recorder: recorder,
-      stopwatch: stopwatch,
-    );
+    final pending = _begin(name, category, attributes, traceClockNowMicros());
+    return SpanHandle(pendingSpan: pending, recorder: recorder);
   }
 
   /// Returns an immutable snapshot of all aggregated statistics.
   TraceSnapshot snapshot() => recorder.snapshot();
+
+  /// Builds the pending span, parented to the ambient active span.
+  Span _begin(
+    String name,
+    String? category,
+    Map<String, Object?>? attributes,
+    int startMicros,
+  ) {
+    final parentSpan = activeSpan;
+    final spanId = SpanId.generate();
+    return Span(
+      spanId: spanId,
+      parentId: parentSpan?.spanId,
+      traceId: parentSpan?.traceId ?? spanId,
+      name: name,
+      category: category,
+      startMicros: startMicros,
+      durationMicros: 0,
+      status: SpanStatus.ok,
+      attributes: attributes ?? const {},
+    );
+  }
+
+  /// Records [pending] with its measured duration and final [status].
+  void _end(Span pending, int startMicros, SpanStatus status) {
+    _safeRecord(
+      pending.copyWith(
+        durationMicros: traceClockNowMicros() - startMicros,
+        status: status,
+      ),
+    );
+  }
 
   void _safeRecord(Span span) {
     try {

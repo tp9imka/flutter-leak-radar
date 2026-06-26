@@ -1,5 +1,6 @@
 import '../model/span.dart';
 import '../recorder/trace_recorder.dart';
+import 'trace_clock.dart';
 
 /// A handle to a manually started [Span].
 ///
@@ -10,22 +11,16 @@ import '../recorder/trace_recorder.dart';
 /// Forgetting to call either method is safe: the span is simply not
 /// recorded, causing no leak or error.
 final class SpanHandle {
-  final Stopwatch _stopwatch;
   final Span _pendingSpan;
   final TraceRecorder _recorder;
   bool _done = false;
 
-  /// Creates a [SpanHandle].
-  ///
-  /// The [stopwatch] must already be started at the point the logical
-  /// operation began.
-  SpanHandle({
-    required Span pendingSpan,
-    required TraceRecorder recorder,
-    required Stopwatch stopwatch,
-  }) : _pendingSpan = pendingSpan,
-       _recorder = recorder,
-       _stopwatch = stopwatch;
+  /// Creates a [SpanHandle] for [pendingSpan]; its [Span.startMicros] marks
+  /// the start on the shared tracer clock, against which the duration is
+  /// measured when [stop]/[fail] is called.
+  SpanHandle({required Span pendingSpan, required TraceRecorder recorder})
+    : _pendingSpan = pendingSpan,
+      _recorder = recorder;
 
   /// The in-progress span. [Span.durationMicros] is 0 until stopped.
   Span get span => _pendingSpan;
@@ -43,9 +38,8 @@ final class SpanHandle {
   void _finish(SpanStatus status) {
     if (_done) return;
     _done = true;
-    _stopwatch.stop();
     final finished = _pendingSpan.copyWith(
-      durationMicros: _stopwatch.elapsedMicroseconds,
+      durationMicros: traceClockNowMicros() - _pendingSpan.startMicros,
       status: status,
     );
     try {
