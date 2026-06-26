@@ -1,3 +1,10 @@
+## 0.1.1
+
+- Packaging fix: the published pubspec no longer carries `resolution: workspace`,
+  which had prevented pub.dev's package analysis from resolving the package
+  standalone (it showed "incomplete analysis" with 0 static-analysis points). No
+  rule or behaviour changes — the lint rules are identical to 0.1.0.
+
 ## 0.1.0
 
 Initial release.
