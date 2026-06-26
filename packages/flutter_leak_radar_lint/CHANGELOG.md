@@ -1,3 +1,14 @@
+## 0.1.2
+
+- Packaging fix: the published archive no longer ships
+  `example/analysis_options.yaml`. That file activates the `custom_lint`
+  analyzer plugin, which pana's downgrade analysis bootstrapped during package
+  scoring; the plugin's own resolve/build failed at the downgraded dependency
+  floors and surfaced as `[pub-downgrade-error]`, costing analysis points. The
+  example still ships its code and README; enable the plugin per the README's
+  "Enable the plugin" section. No rule or behaviour changes — the lint rules are
+  identical to 0.1.1.
+
 ## 0.1.1
 
 - Packaging fix: the published pubspec no longer carries `resolution: workspace`,
