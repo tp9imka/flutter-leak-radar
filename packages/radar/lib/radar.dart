@@ -21,3 +21,6 @@ export 'src/radar_config.dart';
 export 'src/radar.dart';
 export 'src/radar_screen.dart';
 export 'src/radar_overlay.dart';
+
+// Re-export radar_trace types needed by Radar.start() consumers.
+export 'package:radar_trace/radar_trace.dart' show SpanHandle, TraceSnapshot;

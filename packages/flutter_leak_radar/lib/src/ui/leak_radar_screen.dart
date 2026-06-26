@@ -37,6 +37,23 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
   bool _collectingHeap = false;
 
   final _viewKey = GlobalKey<LeakRadarViewState>();
+  StreamSubscription<LeakReport>? _reportSub;
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+  @override
+  void initState() {
+    super.initState();
+    _reportSub = LeakRadar.reports.listen((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _reportSub?.cancel();
+    super.dispose();
+  }
 
   // ── Actions ───────────────────────────────────────────────────────────────
 

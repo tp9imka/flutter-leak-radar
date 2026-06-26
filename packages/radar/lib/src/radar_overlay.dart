@@ -15,8 +15,17 @@ import 'radar_screen.dart';
 /// opens [RadarScreen]. Safe to place above [MaterialApp] — it owns its own
 /// [Directionality] and opens the inspector via a self-contained nested
 /// [MaterialApp] so it never requires a Navigator ancestor.
+///
+/// When [show] is false, returns [child] unchanged with no subscriptions
+/// started.
 class RadarOverlay extends StatefulWidget {
-  const RadarOverlay({super.key, required this.child});
+  const RadarOverlay({super.key, this.show = true, required this.child});
+
+  /// Whether the overlay badge and inspector are active.
+  ///
+  /// When false, [child] is returned unchanged and no subscriptions or
+  /// timers are started.
+  final bool show;
 
   final Widget child;
 
@@ -50,6 +59,7 @@ class _RadarOverlayState extends State<RadarOverlay> {
   @override
   void initState() {
     super.initState();
+    if (!widget.show) return;
     _leakReport = LeakRadar.latest;
     _leakSub = LeakRadar.reports.listen((r) {
       if (mounted) setState(() => _leakReport = r);
@@ -111,6 +121,8 @@ class _RadarOverlayState extends State<RadarOverlay> {
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.show) return widget.child;
+
     final accent = _accentColor;
     final leakCount = _leakCount;
     final hasJank = _frameStats.jankCount > 0;

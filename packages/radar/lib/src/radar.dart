@@ -82,7 +82,14 @@ abstract final class Radar {
 
   /// Wraps [child] in a [RadarOverlay].
   ///
-  /// When either domain is disabled or both overlays are turned off in
-  /// config, returns [child] unchanged.
-  static Widget overlay({required Widget child}) => RadarOverlay(child: child);
+  /// Returns [child] unchanged when both domain engines have
+  /// [showOverlay] set to false (or were never initialised). Safe to call
+  /// unconditionally — the overlay is a no-op in release when [init] was
+  /// not called.
+  static Widget overlay({required Widget child}) {
+    final leakConfig = LeakRadar.configListenable.value;
+    final perfConfig = PerfRadar.configListenable.value;
+    final show = leakConfig.showOverlay || perfConfig.showOverlay;
+    return RadarOverlay(show: show, child: child);
+  }
 }
