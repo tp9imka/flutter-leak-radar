@@ -12,6 +12,7 @@ import 'engine/heap_probe.dart';
 import 'engine/heap_snapshot_file.dart';
 import 'engine/leak_engine.dart';
 import 'engine/vm_heap_probe.dart';
+import 'engine/vm_service_status.dart';
 import 'model/leak_kind.dart';
 import 'model/leak_report.dart';
 import 'model/retaining_path.dart';
@@ -242,6 +243,15 @@ abstract final class LeakRadar {
   /// means "richer per-scan growth unavailable", not "no growth".
   static bool? get vmServiceConnected =>
       runSafely(() => _engine?.vmConnected, fallback: null, logger: _logger);
+
+  /// Typed status of the VM-service connection.
+  ///
+  /// Returns null when the engine is not running or the probe is not VM-backed.
+  static VmServiceStatus? get vmServiceStatus => runSafely(
+    () => _engine?.vmServiceStatus,
+    fallback: null,
+    logger: _logger,
+  );
 
   /// Manually attempts to (re)connect the VM service, then rescans so the UI
   /// refreshes. Returns whether it connected. Returns `false` when the engine

@@ -1,5 +1,6 @@
 // lib/src/engine/vm_heap_probe.dart
 import 'dart:developer' as developer;
+import 'dart:io';
 import 'dart:isolate' as dart_isolate;
 
 import 'package:meta/meta.dart';
@@ -10,6 +11,7 @@ import '../model/retaining_path.dart';
 import '../util/rate_limited_logger.dart';
 import 'class_sample.dart';
 import 'heap_probe.dart';
+import 'vm_service_status.dart';
 
 /// The sole unit that imports `package:vm_service`. Connects to the running
 /// app's own VM service (debug/profile) and never throws into callers.
@@ -35,6 +37,8 @@ class VmHeapProbe implements HeapProbe, VmConnectable {
   /// Logged once on first connect failure so repeated retries don't spam the
   /// console. Reset to false on a successful connect.
   bool _connectFailureLogged = false;
+
+  VmServiceStatus _vmStatus = const VmDisabled();
 
   /// Optional test seam: when set, [_ensureConnected] calls this instead of
   /// the real [vmServiceConnectUri] path.
@@ -82,6 +86,7 @@ class VmHeapProbe implements HeapProbe, VmConnectable {
           // resets _nextRetryAllowedAt to null, allowing an immediate retry on
           // the next capture cycle — because the service was reachable moments
           // ago and a transient disconnect is expected to resolve quickly.
+          _vmStatus = const VmNoServiceUri();
           _nextRetryAllowedAt = DateTime.now().add(_reconnectBackoff);
           return null;
         }
@@ -92,10 +97,16 @@ class VmHeapProbe implements HeapProbe, VmConnectable {
             (await service.getVM()).isolates?.first.id;
       }
       _service = service;
+      _vmStatus = const VmConnected();
       _nextRetryAllowedAt = null; // clear on success
       _connectFailureLogged = false; // re-arm logging for a future failure
       return service;
     } catch (e) {
+      if (e is SocketException) {
+        _vmStatus = VmSocketError(message: e.toString());
+      } else {
+        _vmStatus = VmUnknown(message: e.toString());
+      }
       // Log once, not on every 30s retry. The VM service is often unreachable
       // in-process on physical devices (the service URI is host-relative);
       // precise tracking and file-based graph snapshots still work, only
@@ -126,7 +137,10 @@ class VmHeapProbe implements HeapProbe, VmConnectable {
   }
 
   @override
-  bool get isConnected => _service != null;
+  bool get isConnected => _vmStatus is VmConnected;
+
+  @override
+  VmServiceStatus get vmStatus => _vmStatus;
 
   @override
   Future<bool> reconnect() async {
@@ -183,6 +197,7 @@ class VmHeapProbe implements HeapProbe, VmConnectable {
     } catch (e) {
       _logger.log('capture failed: $e', level: LeakLogLevel.error);
       _service = null; // drop connection; force reconnect next time
+      _vmStatus = const VmUnknown(message: 'connection dropped mid-capture');
       _classRefCache.clear(); // ids are stale after reconnect
       _nextRetryAllowedAt = null; // allow immediate retry on next capture
       return HeapSnapshot(
@@ -269,6 +284,7 @@ class VmHeapProbe implements HeapProbe, VmConnectable {
     } catch (_) {}
     _service = null;
     _classRefCache.clear();
+    _vmStatus = const VmDisabled();
   }
 
   /// Test seam: inject a pre-wired [VmService] and optional cache entries
@@ -281,6 +297,7 @@ class VmHeapProbe implements HeapProbe, VmConnectable {
   }) {
     _service = service;
     _isolateId = isolateId;
+    _vmStatus = const VmConnected();
     _nextRetryAllowedAt = null; // clear any backoff when injecting directly
     if (classRefCache != null) {
       _classRefCache
