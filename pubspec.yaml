@@ -9,5 +9,6 @@ workspace:
   - packages/leak_graph
   - packages/radar_trace
   - packages/flutter_perf_radar
+  - packages/flutter_leak_radar_devtools
 dev_dependencies:
   melos: ^6.0.0

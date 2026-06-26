@@ -1,0 +1,29 @@
+name: flutter_leak_radar_devtools
+description: >-
+  DevTools extension companion for flutter_leak_radar: diff-centric heap
+  and leak analysis via host-side VM service.
+version: 0.1.0
+publish_to: none
+repository: https://github.com/tp9imka/flutter-leak-radar
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+  flutter: ">=3.38.0"
+
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  devtools_extensions: ^0.5.1
+  devtools_app_shared: ^0.5.1
+  vm_service: ^15.0.0
+  leak_graph: ^0.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
