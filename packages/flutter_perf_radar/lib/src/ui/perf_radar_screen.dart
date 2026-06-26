@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:radar_trace/radar_trace.dart';
 
 import '../facade/perf_radar.dart';
 import '../model/frame_stats.dart';
 import '../model/stability_snapshot.dart';
 import 'widgets/frame_stats_panel.dart';
+import 'widgets/rebuild_counts_panel.dart';
 import 'widgets/span_stats_table.dart';
 import 'widgets/stability_panel.dart';
 
@@ -49,6 +51,8 @@ class _PerfRadarScreenState extends State<PerfRadarScreen> {
     super.dispose();
   }
 
+  TraceSnapshot get _snapshot => PerfRadar.snapshot();
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -88,12 +92,36 @@ class _PerfRadarScreenState extends State<PerfRadarScreen> {
         ),
         body: TabBarView(
           children: [
-            SpanStatsTable(snapshot: PerfRadar.snapshot()),
+            _SpansTab(snapshot: _snapshot),
             FrameStatsPanel(stats: _frameStats),
             StabilityPanel(stability: _stability),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The Spans tab body: shows rebuild counts (when present) above the full
+/// span stats table.
+class _SpansTab extends StatelessWidget {
+  const _SpansTab({required this.snapshot});
+
+  final TraceSnapshot snapshot;
+
+  bool _hasRebuildSpans() =>
+      snapshot.stats.keys.any((k) => k.name.startsWith('rebuild:'));
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        if (_hasRebuildSpans()) ...[
+          RebuildCountsPanel(snapshot: snapshot),
+          const Divider(height: 1, thickness: 1, color: Color(0xFF1e2a2f)),
+        ],
+        Expanded(child: SpanStatsTable(snapshot: snapshot)),
+      ],
     );
   }
 }
