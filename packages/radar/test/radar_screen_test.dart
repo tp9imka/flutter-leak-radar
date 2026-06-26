@@ -58,4 +58,26 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+
+  group('RadarOverlay', () {
+    testWidgets('renders child without crashing', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: RadarOverlay(
+            child: Scaffold(body: Center(child: Text('app'))),
+          ),
+        ),
+      );
+      expect(find.text('app'), findsOneWidget);
+    });
+
+    testWidgets('badge is present in widget tree', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: RadarOverlay(child: Scaffold(body: SizedBox.shrink())),
+        ),
+      );
+      expect(find.byKey(const Key('radar_badge')), findsOneWidget);
+    });
+  });
 }
