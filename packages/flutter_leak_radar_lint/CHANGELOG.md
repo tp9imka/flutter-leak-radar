@@ -4,6 +4,7 @@
   which had prevented pub.dev's package analysis from resolving the package
   standalone (it showed "incomplete analysis" with 0 static-analysis points). No
   rule or behaviour changes — the lint rules are identical to 0.1.0.
+- Added an `example/README.md` documenting enablement and what each rule catches.
 
 ## 0.1.0
 

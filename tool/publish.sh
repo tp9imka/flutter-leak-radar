@@ -25,12 +25,14 @@ cd "$ROOT"
 
 [ -f "$PKG/pubspec.yaml" ] || { echo "no pubspec at $PKG/pubspec.yaml" >&2; exit 1; }
 
-restore() { git checkout -- pubspec.yaml "$PKG/pubspec.yaml" 2>/dev/null || true; }
+restore() { git checkout -- pubspec.yaml "$PKG/pubspec.yaml" "$PKG/example/pubspec.yaml" 2>/dev/null || true; }
 trap restore EXIT
 
-# Strip `resolution: workspace` from the package, and the `workspace:` block from
-# the repo root, so the package resolves standalone exactly as pub.dev will.
+# Strip `resolution: workspace` from the package (and its bundled example, which
+# ships inside the archive and is analysed by pana), plus the `workspace:` block
+# from the repo root, so everything resolves standalone exactly as pub.dev will.
 sed -i.bak '/^resolution: workspace$/d' "$PKG/pubspec.yaml" && rm -f "$PKG/pubspec.yaml.bak"
+[ -f "$PKG/example/pubspec.yaml" ] && { sed -i.bak '/^resolution: workspace$/d' "$PKG/example/pubspec.yaml" && rm -f "$PKG/example/pubspec.yaml.bak"; }
 sed -i.bak '/^workspace:$/d; /^  - packages\//d' pubspec.yaml && rm -f pubspec.yaml.bak
 
 flags=()
