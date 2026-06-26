@@ -85,3 +85,11 @@ jobs:
       - name: Test flutter_leak_radar_devtools
         run: flutter test
         working-directory: packages/flutter_leak_radar_devtools
+
+      - name: Analyze radar
+        run: flutter analyze
+        working-directory: packages/radar
+
+      - name: Test radar
+        run: flutter test
+        working-directory: packages/radar

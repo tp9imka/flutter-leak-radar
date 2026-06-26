@@ -22,5 +22,6 @@ export 'src/model/stall_record.dart';
 export 'src/model/stability_snapshot.dart';
 export 'src/ui/perf_radar_overlay.dart';
 export 'src/ui/perf_radar_screen.dart';
+export 'src/ui/perf_radar_view.dart';
 export 'src/ui/widgets/rebuild_counts_panel.dart';
 export 'src/ui/widgets/traced_subtree.dart';
