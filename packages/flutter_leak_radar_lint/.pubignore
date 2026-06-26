@@ -2,3 +2,15 @@
 # lint package) and are test data only — not needed by consumers. Excluding
 # them keeps the published archive clean (no missing-dependency warnings).
 test/
+
+# Do NOT ship the example's analysis_options.yaml. It activates the custom_lint
+# analyzer plugin (`analyzer: plugins: [custom_lint]`). pana's downgrade
+# analysis (`dart pub downgrade` + `dart analyze .`) descends into example/,
+# honours that file, and bootstraps the custom_lint plugin — whose own
+# `dart pub get`/build then FAILS at the downgraded floors (e.g. matcher 0.12.10
+# references CastError/NullThrownError, removed in Dart 3), surfacing as
+# pana's `[pub-downgrade-error]` and tanking the score. Mature custom_lint
+# packages (riverpod_lint) avoid this by never shipping a plugin-activating
+# example. The repo keeps this file for in-IDE dogfooding; consumers enable the
+# plugin per the example README's "Enable the plugin" section.
+example/analysis_options.yaml
