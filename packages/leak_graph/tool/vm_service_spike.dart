@@ -26,8 +26,12 @@ import 'package:vm_service/vm_service_io.dart';
 
 Future<void> main(List<String> args) async {
   if (args.isEmpty) {
-    stdout.writeln('usage: dart run tool/vm_service_spike.dart <vm-service-uri>');
-    stdout.writeln('  <vm-service-uri> = the http(s):// URI `flutter run --profile` prints');
+    stdout.writeln(
+      'usage: dart run tool/vm_service_spike.dart <vm-service-uri>',
+    );
+    stdout.writeln(
+      '  <vm-service-uri> = the http(s):// URI `flutter run --profile` prints',
+    );
     exitCode = 64;
     return;
   }
@@ -43,10 +47,14 @@ Future<void> main(List<String> args) async {
   //     self-connect cannot reach on a real device.
   stdout.writeln('[2/4] getAllocationProfile(gc: true) ...');
   final profile = await service.getAllocationProfile(isolate.id!, gc: true);
-  final live = (profile.members ?? <ClassHeapStats>[])
-      .where((m) => (m.instancesCurrent ?? 0) > 0)
-      .toList()
-    ..sort((a, b) => (b.instancesCurrent ?? 0).compareTo(a.instancesCurrent ?? 0));
+  final live =
+      (profile.members ?? <ClassHeapStats>[])
+          .where((m) => (m.instancesCurrent ?? 0) > 0)
+          .toList()
+        ..sort(
+          (a, b) =>
+              (b.instancesCurrent ?? 0).compareTo(a.instancesCurrent ?? 0),
+        );
   stdout.writeln('      ${live.length} live classes; top 5:');
   for (final m in live.take(5)) {
     stdout.writeln('        ${m.instancesCurrent}× ${m.classRef?.name}');
@@ -55,15 +63,21 @@ Future<void> main(List<String> args) async {
   // (B) Full heap snapshot, pulled over the host connection.
   stdout.writeln('[3/4] HeapSnapshotGraph.getSnapshot (host-side) ...');
   final graph = await HeapSnapshotGraph.getSnapshot(service, isolate);
-  stdout.writeln('      ${graph.objects.length} objects, ${graph.classes.length} classes');
+  stdout.writeln(
+    '      ${graph.objects.length} objects, ${graph.classes.length} classes',
+  );
 
   // (C) Run it through leak_graph — the companion's analysis core, unchanged.
   stdout.writeln('[4/4] leak_graph analysis of the live snapshot ...');
-  final result = GraphLeakAnalyzer()
-      .analyze(VmSnapshotGraphView(graph), const GraphAnalysisOptions());
-  stdout.writeln('      scanned ${result.stats.totalObjects} objects '
-      '(${result.stats.reachableObjects} reachable); '
-      '${result.clusters.length} leak cluster(s)');
+  final result = GraphLeakAnalyzer().analyze(
+    VmSnapshotGraphView(graph),
+    const GraphAnalysisOptions(),
+  );
+  stdout.writeln(
+    '      scanned ${result.stats.totalObjects} objects '
+    '(${result.stats.reachableObjects} reachable); '
+    '${result.clusters.length} leak cluster(s)',
+  );
   for (final c in result.clusters.take(5)) {
     stdout.writeln('        • ${c.className} ×${c.instanceCount}');
   }
@@ -72,8 +86,10 @@ Future<void> main(List<String> args) async {
 
   final passed = live.isNotEmpty && graph.objects.length > 1;
   stdout.writeln('');
-  stdout.writeln(passed
-      ? 'SPIKE PASSED ✓ — host-side VM APIs returned real data; '
-          "the companion's pipeline works on this target."
-      : 'SPIKE INCONCLUSIVE ✗ — no data returned; investigate before building the companion.');
+  stdout.writeln(
+    passed
+        ? 'SPIKE PASSED ✓ — host-side VM APIs returned real data; '
+              "the companion's pipeline works on this target."
+        : 'SPIKE INCONCLUSIVE ✗ — no data returned; investigate before building the companion.',
+  );
 }
