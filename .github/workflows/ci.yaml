@@ -60,3 +60,12 @@ jobs:
       - name: Test leak_graph
         run: dart test
         working-directory: packages/leak_graph
+
+      # radar_trace is pure Dart (tracer framework core).
+      - name: Analyze radar_trace
+        run: dart analyze
+        working-directory: packages/radar_trace
+
+      - name: Test radar_trace
+        run: dart test
+        working-directory: packages/radar_trace
