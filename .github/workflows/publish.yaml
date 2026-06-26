@@ -3,21 +3,23 @@ name: Publish
 # Automated publishing to pub.dev via OIDC — no long-lived tokens.
 #
 # Release one package by pushing a package-prefixed tag, e.g.:
-#   git tag flutter_leak_radar-v0.1.0
-#   git push origin flutter_leak_radar-v0.1.0
+#   git tag leak_graph-v0.1.0 && git push origin leak_graph-v0.1.0
 #
-# Prerequisites (one-time, on pub.dev → package → Admin → Automated publishing):
-#   - Enable "Publishing from GitHub Actions" for each package.
-#   - Set the repository to tp9imka/flutter-leak-radar.
-#   - Set the tag pattern to "{{package}}-v{{version}}", e.g.
-#     leak_graph-v{{version}}, flutter_leak_radar-v{{version}} and
-#     flutter_leak_radar_lint-v{{version}}.
-# Also ensure the package's pubspec uses version (not path) dependencies before
-# the first release.
+# Release ORDER: leak_graph first — flutter_leak_radar depends on it
+# (`leak_graph: ^0.1.0`), so that version must already be on pub.dev.
 #
-# Release ORDER matters: publish leak_graph first — flutter_leak_radar depends
-# on it (`leak_graph: ^0.1.0`), so that version must already be on pub.dev when
-# flutter_leak_radar is published.
+# Each job runs tool/publish.sh, which strips `resolution: workspace` before
+# publishing: the repo keeps that line for local dev (the lint tests need the
+# workspace to resolve Flutter), but it breaks pub.dev's package analysis. OIDC
+# is provided by `id-token: write` + setup-dart/-flutter; `--force` is
+# non-interactive.
+#
+# Prerequisites (one-time, per package, on pub.dev → Admin → Automated publishing):
+#   - Enable "Publishing from GitHub Actions", repo tp9imka/flutter-leak-radar,
+#     tag pattern "{{package}}-v{{version}}".
+#   - The FIRST-EVER publish of a new package must be done manually
+#     (tool/publish.sh) — OIDC automated publishing can only be configured once
+#     the package already exists on pub.dev.
 
 on:
   push:
@@ -29,24 +31,32 @@ on:
 jobs:
   leak_graph:
     if: startsWith(github.ref_name, 'leak_graph-v')
+    runs-on: ubuntu-latest
     permissions:
       id-token: write # mint the OIDC token pub.dev verifies against the tag
-    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
-    with:
-      working-directory: packages/leak_graph
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - run: ./tool/publish.sh packages/leak_graph --force
 
   flutter_leak_radar:
     if: startsWith(github.ref_name, 'flutter_leak_radar-v')
+    runs-on: ubuntu-latest
     permissions:
-      id-token: write # mint the OIDC token pub.dev verifies against the tag
-    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
-    with:
-      working-directory: packages/flutter_leak_radar
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: ./tool/publish.sh packages/flutter_leak_radar --force
 
   flutter_leak_radar_lint:
     if: startsWith(github.ref_name, 'flutter_leak_radar_lint-v')
+    runs-on: ubuntu-latest
     permissions:
       id-token: write
-    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
-    with:
-      working-directory: packages/flutter_leak_radar_lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - run: ./tool/publish.sh packages/flutter_leak_radar_lint --force
