@@ -3,7 +3,7 @@ description: On-device performance and stability tracer for Flutter. Frame timin
 version: 0.1.0
 repository: https://github.com/tp9imka/flutter-leak-radar
 issue_tracker: https://github.com/tp9imka/flutter-leak-radar/issues
-homepage: https://github.com/tp9imka/flutter-leak-radar
+homepage: https://tp9imka.github.io/flutter-leak-radar/
 topics:
   - performance
   - tracing
