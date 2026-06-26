@@ -9,3 +9,4 @@ library;
 export 'src/model/span.dart';
 export 'src/model/trace_key.dart';
 export 'src/histogram/latency_histogram.dart';
+export 'src/histogram/outlier_ring.dart';
