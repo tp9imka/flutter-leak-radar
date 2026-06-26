@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:devtools_extensions/devtools_extensions.dart';
@@ -49,6 +48,7 @@ class ConnectionStateNotifier extends ChangeNotifier {
   IsolateRef? get isolateRef => _isolateRef;
 
   VoidCallback? _isolateListener;
+  VoidCallback? _connectedStateListener;
 
   /// Starts watching [serviceManager] for connection events.
   ///
@@ -73,6 +73,14 @@ class ConnectionStateNotifier extends ChangeNotifier {
       }
     };
     isolateManager.mainIsolate.addListener(_isolateListener!);
+
+    _connectedStateListener = () {
+      final connected = serviceManager.connectedState.value.connected;
+      if (!connected) {
+        _applyDisconnected();
+      }
+    };
+    serviceManager.connectedState.addListener(_connectedStateListener!);
   }
 
   Future<void> _onServiceConnected(VmService service) async {
@@ -118,6 +126,9 @@ class ConnectionStateNotifier extends ChangeNotifier {
     final isolateManager = serviceManager.isolateManager;
     if (_isolateListener != null) {
       isolateManager.mainIsolate.removeListener(_isolateListener!);
+    }
+    if (_connectedStateListener != null) {
+      serviceManager.connectedState.removeListener(_connectedStateListener!);
     }
     super.dispose();
   }
