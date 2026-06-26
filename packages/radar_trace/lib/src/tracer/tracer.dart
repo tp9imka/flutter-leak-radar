@@ -28,8 +28,7 @@ final class Tracer {
   /// Creates a [Tracer].
   ///
   /// If [recorder] is omitted, a default [TraceRecorder] is used.
-  Tracer({TraceRecorder? recorder})
-      : recorder = recorder ?? TraceRecorder();
+  Tracer({TraceRecorder? recorder}) : recorder = recorder ?? TraceRecorder();
 
   /// Measures [body] synchronously and records a [Span].
   ///

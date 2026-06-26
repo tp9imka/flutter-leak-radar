@@ -46,12 +46,12 @@ class TraceRecorder {
     this.sampleRate = 1.0,
     this.maxKeys = 1024,
     this.outlierCapacity = 16,
-  })  : assert(
-          sampleRate >= 0.0 && sampleRate <= 1.0,
-          'sampleRate must be in [0.0, 1.0]',
-        ),
-        assert(maxKeys > 0, 'maxKeys must be > 0'),
-        assert(outlierCapacity > 0, 'outlierCapacity must be > 0');
+  }) : assert(
+         sampleRate >= 0.0 && sampleRate <= 1.0,
+         'sampleRate must be in [0.0, 1.0]',
+       ),
+       assert(maxKeys > 0, 'maxKeys must be > 0'),
+       assert(outlierCapacity > 0, 'outlierCapacity must be > 0');
 
   /// Number of distinct [TraceKey]s currently tracked.
   int get keyCount => _stats.length;
@@ -87,13 +87,9 @@ class TraceRecorder {
   /// Subsequent [record] calls do not mutate the returned snapshot.
   TraceSnapshot snapshot() {
     final snapshotMap = <TraceKey, SpanKeyStatsSnapshot>{
-      for (final entry in _stats.entries)
-        entry.key: entry.value.snapshot(),
+      for (final entry in _stats.entries) entry.key: entry.value.snapshot(),
     };
-    return TraceSnapshot(
-      stats: snapshotMap,
-      totalDropCount: _dropCount,
-    );
+    return TraceSnapshot(stats: snapshotMap, totalDropCount: _dropCount);
   }
 
   /// Resets all aggregates and drop counters.

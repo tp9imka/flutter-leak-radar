@@ -32,17 +32,19 @@ void main() {
       // Use a recorder at maxKeys=1 — record() will be called but drop.
       final rec = TraceRecorder(maxKeys: 1);
       // Fill the single key slot so any new key is dropped.
-      rec.record(Span(
-        spanId: SpanId.generate(),
-        parentId: null,
-        traceId: SpanId.generate(),
-        name: 'blocker',
-        category: null,
-        startMicros: 0,
-        durationMicros: 1,
-        status: SpanStatus.ok,
-        attributes: const {},
-      ));
+      rec.record(
+        Span(
+          spanId: SpanId.generate(),
+          parentId: null,
+          traceId: SpanId.generate(),
+          name: 'blocker',
+          category: null,
+          startMicros: 0,
+          durationMicros: 1,
+          status: SpanStatus.ok,
+          attributes: const {},
+        ),
+      );
       final t = Tracer(recorder: rec);
       // This call's key 'new.op' is new; it will be dropped.
       final result = t.trace('new.op', () => 'safe');
@@ -61,10 +63,7 @@ void main() {
   group('Tracer.traceAsync — async', () {
     test('returns future result', () async {
       final t = Tracer();
-      final result = await t.traceAsync(
-        'async.op',
-        () async => 'hello',
-      );
+      final result = await t.traceAsync('async.op', () async => 'hello');
       expect(result, 'hello');
     });
 
@@ -78,10 +77,7 @@ void main() {
     test('records status=error when future throws, and rethrows', () async {
       final t = Tracer();
       await expectLater(
-        () => t.traceAsync(
-          'async.fail',
-          () async => throw Exception('boom'),
-        ),
+        () => t.traceAsync('async.fail', () async => throw Exception('boom')),
         throwsA(isA<Exception>()),
       );
       final key = TraceKey(name: 'async.fail', category: null);
@@ -123,24 +119,25 @@ void main() {
     });
 
     test(
-        'sibling traces are independent children of the same parent',
-        () async {
-      final rec = _CapturingRecorder();
-      final t = Tracer(recorder: rec);
+      'sibling traces are independent children of the same parent',
+      () async {
+        final rec = _CapturingRecorder();
+        final t = Tracer(recorder: rec);
 
-      await t.traceAsync('root', () async {
-        await t.traceAsync('child.a', () async {});
-        await t.traceAsync('child.b', () async {});
-      });
+        await t.traceAsync('root', () async {
+          await t.traceAsync('child.a', () async {});
+          await t.traceAsync('child.b', () async {});
+        });
 
-      final root = rec.spans.firstWhere((s) => s.name == 'root');
-      final childA = rec.spans.firstWhere((s) => s.name == 'child.a');
-      final childB = rec.spans.firstWhere((s) => s.name == 'child.b');
+        final root = rec.spans.firstWhere((s) => s.name == 'root');
+        final childA = rec.spans.firstWhere((s) => s.name == 'child.a');
+        final childB = rec.spans.firstWhere((s) => s.name == 'child.b');
 
-      expect(childA.parentId, equals(root.spanId));
-      expect(childB.parentId, equals(root.spanId));
-      expect(childA.spanId, isNot(equals(childB.spanId)));
-    });
+        expect(childA.parentId, equals(root.spanId));
+        expect(childB.parentId, equals(root.spanId));
+        expect(childA.spanId, isNot(equals(childB.spanId)));
+      },
+    );
 
     test('top-level trace has null parentId', () {
       final rec = _CapturingRecorder();

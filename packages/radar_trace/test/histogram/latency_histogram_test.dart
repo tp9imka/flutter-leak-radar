@@ -98,8 +98,8 @@ void main() {
   group('LatencyHistogram — out-of-range values', () {
     test('values > 60s increment dropCount and not count', () {
       final h = LatencyHistogram();
-      h.record(1000);          // in range
-      h.record(70_000_001);    // > 60s — out of range
+      h.record(1000); // in range
+      h.record(70_000_001); // > 60s — out of range
       expect(h.count, 1);
       expect(h.dropCount, 1);
     });
@@ -153,9 +153,12 @@ void main() {
     test('bucket upper bounds are strictly monotone increasing', () {
       final bounds = LatencyHistogram.upperBoundsForTesting;
       for (var i = 1; i < bounds.length; i++) {
-        expect(bounds[i], greaterThan(bounds[i - 1]),
-            reason:
-                'bound[$i]=${bounds[i]} not > bound[${i - 1}]=${bounds[i - 1]}');
+        expect(
+          bounds[i],
+          greaterThan(bounds[i - 1]),
+          reason:
+              'bound[$i]=${bounds[i]} not > bound[${i - 1}]=${bounds[i - 1]}',
+        );
       }
     });
   });

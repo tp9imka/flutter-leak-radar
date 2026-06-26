@@ -15,8 +15,8 @@ final class OutlierRing {
   int _offeredCount = 0;
 
   OutlierRing({this.capacity = 16})
-      : assert(capacity > 0, 'capacity must be > 0'),
-        _spans = [];
+    : assert(capacity > 0, 'capacity must be > 0'),
+      _spans = [];
 
   /// Total number of spans offered, including those not retained.
   int get offeredCount => _offeredCount;
@@ -30,9 +30,7 @@ final class OutlierRing {
   /// this ring.
   List<Span> get spans {
     final copy = List<Span>.of(_spans);
-    copy.sort(
-      (a, b) => b.durationMicros.compareTo(a.durationMicros),
-    );
+    copy.sort((a, b) => b.durationMicros.compareTo(a.durationMicros));
     return copy;
   }
 

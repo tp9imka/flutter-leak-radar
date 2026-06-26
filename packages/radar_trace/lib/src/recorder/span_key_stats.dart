@@ -19,8 +19,8 @@ class SpanKeyStats {
   /// Creates a [SpanKeyStats] for [key] with the given
   /// [outlierCapacity] for the retained outlier ring.
   SpanKeyStats({required this.key, required int outlierCapacity})
-      : _histogram = LatencyHistogram(),
-        _outlierRing = OutlierRing(capacity: outlierCapacity);
+    : _histogram = LatencyHistogram(),
+      _outlierRing = OutlierRing(capacity: outlierCapacity);
 
   /// Total number of spans recorded for this key.
   int get count => _histogram.count;

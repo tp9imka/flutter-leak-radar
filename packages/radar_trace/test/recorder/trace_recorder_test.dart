@@ -55,9 +55,7 @@ void main() {
 
     test('error spans increment errorCount', () {
       final rec = TraceRecorder();
-      rec.record(
-        _span(name: 'op', durationMicros: 100, status: SpanStatus.ok),
-      );
+      rec.record(_span(name: 'op', durationMicros: 100, status: SpanStatus.ok));
       rec.record(
         _span(name: 'op', durationMicros: 200, status: SpanStatus.error),
       );

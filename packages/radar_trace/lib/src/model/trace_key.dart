@@ -20,9 +20,7 @@ final class TraceKey {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is TraceKey &&
-          name == other.name &&
-          category == other.category;
+      other is TraceKey && name == other.name && category == other.category;
 
   @override
   int get hashCode => Object.hash(name, category);

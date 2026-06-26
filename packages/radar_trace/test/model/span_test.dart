@@ -17,25 +17,27 @@ void main() {
   });
 
   group('Span', () {
-    test('constructs with required fields and defensively copies attributes',
-        () {
-      final attrs = {'key': 'value'};
-      final span = Span(
-        spanId: SpanId.generate(),
-        parentId: null,
-        traceId: SpanId.generate(),
-        name: 'test.op',
-        category: 'db',
-        startMicros: 1000,
-        durationMicros: 500,
-        status: SpanStatus.ok,
-        attributes: attrs,
-      );
+    test(
+      'constructs with required fields and defensively copies attributes',
+      () {
+        final attrs = {'key': 'value'};
+        final span = Span(
+          spanId: SpanId.generate(),
+          parentId: null,
+          traceId: SpanId.generate(),
+          name: 'test.op',
+          category: 'db',
+          startMicros: 1000,
+          durationMicros: 500,
+          status: SpanStatus.ok,
+          attributes: attrs,
+        );
 
-      attrs['injected'] = 'bad';
-      expect(span.attributes.containsKey('injected'), isFalse);
-      expect(span.attributes['key'], 'value');
-    });
+        attrs['injected'] = 'bad';
+        expect(span.attributes.containsKey('injected'), isFalse);
+        expect(span.attributes['key'], 'value');
+      },
+    );
 
     test('attributes map is unmodifiable', () {
       final span = Span(
@@ -49,10 +51,7 @@ void main() {
         status: SpanStatus.ok,
         attributes: const {},
       );
-      expect(
-        () => span.attributes['x'] = 1,
-        throwsUnsupportedError,
-      );
+      expect(() => span.attributes['x'] = 1, throwsUnsupportedError);
     });
 
     test('equality is value-based across all fields', () {

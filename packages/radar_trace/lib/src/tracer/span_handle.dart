@@ -23,9 +23,9 @@ final class SpanHandle {
     required Span pendingSpan,
     required TraceRecorder recorder,
     required Stopwatch stopwatch,
-  })  : _pendingSpan = pendingSpan,
-        _recorder = recorder,
-        _stopwatch = stopwatch;
+  }) : _pendingSpan = pendingSpan,
+       _recorder = recorder,
+       _stopwatch = stopwatch;
 
   /// The in-progress span. [Span.durationMicros] is 0 until stopped.
   Span get span => _pendingSpan;

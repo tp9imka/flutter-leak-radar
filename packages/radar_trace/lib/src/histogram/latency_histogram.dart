@@ -41,8 +41,7 @@ final class LatencyHistogram {
     }
   }
 
-  final List<int> _counts =
-      List<int>.filled(_upperBounds.length, 0);
+  final List<int> _counts = List<int>.filled(_upperBounds.length, 0);
 
   int _count = 0;
   int _sum = 0;

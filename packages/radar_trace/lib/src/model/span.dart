@@ -43,8 +43,7 @@ final class SpanId {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is SpanId && _value == other._value;
+      identical(this, other) || other is SpanId && _value == other._value;
 
   @override
   int get hashCode => _value.hashCode;
@@ -107,8 +106,7 @@ final class Span {
     required this.durationMicros,
     required this.status,
     required Map<String, Object?> attributes,
-  }) : attributes =
-           UnmodifiableMapView(Map<String, Object?>.of(attributes));
+  }) : attributes = UnmodifiableMapView(Map<String, Object?>.of(attributes));
 
   /// Returns a copy of this span with the given fields replaced.
   ///
@@ -125,20 +123,19 @@ final class Span {
     int? durationMicros,
     SpanStatus? status,
     Map<String, Object?>? attributes,
-  }) =>
-      Span(
-        spanId: spanId ?? this.spanId,
-        parentId: identical(parentId, _absentSpanId)
-            ? this.parentId
-            : parentId as SpanId?,
-        traceId: traceId ?? this.traceId,
-        name: name ?? this.name,
-        category: category ?? this.category,
-        startMicros: startMicros ?? this.startMicros,
-        durationMicros: durationMicros ?? this.durationMicros,
-        status: status ?? this.status,
-        attributes: attributes ?? this.attributes,
-      );
+  }) => Span(
+    spanId: spanId ?? this.spanId,
+    parentId: identical(parentId, _absentSpanId)
+        ? this.parentId
+        : parentId as SpanId?,
+    traceId: traceId ?? this.traceId,
+    name: name ?? this.name,
+    category: category ?? this.category,
+    startMicros: startMicros ?? this.startMicros,
+    durationMicros: durationMicros ?? this.durationMicros,
+    status: status ?? this.status,
+    attributes: attributes ?? this.attributes,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -156,20 +153,20 @@ final class Span {
 
   @override
   int get hashCode => Object.hash(
-        spanId,
-        parentId,
-        traceId,
-        name,
-        category,
-        startMicros,
-        durationMicros,
-        status,
-        Object.hashAll(
-          (attributes.entries.toList()
-                ..sort((a, b) => a.key.compareTo(b.key)))
-              .map((e) => Object.hash(e.key, e.value)),
-        ),
-      );
+    spanId,
+    parentId,
+    traceId,
+    name,
+    category,
+    startMicros,
+    durationMicros,
+    status,
+    Object.hashAll(
+      (attributes.entries.toList()..sort((a, b) => a.key.compareTo(b.key))).map(
+        (e) => Object.hash(e.key, e.value),
+      ),
+    ),
+  );
 
   @override
   String toString() =>
