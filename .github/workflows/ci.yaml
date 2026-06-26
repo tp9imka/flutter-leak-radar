@@ -77,3 +77,11 @@ jobs:
       - name: Test flutter_perf_radar
         run: flutter test
         working-directory: packages/flutter_perf_radar
+
+      - name: Analyze flutter_leak_radar_devtools
+        run: flutter analyze
+        working-directory: packages/flutter_leak_radar_devtools
+
+      - name: Test flutter_leak_radar_devtools
+        run: flutter test
+        working-directory: packages/flutter_leak_radar_devtools
