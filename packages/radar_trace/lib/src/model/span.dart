@@ -14,6 +14,14 @@ enum SpanStatus {
   cancelled,
 }
 
+/// Sentinel object used to distinguish "not passed" from `null`
+/// in [Span.copyWith] for the nullable [parentId] parameter.
+const Object _absentSpanId = _AbsentSpanId();
+
+final class _AbsentSpanId {
+  const _AbsentSpanId();
+}
+
 /// Opaque, value-typed span identifier backed by a monotonically
 /// increasing integer.
 ///
@@ -103,9 +111,13 @@ final class Span {
            UnmodifiableMapView(Map<String, Object?>.of(attributes));
 
   /// Returns a copy of this span with the given fields replaced.
+  ///
+  /// To clear [parentId] to null, explicitly pass `parentId: null`.
+  /// Due to the nullable type, `_absentSpanId` is used as a sentinel to
+  /// distinguish between "not passed" and "passed as null".
   Span copyWith({
     SpanId? spanId,
-    SpanId? parentId,
+    Object? parentId = _absentSpanId,
     SpanId? traceId,
     String? name,
     String? category,
@@ -116,7 +128,9 @@ final class Span {
   }) =>
       Span(
         spanId: spanId ?? this.spanId,
-        parentId: parentId ?? this.parentId,
+        parentId: identical(parentId, _absentSpanId)
+            ? this.parentId
+            : parentId as SpanId?,
         traceId: traceId ?? this.traceId,
         name: name ?? this.name,
         category: category ?? this.category,
@@ -151,7 +165,9 @@ final class Span {
         durationMicros,
         status,
         Object.hashAll(
-          attributes.entries.map((e) => Object.hash(e.key, e.value)),
+          (attributes.entries.toList()
+                ..sort((a, b) => a.key.compareTo(b.key)))
+              .map((e) => Object.hash(e.key, e.value)),
         ),
       );
 

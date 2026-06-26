@@ -105,6 +105,67 @@ void main() {
       expect(copy.name, original.name);
       expect(copy.spanId, original.spanId);
     });
+
+    test('copyWith can clear parentId to null', () {
+      final parentSpanId = SpanId.generate();
+      final original = Span(
+        spanId: SpanId.generate(),
+        parentId: parentSpanId,
+        traceId: SpanId.generate(),
+        name: 'child',
+        category: null,
+        startMicros: 100,
+        durationMicros: 50,
+        status: SpanStatus.ok,
+        attributes: const {},
+      );
+
+      expect(original.parentId, equals(parentSpanId));
+
+      final cleared = original.copyWith(parentId: null);
+      expect(cleared.parentId, isNull);
+      expect(cleared.spanId, original.spanId);
+    });
+
+    test('attributes hashCode is stable regardless of insertion order', () {
+      final attrs1 = <String, Object?>{
+        'a': 'value_a',
+        'b': 'value_b',
+        'c': 'value_c',
+      };
+      final span1 = Span(
+        spanId: SpanId.generate(),
+        parentId: null,
+        traceId: SpanId.generate(),
+        name: 'op',
+        category: null,
+        startMicros: 100,
+        durationMicros: 50,
+        status: SpanStatus.ok,
+        attributes: attrs1,
+      );
+
+      // Create second map with different insertion order
+      final attrs2 = <String, Object?>{
+        'c': 'value_c',
+        'a': 'value_a',
+        'b': 'value_b',
+      };
+      final span2 = Span(
+        spanId: span1.spanId,
+        parentId: null,
+        traceId: span1.traceId,
+        name: 'op',
+        category: null,
+        startMicros: 100,
+        durationMicros: 50,
+        status: SpanStatus.ok,
+        attributes: attrs2,
+      );
+
+      expect(span1, equals(span2));
+      expect(span1.hashCode, equals(span2.hashCode));
+    });
   });
 
   group('TraceKey', () {
