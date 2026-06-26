@@ -148,4 +148,15 @@ void main() {
       expect(h.dropCount, 0);
     });
   });
+
+  group('LatencyHistogram — bucket structure', () {
+    test('bucket upper bounds are strictly monotone increasing', () {
+      final bounds = LatencyHistogram.upperBoundsForTesting;
+      for (var i = 1; i < bounds.length; i++) {
+        expect(bounds[i], greaterThan(bounds[i - 1]),
+            reason:
+                'bound[$i]=${bounds[i]} not > bound[${i - 1}]=${bounds[i - 1]}');
+      }
+    });
+  });
 }

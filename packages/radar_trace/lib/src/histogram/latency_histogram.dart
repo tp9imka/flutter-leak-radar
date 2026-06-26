@@ -1,12 +1,11 @@
-import 'dart:math' as math;
-
 import 'package:meta/meta.dart';
 
 /// Log-linear latency histogram covering 1µs–60s in fixed buckets.
 ///
-/// Uses HdrHistogram-style sub-buckets: 8 linear sub-buckets per
-/// power-of-two decade, yielding ~104 buckets total. Each `record`
-/// call is O(1); `percentile` is O(buckets) = O(1).
+/// Buckets 1–7µs are single-unit (one bucket per microsecond). For
+/// 8µs and above, 8 linear sub-buckets per power-of-two decade are
+/// used (HdrHistogram-style), yielding ~110 buckets total. Each
+/// `record` call is O(1); `percentile` is O(buckets) = O(1).
 ///
 /// Values outside [0, 60_000_000µs] are either clamped (below) or
 /// counted as drops (above) — never silently discarded without an
@@ -15,20 +14,24 @@ final class LatencyHistogram {
   // 60s in microseconds
   static const int _maxMicros = 60_000_000;
 
-  // Sub-buckets per power-of-two decade
+  // Sub-buckets per power-of-two decade (for base >= 8)
   static const int _subBuckets = 8;
 
   static final List<int> _upperBounds = _buildBounds();
 
   static List<int> _buildBounds() {
     final bounds = <int>[];
-    // Generate sub-bucket upper bounds until we exceed _maxMicros.
-    // Decade k covers [2^k, 2^(k+1)); sub-bucket j within it has
-    // upper bound = 2^k + (j+1) * (2^k / _subBuckets).
-    var k = 0;
+    // For values 1..7µs, use single-unit buckets (k=0,1,2 range).
+    for (var v = 1; v < 8; v++) {
+      bounds.add(v);
+      if (v >= _maxMicros) return bounds;
+    }
+    // For k >= 3 (base=8 and above), use 8 linear sub-buckets per
+    // decade. step = base ~/ _subBuckets is always >= 1 since base >= 8.
+    var k = 3;
     while (true) {
       final base = 1 << k; // 2^k
-      final step = math.max(1, base ~/ _subBuckets);
+      final step = base ~/ _subBuckets;
       for (var j = 0; j < _subBuckets; j++) {
         final upper = base + (j + 1) * step;
         bounds.add(upper);
@@ -114,6 +117,11 @@ final class LatencyHistogram {
     counts: List<int>.unmodifiable(_counts),
   );
 
+  /// Exposes the bucket upper bounds list for testing monotonicity.
+  @visibleForTesting
+  static List<int> get upperBoundsForTesting =>
+      List<int>.unmodifiable(_upperBounds);
+
   static int _bucketIndex(int micros) {
     if (micros <= 0) return 0;
     // Binary search the upper bounds list
@@ -154,7 +162,7 @@ final class LatencyHistogramSnapshot {
 
   final List<int> _counts;
 
-  const LatencyHistogramSnapshot._({
+  LatencyHistogramSnapshot._({
     required this.count,
     required this.sum,
     required this.min,
