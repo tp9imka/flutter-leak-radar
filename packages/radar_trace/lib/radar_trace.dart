@@ -15,4 +15,5 @@ export 'src/recorder/trace_recorder.dart';
 export 'src/snapshot/trace_snapshot.dart';
 export 'src/tracer/active_span.dart';
 export 'src/tracer/span_handle.dart';
+export 'src/tracer/trace_clock.dart';
 export 'src/tracer/tracer.dart';

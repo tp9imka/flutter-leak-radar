@@ -199,6 +199,22 @@ void main() {
       t.trace('op', () {});
       expect(rec.spans.first.durationMicros, greaterThanOrEqualTo(0));
     });
+
+    test('startMicros come from a shared clock — a later span starts later', () {
+      final rec = _CapturingRecorder();
+      final t = Tracer(recorder: rec);
+      t.trace('first', () {
+        // Burn ≥100µs of monotonic time inside the first span.
+        final spin = Stopwatch()..start();
+        while (spin.elapsedMicroseconds < 100) {}
+      });
+      t.trace('second', () {});
+      final first = rec.spans.firstWhere((s) => s.name == 'first');
+      final second = rec.spans.firstWhere((s) => s.name == 'second');
+      // Pre-fix every span's startMicros was ≈0 (a per-span stopwatch); with the
+      // shared clock the second span starts strictly after the first's start.
+      expect(second.startMicros, greaterThan(first.startMicros));
+    });
   });
 }
 
