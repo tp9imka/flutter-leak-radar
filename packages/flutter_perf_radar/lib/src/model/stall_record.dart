@@ -1,5 +1,3 @@
-// Copyright (c) 2025, tp9imka. All rights reserved.
-
 import 'package:meta/meta.dart';
 
 /// An immutable record of one detected main-thread stall.

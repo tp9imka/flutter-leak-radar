@@ -1,5 +1,3 @@
-// Copyright (c) 2025, tp9imka. All rights reserved.
-
 import 'package:flutter/foundation.dart';
 
 /// Configuration for [PerfRadar.init].

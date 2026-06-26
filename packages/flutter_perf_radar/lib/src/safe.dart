@@ -1,5 +1,3 @@
-// Copyright (c) 2025, tp9imka. All rights reserved.
-
 import 'dart:developer' as dev;
 
 /// Runs [body], swallowing any error and returning [fallback]. Never throws.

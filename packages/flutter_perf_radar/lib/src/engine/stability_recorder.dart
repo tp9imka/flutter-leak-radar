@@ -1,5 +1,3 @@
-// Copyright (c) 2025, tp9imka. All rights reserved.
-
 import 'package:radar_trace/radar_trace.dart';
 
 import '../model/error_record.dart';

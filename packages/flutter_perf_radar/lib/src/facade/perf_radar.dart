@@ -1,5 +1,3 @@
-// Copyright (c) 2025, tp9imka. All rights reserved.
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:radar_trace/radar_trace.dart';

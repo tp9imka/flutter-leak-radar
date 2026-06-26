@@ -1,5 +1,3 @@
-// Copyright (c) 2025, tp9imka. All rights reserved.
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
