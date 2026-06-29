@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Performance — Flutter Radar</title>
+  <meta name="description" content="Find the slow path and the redundant one. Timed traces, frame and jank timing, widget rebuild counts, and startup — surfaced as a dense, sortable analytics table.">
+  <meta name="color-scheme" content="dark">
+  <link rel="preload" href="fonts/SpaceGrotesk.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { margin: 0; background: #07090a; color: #e7eef0; font-family: 'Hanken Grotesk', system-ui, sans-serif; }
+    .nav { position: sticky; top: 0; z-index: 50; background: rgba(7,9,10,0.72); border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .pillar-hero__title { font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="bg-glow bg-glow--performance" aria-hidden="true"></div>
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <div class="page">
+    <!-- NAV -->
+    <nav class="nav" aria-label="Primary">
+      <div class="nav__inner">
+        <a class="nav__brand" href="index.html" aria-label="Flutter Radar home">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="7" stroke="rgba(47,227,155,0.55)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+          <span class="nav__brand-name">Flutter Radar</span>
+        </a>
+        <div class="nav__links">
+          <a class="nav__link" href="memory.html">Memory</a>
+          <a class="nav__link nav__link--performance" href="performance.html" aria-current="page">Performance</a>
+          <a class="nav__link" href="stability.html">Stability</a>
+          <a class="nav__cta" href="index.html#install">Install</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- BREADCRUMB -->
+    <nav class="breadcrumb breadcrumb--performance" aria-label="Breadcrumb">
+      <a href="index.html">Flutter Radar</a>
+      <span class="breadcrumb__sep" aria-hidden="true">/</span>
+      <span class="breadcrumb__current--performance">Performance</span>
+    </nav>
+
+    <!-- HERO -->
+    <header class="pillar-hero">
+      <div class="pillar-hero__copy pillar-hero__copy--full">
+        <div class="pillar-badge pillar-badge--performance" data-reveal>Pillar 02 &middot; Performance</div>
+        <h1 class="pillar-hero__title" data-reveal>Find the slow path &mdash; and the redundant one.</h1>
+        <p class="pillar-hero__lead" data-reveal>Timed traces, frame and jank timing, widget rebuild counts, and startup &mdash; every one a truthfully-measured number, surfaced as a dense, sortable analytics table instead of a wall of sparse cards.</p>
+      </div>
+    </header>
+
+    <main>
+      <!-- TRACES TABLE -->
+      <section class="section section--ruled" aria-labelledby="traces-heading">
+        <div class="section-head" data-reveal style="max-width:600px;">
+          <p class="eyebrow eyebrow--amber">Traces &middot; timed spans</p>
+          <h2 class="section-title" id="traces-heading" style="margin-bottom:14px;">One row per operation. Every metric that matters.</h2>
+          <p class="section-intro">Count, averages, the full percentile spread, total cost, how often it fires, and how fast &mdash; all sortable, all searchable. Operations fired suspiciously often get a <span style="color:#f5b54a;">HOT</span> flag so redundant work stops hiding in the noise.</p>
+        </div>
+        <div class="tracewin" data-reveal>
+          <div class="tracewin__bar">
+            <span class="tracewin__bar-title">Traces</span>
+            <span class="tracewin__bar-tag tracewin__bar-tag--amber">hot / dup</span>
+            <span class="tracewin__bar-tag tracewin__bar-tag--neutral">errors</span>
+            <span class="tracewin__bar-sort">sorted: total &darr;</span>
+          </div>
+          <div class="tracewin__scroll">
+            <div class="tracetable" role="table" aria-label="Traces">
+              <div class="tracerow tracerow--head" role="row">
+                <span role="columnheader">operation</span>
+                <span role="columnheader">count</span>
+                <span class="sort-avg" role="columnheader">avg &darr;</span>
+                <span role="columnheader">p95</span>
+                <span role="columnheader">p99</span>
+                <span role="columnheader">max</span>
+                <span class="col-total" role="columnheader">total</span>
+                <span role="columnheader">intvl</span>
+                <span role="columnheader">rate</span>
+                <span role="columnheader">err</span>
+              </div>
+              <!-- api.fetchMessages -->
+              <div class="tracerow" role="row">
+                <span class="trace-op"><span class="trace-op__dot trace-op__dot--active" aria-hidden="true"></span><span class="trace-op__name">api.fetchMessages</span><span class="trace-op__cat">network</span></span>
+                <span class="cell cell--count nums">410</span>
+                <span class="cell cell--avg nums">182ms</span>
+                <span class="cell cell--pct nums">410ms</span>
+                <span class="cell cell--pct nums">720ms</span>
+                <span class="cell cell--max nums">980ms</span>
+                <span class="cell cell--total nums">74.6s</span>
+                <span class="cell cell--meta nums">220ms</span>
+                <span class="cell cell--meta nums">4.5</span>
+                <span class="cell cell--err has-err nums">6</span>
+              </div>
+              <!-- analytics.track -->
+              <div class="tracerow" role="row">
+                <span class="trace-op"><span class="trace-op__dot trace-op__dot--active" aria-hidden="true"></span><span class="trace-op__name">analytics.track</span><span class="trace-op__cat">network</span></span>
+                <span class="cell cell--count nums">980</span>
+                <span class="cell cell--avg nums">14ms</span>
+                <span class="cell cell--pct nums">40ms</span>
+                <span class="cell cell--pct nums">88ms</span>
+                <span class="cell cell--max nums">210ms</span>
+                <span class="cell cell--total nums">13.7s</span>
+                <span class="cell cell--meta nums">108ms</span>
+                <span class="cell cell--meta nums">9.3</span>
+                <span class="cell cell--err has-err nums">2</span>
+              </div>
+              <!-- db.query(messages) HOT -->
+              <div class="tracerow" role="row">
+                <span class="trace-op"><span class="trace-op__dot trace-op__dot--active" aria-hidden="true"></span><span class="trace-op__name">db.query(messages)</span><span class="trace-op__cat">db</span><span class="trace-op__hot">HOT</span></span>
+                <span class="cell cell--count nums">880</span>
+                <span class="cell cell--avg nums">12ms</span>
+                <span class="cell cell--pct nums">34ms</span>
+                <span class="cell cell--pct nums">58ms</span>
+                <span class="cell cell--max nums">120ms</span>
+                <span class="cell cell--total nums">10.6s</span>
+                <span class="cell cell--meta nums">120ms</span>
+                <span class="cell cell--meta nums">8.3</span>
+                <span class="cell cell--err nums">&middot;</span>
+              </div>
+              <!-- image.decode (idle) -->
+              <div class="tracerow" role="row">
+                <span class="trace-op"><span class="trace-op__dot trace-op__dot--idle" aria-hidden="true"></span><span class="trace-op__name">image.decode</span><span class="trace-op__cat">cpu</span></span>
+                <span class="cell cell--count nums">320</span>
+                <span class="cell cell--avg nums">28ms</span>
+                <span class="cell cell--pct nums">74ms</span>
+                <span class="cell cell--pct nums">140ms</span>
+                <span class="cell cell--max nums">280ms</span>
+                <span class="cell cell--total nums">9.0s</span>
+                <span class="cell cell--meta nums">330ms</span>
+                <span class="cell cell--meta nums">3.0</span>
+                <span class="cell cell--err nums">&middot;</span>
+              </div>
+              <!-- build:HomeScreen -->
+              <div class="tracerow" role="row">
+                <span class="trace-op"><span class="trace-op__dot trace-op__dot--active" aria-hidden="true"></span><span class="trace-op__name">build:HomeScreen</span><span class="trace-op__cat">render</span></span>
+                <span class="cell cell--count nums">1,240</span>
+                <span class="cell cell--avg nums">4.2ms</span>
+                <span class="cell cell--pct nums">9.8ms</span>
+                <span class="cell cell--pct nums">14ms</span>
+                <span class="cell cell--max nums">22ms</span>
+                <span class="cell cell--total nums">5.2s</span>
+                <span class="cell cell--meta nums">96ms</span>
+                <span class="cell cell--meta nums">10.4</span>
+                <span class="cell cell--err nums">&middot;</span>
+              </div>
+              <!-- bloc.mapEvent HOT -->
+              <div class="tracerow" role="row">
+                <span class="trace-op"><span class="trace-op__dot trace-op__dot--active" aria-hidden="true"></span><span class="trace-op__name">bloc.mapEvent</span><span class="trace-op__cat">state</span><span class="trace-op__hot">HOT</span></span>
+                <span class="cell cell--count nums">1,500</span>
+                <span class="cell cell--avg nums">2.1ms</span>
+                <span class="cell cell--pct nums">5.2ms</span>
+                <span class="cell cell--pct nums">9.1ms</span>
+                <span class="cell cell--max nums">18ms</span>
+                <span class="cell cell--total nums">3.2s</span>
+                <span class="cell cell--meta nums">64ms</span>
+                <span class="cell cell--meta nums">15.6</span>
+                <span class="cell cell--err nums">&middot;</span>
+              </div>
+              <!-- scroll.layout HOT -->
+              <div class="tracerow" role="row">
+                <span class="trace-op"><span class="trace-op__dot trace-op__dot--active" aria-hidden="true"></span><span class="trace-op__name">scroll.layout</span><span class="trace-op__cat">render</span><span class="trace-op__hot">HOT</span></span>
+                <span class="cell cell--count nums">5,400</span>
+                <span class="cell cell--avg nums">0.6ms</span>
+                <span class="cell cell--pct nums">1.4ms</span>
+                <span class="cell cell--pct nums">2.8ms</span>
+                <span class="cell cell--max nums">6ms</span>
+                <span class="cell cell--total nums">3.2s</span>
+                <span class="cell cell--meta nums">11ms</span>
+                <span class="cell cell--meta nums">90.9</span>
+                <span class="cell cell--err nums">&middot;</span>
+              </div>
+              <!-- json.decode HOT -->
+              <div class="tracerow" role="row" style="border-bottom:0;">
+                <span class="trace-op"><span class="trace-op__dot trace-op__dot--active" aria-hidden="true"></span><span class="trace-op__name">json.decode</span><span class="trace-op__cat">cpu</span><span class="trace-op__hot">HOT</span></span>
+                <span class="cell cell--count nums">2,200</span>
+                <span class="cell cell--avg nums">0.8ms</span>
+                <span class="cell cell--pct nums">2.1ms</span>
+                <span class="cell cell--pct nums">4.0ms</span>
+                <span class="cell cell--max nums">9ms</span>
+                <span class="cell cell--total nums">1.8s</span>
+                <span class="cell cell--meta nums">40ms</span>
+                <span class="cell cell--meta nums">25.0</span>
+                <span class="cell cell--err nums">&middot;</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="tracecaption" data-reveal>avg inter-call interval (<span class="hi">intvl</span>) + count is how duplicate work surfaces &mdash; a tight interval at a high count means the same op is firing back-to-back.</p>
+      </section>
+
+      <!-- TRACE DRILL-DOWN -->
+      <section class="section section--ruled" aria-labelledby="drill-heading">
+        <div class="section-head" data-reveal style="max-width:600px; margin-bottom:clamp(22px,3vw,34px);">
+          <p class="eyebrow eyebrow--amber">Drill into any key</p>
+          <h2 class="section-title section-title--md" id="drill-heading" style="margin:0;">Distribution, exemplars, and the span tree.</h2>
+        </div>
+        <div class="feature-grid">
+          <div class="feature" data-reveal style="padding:22px;">
+            <div class="feature__title" style="margin-bottom:12px;">Latency distribution</div>
+            <div class="minibar"><span class="minibar__col" style="height:14%;"></span><span class="minibar__col" style="height:32%;"></span><span class="minibar__col" style="height:61%;"></span><span class="minibar__col" style="height:100%;"></span><span class="minibar__col" style="height:79%;"></span><span class="minibar__col" style="height:43%;"></span><span class="minibar__col" style="height:21%;"></span><span class="minibar__col" style="height:11%;"></span></div>
+            <p class="card-note">Where calls actually land &mdash; not just the average.</p>
+          </div>
+          <div class="feature" data-reveal style="padding:22px;">
+            <div class="feature__title" style="margin-bottom:12px;">Slowest exemplars</div>
+            <div class="exemplars">
+              <div class="exemplar"><span class="exemplar__t exemplar__t--red nums">980ms</span><span class="exemplar__attr">roomId=heavy &middot; cold</span></div>
+              <div class="exemplar"><span class="exemplar__t exemplar__t--amber nums">720ms</span><span class="exemplar__attr">roomId=general</span></div>
+              <div class="exemplar"><span class="exemplar__t exemplar__t--amber nums">410ms</span><span class="exemplar__attr">roomId=alerts</span></div>
+            </div>
+            <p class="card-note" style="margin-top:14px;">Real calls with timing + attributes.</p>
+          </div>
+          <div class="feature" data-reveal style="padding:22px;">
+            <div class="feature__title" style="margin-bottom:12px;">Span tree</div>
+            <div class="spantree">
+              <div class="span span--1">api.fetchMessages &middot; 182ms</div>
+              <div class="span span--2">db.query &middot; 96ms</div>
+              <div class="span span--3">json.decode &middot; 58ms</div>
+            </div>
+            <p class="card-note" style="margin-top:13px;">Nested spans on a shared monotonic clock.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- FRAMES / REBUILDS / STARTUP -->
+      <section class="section section--ruled" aria-labelledby="beyond-heading">
+        <div class="section-head" data-reveal style="max-width:600px; margin-bottom:clamp(24px,3vw,40px);">
+          <p class="eyebrow eyebrow--amber">Beyond traces</p>
+          <h2 class="section-title section-title--md" id="beyond-heading" style="margin:0;">Frames, rebuilds, and startup.</h2>
+        </div>
+        <div class="bento">
+          <!-- Frames -->
+          <div class="bento__cell bento__cell--7" data-reveal>
+            <div class="bento__head">
+              <h3 style="flex:1;">Frames &amp; jank</h3>
+              <span class="frame-jank-label nums">14 jank &middot; 4.2%</span>
+            </div>
+            <div class="framebar"><span class="framebar__col" style="height:19%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:23%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:16%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:26%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:19%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:29%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:23%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:58%;background:#ff5d6c;"></span><span class="framebar__col" style="height:19%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:16%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:23%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:19%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:26%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:77%;background:#ff5d6c;"></span><span class="framebar__col" style="height:23%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:19%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:16%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:29%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:19%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:23%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:100%;background:#ff5d6c;"></span><span class="framebar__col" style="height:26%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:19%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:16%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:23%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:19%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:29%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:19%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:23%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:16%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:26%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:55%;background:#ff5d6c;"></span><span class="framebar__col" style="height:19%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:23%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:16%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:19%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:29%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:19%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:23%;background:rgba(245,181,74,0.45);"></span><span class="framebar__col" style="height:19%;background:rgba(245,181,74,0.45);"></span></div>
+            <div class="frame-stats">
+              <div class="frame-stat"><div class="frame-stat__label">build p50/95/99</div><div class="frame-stat__value nums">3.2/8.1/16.4</div></div>
+              <div class="frame-stat"><div class="frame-stat__label">raster p50/95/99</div><div class="frame-stat__value nums">2.1/6.4/12.8</div></div>
+            </div>
+            <p class="card-note">Frame-time timeline with build/raster/total percentiles and the worst recent frames + their cause.</p>
+          </div>
+          <!-- Rebuilds -->
+          <div class="bento__cell bento__cell--5" data-reveal style="display:block;">
+            <h3 style="margin:0 0 14px;">Widget rebuilds</h3>
+            <div class="rebuilds">
+              <div>
+                <div class="rebuild__head"><span class="rebuild__flag">EXCESSIVE</span><span class="rebuild__label">ChatBubble</span><span class="rebuild__count rebuild__count--flag nums">5,400</span></div>
+                <div class="rebuild__track"><div class="rebuild__fill rebuild__fill--flag" style="width:100%;"></div></div>
+              </div>
+              <div>
+                <div class="rebuild__head"><span class="rebuild__flag">EXCESSIVE</span><span class="rebuild__label">MessageList</span><span class="rebuild__count rebuild__count--flag nums">1,240</span></div>
+                <div class="rebuild__track"><div class="rebuild__fill rebuild__fill--flag" style="width:23%;"></div></div>
+              </div>
+              <div>
+                <div class="rebuild__head"><span class="rebuild__label">PresenceDot</span><span class="rebuild__count rebuild__count--ok nums">880</span></div>
+                <div class="rebuild__track"><div class="rebuild__fill rebuild__fill--ok" style="width:16%;"></div></div>
+              </div>
+              <div>
+                <div class="rebuild__head"><span class="rebuild__label">ComposerField</span><span class="rebuild__count rebuild__count--ok nums">320</span></div>
+                <div class="rebuild__track"><div class="rebuild__fill rebuild__fill--ok" style="width:6%;"></div></div>
+              </div>
+            </div>
+            <p class="card-note" style="margin-top:13px;">Per-label counts from instrumented subtrees. Excessive rebuilders flagged.</p>
+          </div>
+          <!-- Startup -->
+          <div class="bento__cell bento__cell--12" data-reveal style="padding:0; border:0; background:transparent;">
+            <div class="startup">
+              <div class="startup__headline">
+                <div class="startup__kicker">STARTUP &middot; TIME TO FIRST FRAME</div>
+                <div class="startup__ttff nums">480ms</div>
+                <p class="startup__p">A single headline metric from init to first frame, broken down by phase &mdash; and an honest "not measured" state when it wasn't captured.</p>
+              </div>
+              <div class="startup__phases">
+                <div class="startup__meter" aria-hidden="true">
+                  <div class="startup__seg--engine"></div>
+                  <div class="startup__seg--vm"></div>
+                  <div class="startup__seg--build"></div>
+                  <div class="startup__seg--raster"></div>
+                </div>
+                <div class="startup__legend">
+                  <div class="startup__legrow"><span class="startup__swatch startup__swatch--engine" aria-hidden="true"></span><span>Engine init</span><span class="nums">120ms</span></div>
+                  <div class="startup__legrow"><span class="startup__swatch startup__swatch--vm" aria-hidden="true"></span><span>Dart VM + isolate</span><span class="nums">90ms</span></div>
+                  <div class="startup__legrow"><span class="startup__swatch startup__swatch--build" aria-hidden="true"></span><span>First frame build</span><span class="nums">210ms</span></div>
+                  <div class="startup__legrow"><span class="startup__swatch startup__swatch--raster" aria-hidden="true"></span><span>First frame raster</span><span class="nums">60ms</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- REAL CODE (tabs) -->
+      <section class="section section--ruled" aria-labelledby="code-heading">
+        <div class="section-head" data-reveal style="max-width:600px; margin-bottom:24px;">
+          <p class="eyebrow eyebrow--amber">Real code</p>
+          <h2 class="section-title section-title--md" id="code-heading" style="margin:0;">Trace a span. Count a rebuild.</h2>
+        </div>
+        <div class="codetabs codetabs--amber" role="tablist" aria-label="Performance code examples" data-tabs data-reveal>
+          <button class="codetab" role="tab" id="perf-tab-trace" aria-controls="perf-panel-trace" aria-selected="true" tabindex="0" type="button">trace a span</button>
+          <button class="codetab" role="tab" id="perf-tab-rebuild" aria-controls="perf-panel-rebuild" aria-selected="false" tabindex="-1" type="button">count rebuilds</button>
+        </div>
+        <div data-reveal>
+          <div class="codewin codewin--shadow codepanel" role="tabpanel" id="perf-panel-trace" aria-labelledby="perf-tab-trace">
+            <div class="codewin__bar--traffic">
+              <span class="dot dot--r" aria-hidden="true"></span>
+              <span class="dot dot--y" aria-hidden="true"></span>
+              <span class="dot dot--g" aria-hidden="true"></span>
+              <span class="codewin__file">chat_repository.dart</span>
+            </div>
+            <pre class="code--lg"><code><span class="tc">// Wrap any operation &mdash; sync or async.</span>
+<span class="tk">final</span> messages = <span class="tk">await</span> Radar.<span class="tf">trace</span>(
+  <span class="ts">'api.fetchMessages'</span>,
+  category: <span class="ts">'network'</span>,
+  () =&gt; api.<span class="tf">fetchMessages</span>(roomId),
+);
+
+<span class="tc">// Nested spans share a monotonic clock &mdash;</span>
+<span class="tc">// they roll up into a parent/child tree.</span></code></pre>
+          </div>
+          <div class="codewin codewin--shadow codepanel" role="tabpanel" id="perf-panel-rebuild" aria-labelledby="perf-tab-rebuild" hidden>
+            <div class="codewin__bar--traffic">
+              <span class="dot dot--r" aria-hidden="true"></span>
+              <span class="dot dot--y" aria-hidden="true"></span>
+              <span class="dot dot--g" aria-hidden="true"></span>
+              <span class="codewin__file">chat_screen.dart</span>
+            </div>
+            <pre class="code--lg"><code><span class="tc">// Wrap a subtree to count its rebuilds.</span>
+RadarRebuildScope(
+  label: <span class="ts">'ChatBubble'</span>,
+  child: ChatBubble(message: m),
+)
+
+<span class="tc">// Excessive rebuilders are flagged automatically</span>
+<span class="tc">// in the Rebuilds view.</span></code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- CROSS LINKS -->
+      <section class="section section--ruled" aria-label="Other pillars">
+        <div class="crosslinks">
+          <a class="crosslink crosslink--memory" href="memory.html" data-reveal>
+            <span class="crosslink__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 6v12M11 6v12M15 6v12"/></svg></span>
+            <span>
+              <span class="crosslink__kicker">PILLAR</span>
+              <span class="crosslink__title">Memory &rarr;</span>
+            </span>
+          </a>
+          <a class="crosslink crosslink--stability" href="stability.html" data-reveal>
+            <span class="crosslink__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#5ad1e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5z"/></svg></span>
+            <span>
+              <span class="crosslink__kicker">NEXT PILLAR</span>
+              <span class="crosslink__title">Stability &rarr;</span>
+            </span>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer footer--compact">
+      <div class="footer__inner">
+        <a class="footer__brand-link" href="index.html">
+          <svg width="22" height="22" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+          <span class="footer__brand-name">Flutter Radar</span>
+        </a>
+        <span class="footer__meta">MIT licensed &middot; debug &amp; profile only &middot; no-op in release</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="main.js" defer></script>
+</body>
+</html>

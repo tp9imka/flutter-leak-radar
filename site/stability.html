@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stability — Flutter Radar</title>
+  <meta name="description" content="See the freeze before your users do. Uncaught errors grouped with repeat counts and stacks, plus a main-thread watchdog that catches the ANR-like stalls a crash report never names.">
+  <meta name="color-scheme" content="dark">
+  <link rel="preload" href="fonts/SpaceGrotesk.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { margin: 0; background: #07090a; color: #e7eef0; font-family: 'Hanken Grotesk', system-ui, sans-serif; }
+    .nav { position: sticky; top: 0; z-index: 50; background: rgba(7,9,10,0.72); border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .pillar-hero__title { font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="bg-glow bg-glow--stability" aria-hidden="true"></div>
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <div class="page">
+    <!-- NAV -->
+    <nav class="nav" aria-label="Primary">
+      <div class="nav__inner">
+        <a class="nav__brand" href="index.html" aria-label="Flutter Radar home">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="7" stroke="rgba(47,227,155,0.55)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+          <span class="nav__brand-name">Flutter Radar</span>
+        </a>
+        <div class="nav__links">
+          <a class="nav__link" href="memory.html">Memory</a>
+          <a class="nav__link" href="performance.html">Performance</a>
+          <a class="nav__link nav__link--stability" href="stability.html" aria-current="page">Stability</a>
+          <a class="nav__cta" href="index.html#install">Install</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- BREADCRUMB -->
+    <nav class="breadcrumb breadcrumb--stability" aria-label="Breadcrumb">
+      <a href="index.html">Flutter Radar</a>
+      <span class="breadcrumb__sep" aria-hidden="true">/</span>
+      <span class="breadcrumb__current--stability">Stability</span>
+    </nav>
+
+    <!-- HERO -->
+    <header class="pillar-hero">
+      <div class="pillar-hero__copy pillar-hero__copy--full">
+        <div class="pillar-badge pillar-badge--stability" data-reveal>Pillar 03 &middot; Stability</div>
+        <h1 class="pillar-hero__title" data-reveal>See the freeze before your users do.</h1>
+        <p class="pillar-hero__lead" data-reveal>Uncaught errors get captured with the count of how often each one repeats and the stack that threw it. A main-thread watchdog catches the stalls &mdash; the ANR-like freezes a crash report never even names.</p>
+      </div>
+    </header>
+
+    <main>
+      <!-- UNCAUGHT ERRORS -->
+      <section class="section section--ruled" aria-labelledby="errors-heading">
+        <div class="split split--top">
+          <div class="split__copy" data-reveal>
+            <p class="eyebrow eyebrow--cyan">Uncaught errors</p>
+            <h2 class="split__title split__title--lg" id="errors-heading">Every throw, grouped and counted.</h2>
+            <p class="split__p">Identical errors collapse into one row with a repeat count, so a flood of the same null-check doesn't bury a rarer, nastier one. Sort and filter by type, time, or frequency; drill in for the full stack.</p>
+            <ul class="checklist checklist--cyan">
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Message, type, first/last seen</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Repeat count per distinct error</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Full stack trace on drill-down</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Sort / filter / search</li>
+            </ul>
+          </div>
+          <!-- Errors mock -->
+          <div class="split__media" data-reveal>
+            <div class="errorlist">
+              <div class="errorlist__bar">
+                <span class="errorlist__bar-title">Uncaught errors</span>
+                <span class="errorlist__count nums">4 distinct &middot; 41 total</span>
+                <span class="errorlist__sort">sort: count</span>
+              </div>
+              <div class="errorrow">
+                <span class="errorrow__rail" aria-hidden="true"></span>
+                <div class="errorrow__main">
+                  <div class="errorrow__msg">Null check operator used on a null value</div>
+                  <div class="errorrow__meta"><span class="errorrow__type">_TypeError</span><span class="errorrow__time nums">14:31:08</span><span class="errorrow__repeats nums">&times;23</span></div>
+                </div>
+              </div>
+              <div class="errorrow">
+                <span class="errorrow__rail" aria-hidden="true"></span>
+                <div class="errorrow__main">
+                  <div class="errorrow__msg">SocketException: Connection refused (port 443)</div>
+                  <div class="errorrow__meta"><span class="errorrow__type">SocketException</span><span class="errorrow__time nums">14:19:02</span><span class="errorrow__repeats nums">&times;8</span></div>
+                </div>
+              </div>
+              <div class="errorrow">
+                <span class="errorrow__rail" aria-hidden="true"></span>
+                <div class="errorrow__main">
+                  <div class="errorrow__msg">Bad state: Cannot add to a closed StreamController</div>
+                  <div class="errorrow__meta"><span class="errorrow__type">StateError</span><span class="errorrow__time nums">14:22:41</span><span class="errorrow__repeats nums">&times;6</span></div>
+                </div>
+              </div>
+              <div class="errorrow" style="border-bottom:0;">
+                <span class="errorrow__rail" aria-hidden="true"></span>
+                <div class="errorrow__main">
+                  <div class="errorrow__msg">RangeError (index): Invalid value: Not in 0..3</div>
+                  <div class="errorrow__meta"><span class="errorrow__type">RangeError</span><span class="errorrow__time nums">14:28:55</span><span class="errorrow__repeats nums">&times;4</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MAIN-THREAD STALLS -->
+      <section class="section section--ruled" aria-labelledby="stalls-heading">
+        <div class="split split--top">
+          <!-- Copy (left on desktop) -->
+          <div class="split__copy" data-reveal>
+            <p class="eyebrow eyebrow--amber">Main-thread stalls</p>
+            <h2 class="split__title split__title--lg" id="stalls-heading">The jank that becomes an ANR.</h2>
+            <p class="split__p">A watchdog times the gap between main-isolate heartbeats. Anything over your threshold is logged with its duration, when it happened, and the likely cause &mdash; the synchronous decode, the blocking write, the layout pass that locked the UI.</p>
+            <div class="safe__tags">
+              <span class="tag" style="color:#f5b54a; background:rgba(245,181,74,0.08); border:1px solid rgba(245,181,74,0.25); padding:6px 11px; border-radius:8px; font-size:11.5px;">configurable threshold</span>
+              <span class="tag tag--neutral" style="padding:6px 11px; border-radius:8px; font-size:11.5px;">sortable by duration</span>
+            </div>
+          </div>
+          <!-- Stalls mock (right on desktop) -->
+          <div class="split__media" data-reveal>
+            <div class="stalls">
+              <div class="stalls__bar">
+                <span class="stalls__bar-title">Main-thread stalls</span>
+                <span class="stalls__count nums">5 over 250ms</span>
+              </div>
+              <div class="stalls__body">
+                <div class="stall">
+                  <div class="stall__head"><span class="stall__dur stall__dur--red nums">1.2s</span><span class="stall__cause">jsonDecode on main isolate (2.1 MB)</span><span class="stall__time nums">14:30:11</span></div>
+                  <div class="stall__track"><div class="stall__fill stall__fill--red" style="width:100%;"></div></div>
+                </div>
+                <div class="stall">
+                  <div class="stall__head"><span class="stall__dur stall__dur--amber nums">980ms</span><span class="stall__cause">Synchronous file write</span><span class="stall__time nums">14:27:39</span></div>
+                  <div class="stall__track"><div class="stall__fill stall__fill--amber" style="width:79%;"></div></div>
+                </div>
+                <div class="stall">
+                  <div class="stall__head"><span class="stall__dur stall__dur--amber nums">720ms</span><span class="stall__cause">Image decode on UI thread</span><span class="stall__time nums">14:21:55</span></div>
+                  <div class="stall__track"><div class="stall__fill stall__fill--amber" style="width:58%;"></div></div>
+                </div>
+                <div class="stall">
+                  <div class="stall__head"><span class="stall__dur stall__dur--soft nums">540ms</span><span class="stall__cause">Large list rebuild</span><span class="stall__time nums">14:18:20</span></div>
+                  <div class="stall__track"><div class="stall__fill stall__fill--soft" style="width:44%;"></div></div>
+                </div>
+                <div class="stall">
+                  <div class="stall__head"><span class="stall__dur stall__dur--soft nums">410ms</span><span class="stall__cause">Cold cache query</span><span class="stall__time nums">14:05:03</span></div>
+                  <div class="stall__track"><div class="stall__fill stall__fill--soft" style="width:33%;"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- DRILL-DOWN / STACK -->
+      <section class="section section--ruled" aria-labelledby="drill-heading">
+        <div class="section-head" data-reveal style="max-width:600px; margin-bottom:24px;">
+          <p class="eyebrow eyebrow--cyan">Drill-down</p>
+          <h2 class="section-title section-title--md" id="drill-heading" style="margin:0;">From a count to the exact frame.</h2>
+        </div>
+        <div class="stackdetail" data-reveal>
+          <div class="stackdetail__head">
+            <div class="stackdetail__msg">Null check operator used on a null value</div>
+            <div class="stackdetail__meta">
+              <span class="stackdetail__type">_TypeError</span>
+              <span class="stackdetail__last nums">last 14:31:08</span>
+              <span class="stackdetail__repeats nums">&times;23</span>
+            </div>
+          </div>
+          <div class="stackdetail__frames">
+            <div><span class="at">at</span> ChatRoomController.<span class="fn">dispose</span> <span class="loc">chat_room.dart:54</span></div>
+            <div><span class="at">at</span> _ChatScreenState.<span class="fn">deactivate</span> <span class="loc">chat_screen.dart:71</span></div>
+            <div><span class="at">at</span> StatefulElement.<span class="fn">unmount</span> <span class="loc">framework.dart:5204</span></div>
+            <div><span class="at">at</span> BuildOwner.<span class="fn">finalizeTree</span> <span class="loc">framework.dart:2988</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- REAL CODE -->
+      <section class="section section--ruled" aria-labelledby="code-heading">
+        <div class="section-head" data-reveal style="max-width:600px; margin-bottom:24px;">
+          <p class="eyebrow eyebrow--cyan">Real code</p>
+          <h2 class="section-title section-title--md" id="code-heading" style="margin:0;">It wires the zones for you.</h2>
+        </div>
+        <div class="codewin codewin--shadow code--narrow" data-reveal>
+          <div class="codewin__bar--traffic">
+            <span class="dot dot--r" aria-hidden="true"></span>
+            <span class="dot dot--y" aria-hidden="true"></span>
+            <span class="dot dot--g" aria-hidden="true"></span>
+            <span class="codewin__file">main.dart</span>
+          </div>
+          <pre class="code--lg"><code>FlutterRadar.<span class="tf">init</span>(
+  stability: StabilityConfig(
+    captureErrors: <span class="tl">true</span>,        <span class="tc">// FlutterError + zone</span>
+    stallThreshold: <span class="tt">Duration</span>(milliseconds: <span class="tl">250</span>),
+  ),
+);
+<span class="tc">// No try/catch plumbing &mdash; Radar owns the error zone</span>
+<span class="tc">// and the main-thread watchdog. It never rethrows</span>
+<span class="tc">// into your app.</span></code></pre>
+        </div>
+      </section>
+
+      <!-- CROSS LINKS -->
+      <section class="section section--ruled" aria-label="Other pillars">
+        <div class="crosslinks">
+          <a class="crosslink crosslink--memory" href="memory.html" data-reveal>
+            <span class="crosslink__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 6v12M11 6v12M15 6v12"/></svg></span>
+            <span>
+              <span class="crosslink__kicker">PILLAR</span>
+              <span class="crosslink__title">Memory &rarr;</span>
+            </span>
+          </a>
+          <a class="crosslink crosslink--performance" href="performance.html" data-reveal>
+            <span class="crosslink__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#f5b54a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+            <span>
+              <span class="crosslink__kicker">PILLAR</span>
+              <span class="crosslink__title">Performance &rarr;</span>
+            </span>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer footer--compact">
+      <div class="footer__inner">
+        <a class="footer__brand-link" href="index.html">
+          <svg width="22" height="22" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+          <span class="footer__brand-name">Flutter Radar</span>
+        </a>
+        <span class="footer__meta">MIT licensed &middot; debug &amp; profile only &middot; no-op in release</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="main.js" defer></script>
+</body>
+</html>

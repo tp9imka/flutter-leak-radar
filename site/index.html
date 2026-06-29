@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flutter Radar — Memory, performance, and stability on one radar</title>
+  <meta name="description" content="Open-source on-device + DevTools observability for Flutter. A draggable badge surfaces leaks, jank, and crashes as they happen. Zero-config, no base classes, a complete no-op in release.">
+  <meta name="color-scheme" content="dark">
+
+  <!-- Preload the critical headline font (Space Grotesk renders the hero h1). -->
+  <link rel="preload" href="fonts/SpaceGrotesk.ttf" as="font" type="font/ttf" crossorigin>
+
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Critical above-the-fold paint: base + nav + hero shell, so first paint
+       doesn't wait on the full stylesheet. Mirrors tokens in styles.css. -->
+  <style>
+    body { margin: 0; background: #07090a; color: #e7eef0; font-family: 'Hanken Grotesk', system-ui, sans-serif; }
+    .nav { position: sticky; top: 0; z-index: 50; background: rgba(7,9,10,0.72); border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .hero__title { font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="bg-glow" aria-hidden="true"></div>
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <div class="page">
+    <!-- NAV -->
+    <nav class="nav" aria-label="Primary">
+      <div class="nav__inner">
+        <a class="nav__brand" href="index.html" aria-label="Flutter Radar home">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+            <circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/>
+            <circle cx="13" cy="13" r="7" stroke="rgba(47,227,155,0.55)" stroke-width="1"/>
+            <circle cx="13" cy="13" r="2.4" fill="#2fe39b"/>
+            <path d="M13 13 L13 1.5 A11.5 11.5 0 0 1 22.6 8 Z" fill="rgba(47,227,155,0.22)"/>
+          </svg>
+          <span class="nav__brand-name">Flutter Radar</span>
+        </a>
+        <div class="nav__links">
+          <a class="nav__link" href="memory.html">Memory</a>
+          <a class="nav__link" href="performance.html">Performance</a>
+          <a class="nav__link" href="stability.html">Stability</a>
+          <a class="nav__link" href="#install">Install</a>
+          <a class="nav__cta" href="https://github.com/tp9imka/flutter-leak-radar">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+            GitHub
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- HERO -->
+    <header class="hero">
+      <div class="hero__grid">
+        <div class="hero__copy">
+          <div class="hero__badge" data-reveal>
+            <span class="hero__badge-dot" aria-hidden="true"></span>
+            Open-source observability for Flutter
+          </div>
+          <h1 class="hero__title" data-reveal>
+            Memory, performance, and stability &mdash; <span class="accent">on one radar</span>.
+          </h1>
+          <p class="hero__lead" data-reveal>
+            The signal comes to you. A draggable on-device badge surfaces leaks, jank, and crashes as they happen &mdash; and a DevTools companion goes deep when you need it. <span class="strong">Zero-config. No base classes. A complete no-op in release.</span>
+          </p>
+          <div class="hero__actions" data-reveal>
+            <a class="btn-primary" href="#install">Get started <span class="arrow" aria-hidden="true">&rarr;</span></a>
+            <a class="btn-secondary" href="#pillars">The three pillars</a>
+          </div>
+          <div class="cmd" data-reveal>
+            <span class="cmd__prompt" aria-hidden="true">$</span>
+            <span><span class="t-cyan">flutter</span> pub add <span class="t-string">dev:flutter_radar</span></span>
+            <span class="cmd__divider" aria-hidden="true"></span>
+            <span class="cmd__note">debug + profile only</span>
+          </div>
+        </div>
+
+        <!-- Radar instrument: three live blips, a sweep, the device badge. -->
+        <div class="instrument">
+          <div class="instrument__rings" aria-hidden="true">
+            <div class="instrument__ring instrument__ring--1"></div>
+            <div class="instrument__ring instrument__ring--2"></div>
+            <div class="instrument__ring instrument__ring--3"></div>
+            <div class="instrument__cross-h"></div>
+            <div class="instrument__cross-v"></div>
+            <div class="instrument__sweep"></div>
+            <div class="instrument__pulse"></div>
+            <div class="instrument__blip instrument__blip--green"></div>
+            <div class="instrument__blip instrument__blip--amber"></div>
+            <div class="instrument__blip instrument__blip--cyan"></div>
+          </div>
+          <div class="instrument__legend" data-reveal>
+            <div class="legend__row">
+              <span class="legend__dot legend__dot--green" aria-hidden="true"></span>
+              <span class="legend__name">Memory</span>
+              <span class="legend__metric nums">15 leaks</span>
+            </div>
+            <div class="legend__row">
+              <span class="legend__dot legend__dot--amber" aria-hidden="true"></span>
+              <span class="legend__name">Performance</span>
+              <span class="legend__metric nums">4.2% jank</span>
+            </div>
+            <div class="legend__row">
+              <span class="legend__dot legend__dot--cyan" aria-hidden="true"></span>
+              <span class="legend__name">Stability</span>
+              <span class="legend__metric nums">6 errors</span>
+            </div>
+          </div>
+          <div class="instrument__device-badge" aria-hidden="true">
+            <span class="sev-dot"></span>15&#8856; &#9650;jank 2!
+            <span class="grip">&#10751;</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Delivery strip: on-device vs in-DevTools. -->
+      <div class="delivery" data-reveal>
+        <div class="delivery__cell">
+          <span class="delivery__tag delivery__tag--green">ON DEVICE</span>
+          <p class="delivery__text"><span class="strong">A badge that comes to you.</span> Draggable overlay + full-screen inspector, right in the running app.</p>
+        </div>
+        <div class="delivery__cell">
+          <span class="delivery__tag delivery__tag--cyan">IN DEVTOOLS</span>
+          <p class="delivery__text"><span class="strong">A companion that goes deep.</span> Capture &rarr; diff heap snapshots, dense trace tables, retaining paths.</p>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- THE PROBLEM -->
+      <section class="section" aria-labelledby="problem-heading">
+        <div class="prose">
+          <p class="eyebrow eyebrow--amber" data-reveal>The problem</p>
+          <h2 class="prose__title" id="problem-heading" data-reveal>The worst bugs don't crash on commit. They accumulate.</h2>
+          <p class="prose__p" data-reveal>A controller that's never disposed. A frame that quietly blows the 16ms budget. An error swallowed three layers down. None of them break the build &mdash; they erode the app over a long session until a user feels it, and the trace points at nothing.</p>
+          <p class="prose__p--dim" data-reveal>DevTools can find all of it, if you know to go looking. Flutter Radar watches continuously and brings what it finds to the surface &mdash; on the device, as you build.</p>
+        </div>
+      </section>
+
+      <!-- THREE PILLARS -->
+      <section class="section" id="pillars" aria-labelledby="pillars-heading">
+        <div class="pillars-head" data-reveal>
+          <h2 id="pillars-heading">Three pillars, one toolkit.</h2>
+          <span class="pillars-head__note">drop in once &mdash; get all three</span>
+        </div>
+
+        <div class="pillar-grid">
+          <a class="pillar-card pillar-card--memory" href="memory.html" data-reveal>
+            <span class="pillar-card__ring" aria-hidden="true"></span>
+            <span class="pillar-card__icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 6v12M11 6v12M15 6v12"/></svg></span>
+            <span class="pillar-card__kicker">MEMORY</span>
+            <h3 class="pillar-card__title">Catch leaks twice</h3>
+            <p class="pillar-card__desc">A static lint stops leak-prone code before it ships; a runtime detector finds what slips through by inspecting the live heap.</p>
+            <ul class="pillar-card__list">
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Per-class growth, retaining paths</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> 7 lint rules with auto-fixes</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Heap snapshot &amp; diff</li>
+            </ul>
+            <span class="pillar-card__cta">Explore Memory &rarr;</span>
+          </a>
+
+          <a class="pillar-card pillar-card--performance" href="performance.html" data-reveal>
+            <span class="pillar-card__ring" aria-hidden="true"></span>
+            <span class="pillar-card__icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f5b54a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+            <span class="pillar-card__kicker">PERFORMANCE</span>
+            <h3 class="pillar-card__title">Find the slow path</h3>
+            <p class="pillar-card__desc">Timed traces, frame/jank timing, rebuild counts, and startup &mdash; surfaced as a dense, sortable analytics table.</p>
+            <ul class="pillar-card__list">
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Traces: p50/p95/p99, total, rate</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Duplicate / hot-call detection</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Frames, rebuilds, startup</li>
+            </ul>
+            <span class="pillar-card__cta">Explore Performance &rarr;</span>
+          </a>
+
+          <a class="pillar-card pillar-card--stability" href="stability.html" data-reveal>
+            <span class="pillar-card__ring" aria-hidden="true"></span>
+            <span class="pillar-card__icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5ad1e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5z"/><path d="M12 9v4M12 16h.01"/></svg></span>
+            <span class="pillar-card__kicker">STABILITY</span>
+            <h3 class="pillar-card__title">See it before users do</h3>
+            <p class="pillar-card__desc">Uncaught errors and main-thread stalls, captured with repeat counts and stacks &mdash; the freezes a crash report never names.</p>
+            <ul class="pillar-card__list">
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Uncaught errors + repeat counts</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Stack traces on drill-down</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Main-thread stall watchdog</li>
+            </ul>
+            <span class="pillar-card__cta">Explore Stability &rarr;</span>
+          </a>
+        </div>
+      </section>
+
+      <!-- HOW IT WORKS -->
+      <section class="section section--ruled" aria-labelledby="how-heading">
+        <div class="how-head" data-reveal>
+          <p class="eyebrow eyebrow--green">How it works</p>
+          <h2 id="how-heading">One init call. No base classes.</h2>
+        </div>
+        <div class="steps">
+          <div class="step" data-reveal>
+            <div class="step__num step__num--green">01</div>
+            <h3>Add it</h3>
+            <p>Two dev-dependencies and one <code>FlutterRadar.init()</code>. Nothing to extend, no mixins on your types.</p>
+          </div>
+          <div class="step" data-reveal>
+            <div class="step__num step__num--amber">02</div>
+            <h3>Run it</h3>
+            <p>Use the app in debug or profile. Radar watches the heap, the frames, the traces, and the error zone continuously.</p>
+          </div>
+          <div class="step" data-reveal>
+            <div class="step__num step__num--cyan">03</div>
+            <h3>Read the signal</h3>
+            <p>The badge shows worst severity across all three. Tap for the inspector, or open the DevTools companion to go deep.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SAFE BY CONSTRUCTION -->
+      <section class="section" aria-labelledby="safe-heading">
+        <div class="safe" data-reveal>
+          <div class="safe__copy">
+            <div class="safe__head">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5z"/><path d="M9 12l2 2 4-4"/></svg>
+              <h2 id="safe-heading">Safe by construction</h2>
+            </div>
+            <p class="safe__p">Radar never throws into your app and never measurably slows it. It runs only in debug and profile, and is fully tree-shaken out of release builds &mdash; there is nothing of it left to ship.</p>
+          </div>
+          <div class="safe__tags">
+            <span class="chip chip--green">release no-op</span>
+            <span class="chip chip--neutral">never throws</span>
+            <span class="chip chip--neutral">never slows the host</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- INSTALL -->
+      <section class="section section--ruled" id="install" aria-labelledby="install-heading">
+        <div class="install">
+          <div class="install__copy" data-reveal>
+            <p class="eyebrow eyebrow--green">Install</p>
+            <h2 id="install-heading">Three edits, all three pillars.</h2>
+            <p>Memory, Performance, and Stability all come from one project. Add the deps, enable the lint plugin, call <code>init</code>.</p>
+            <a class="btn-primary" href="https://pub.dev/packages/flutter_radar">View on pub.dev <span class="arrow" aria-hidden="true">&rarr;</span></a>
+          </div>
+          <div class="install__steps" data-reveal>
+            <div class="codewin">
+              <div class="codewin__bar"><span>pubspec.yaml</span><span class="codewin__step">1 / 3</span></div>
+              <pre><code><span class="tt">dev_dependencies</span>:
+  <span class="ts">flutter_radar</span>: ^1.0.0
+  <span class="ts">custom_lint</span>: ^0.6.0</code></pre>
+            </div>
+            <div class="codewin">
+              <div class="codewin__bar"><span>analysis_options.yaml</span><span class="codewin__step">2 / 3</span></div>
+              <pre><code><span class="tt">analyzer</span>:
+  <span class="tt">plugins</span>:
+    - <span class="ts">custom_lint</span></code></pre>
+            </div>
+            <div class="codewin">
+              <div class="codewin__bar"><span>main.dart</span><span class="codewin__step">3 / 3</span></div>
+              <pre><code>FlutterRadar.<span class="tf">init</span>(overlay: <span class="tl">true</span>);
+<span class="tf">runApp</span>(<span class="tk">const</span> MyApp());</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <div class="footer__inner">
+        <div class="footer__top">
+          <div class="footer__brand">
+            <div class="footer__brand-row">
+              <svg width="24" height="24" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="7" stroke="rgba(47,227,155,0.55)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+              <span class="footer__brand-name">Flutter Radar</span>
+            </div>
+            <p class="footer__tagline">On-device observability for Flutter &mdash; memory, performance, stability. Debug &amp; profile only. A complete no-op in release.</p>
+          </div>
+          <div class="footer__cols">
+            <nav class="footer__nav" aria-label="Pillars">
+              <div class="footer__col-head">Pillars</div>
+              <div class="footer__links">
+                <a class="footer__link" href="memory.html">Memory</a>
+                <a class="footer__link footer__link--amber" href="performance.html">Performance</a>
+                <a class="footer__link footer__link--cyan" href="stability.html">Stability</a>
+              </div>
+            </nav>
+            <nav class="footer__nav" aria-label="Project">
+              <div class="footer__col-head">Project</div>
+              <div class="footer__links">
+                <a class="footer__link" href="https://github.com/tp9imka/flutter-leak-radar">GitHub</a>
+                <a class="footer__link" href="https://pub.dev/packages/flutter_radar">pub.dev</a>
+                <a class="footer__link" href="https://github.com/tp9imka/flutter-leak-radar#readme">Documentation</a>
+              </div>
+            </nav>
+          </div>
+        </div>
+        <div class="footer__bottom">
+          <span class="footer__meta">MIT licensed &middot; open source</span>
+          <span class="footer__meta">Built by someone who's hunted these bugs.</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="main.js" defer></script>
+</body>
+</html>
