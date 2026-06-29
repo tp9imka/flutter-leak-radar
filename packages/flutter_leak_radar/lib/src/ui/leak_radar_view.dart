@@ -103,7 +103,9 @@ class LeakRadarViewState extends State<LeakRadarView> {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: EdgeInsets.only(
+                    bottom: 8 + MediaQuery.of(context).padding.bottom,
+                  ),
                   itemCount: filtered.length,
                   itemBuilder: (_, i) {
                     final f = filtered[i];
