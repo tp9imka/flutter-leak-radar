@@ -40,6 +40,8 @@ dependency_overrides:
     path: ../packages/radar_trace
   leak_graph:
     path: ../packages/leak_graph
+  radar_ui:
+    path: ../packages/radar_ui
 
 flutter:
   uses-material-design: true
