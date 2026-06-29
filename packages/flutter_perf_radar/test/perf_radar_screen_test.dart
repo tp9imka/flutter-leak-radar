@@ -1,3 +1,4 @@
+// packages/flutter_perf_radar/test/perf_radar_screen_test.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_perf_radar/flutter_perf_radar.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,19 +19,26 @@ void main() {
       expect(find.text('Perf Radar'), findsOneWidget);
     });
 
-    testWidgets('shows Spans tab', (tester) async {
+    // ── New sub-tab labels replace old Spans tab ───────────────────────────
+
+    testWidgets('shows Traces sub-tab (replaces old Spans)', (tester) async {
       await tester.pumpWidget(buildScreen());
-      expect(find.text('Spans'), findsOneWidget);
+      expect(find.text('Traces'), findsOneWidget);
     });
 
-    testWidgets('shows Frames tab', (tester) async {
+    testWidgets('shows Frames sub-tab', (tester) async {
       await tester.pumpWidget(buildScreen());
       expect(find.text('Frames'), findsOneWidget);
     });
 
-    testWidgets('shows Stability tab', (tester) async {
+    testWidgets('shows Rebuilds sub-tab', (tester) async {
       await tester.pumpWidget(buildScreen());
-      expect(find.text('Stability'), findsOneWidget);
+      expect(find.text('Rebuilds'), findsOneWidget);
+    });
+
+    testWidgets('shows Startup sub-tab', (tester) async {
+      await tester.pumpWidget(buildScreen());
+      expect(find.text('Startup'), findsOneWidget);
     });
 
     testWidgets('onClose callback fires on close button tap', (tester) async {
@@ -48,6 +56,15 @@ void main() {
       await tester.pumpWidget(buildScreen());
       await tester.pump(const Duration(seconds: 1));
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('default tab shows Traces (search field present)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildScreen());
+      await tester.pump();
+      // Traces tab is default — search field should be visible
+      expect(find.byType(TextField), findsOneWidget);
     });
   });
 }
