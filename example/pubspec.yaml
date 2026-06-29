@@ -1,19 +1,24 @@
 name: flutter_leak_radar_example
-description: Demo app for flutter_leak_radar — exercises all 7 lint rules and the runtime detector.
+description: >
+  Radar suite showcase — live demos of every unified-radar feature:
+  leaks, tracing, rebuild counting, frame jank, stability errors, and stalls.
 publish_to: none
 version: 0.0.1
+
 # Resolves independently (NOT a workspace member) so `dart run custom_lint`
 # can bootstrap the local lint plugin. The dependency_overrides below let it
-# resolve the unpublished local leak_graph that flutter_leak_radar depends on.
+# resolve against unpublished local packages that radar resolves transitively.
 environment:
   sdk: ">=3.10.0 <4.0.0"
   flutter: ">=3.38.0"
+
 dependencies:
   flutter:
     sdk: flutter
-  flutter_leak_radar:
-    path: ../packages/flutter_leak_radar
+  radar:
+    path: ../packages/radar
   bloc: ^9.2.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -23,9 +28,19 @@ dev_dependencies:
   custom_lint: ^0.8.1
   image: ^4.5.4
   flutter_launcher_icons: ^0.14.4
+
 dependency_overrides:
+  radar:
+    path: ../packages/radar
+  flutter_leak_radar:
+    path: ../packages/flutter_leak_radar
+  flutter_perf_radar:
+    path: ../packages/flutter_perf_radar
+  radar_trace:
+    path: ../packages/radar_trace
   leak_graph:
     path: ../packages/leak_graph
+
 flutter:
   uses-material-design: true
   assets:

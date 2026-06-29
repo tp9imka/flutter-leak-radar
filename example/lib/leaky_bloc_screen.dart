@@ -2,7 +2,7 @@
 //
 // Screen that creates a LeakyCubit — triggers pattern 7 at runtime.
 import 'package:flutter/material.dart';
-import 'package:flutter_leak_radar/flutter_leak_radar.dart';
+import 'package:radar/radar.dart';
 
 import 'leaky_cubit.dart';
 
@@ -20,16 +20,16 @@ class _LeakyBlocScreenState extends State<LeakyBlocScreen> {
   void initState() {
     super.initState();
     _cubit = LeakyCubit();
-    LeakRadar.track(_cubit, tag: 'LeakyCubit');
+    Radar.track(_cubit, tag: 'LeakyCubit');
   }
 
   @override
   void dispose() {
-    // Tell Leak Radar the Cubit should now be collectable. We intentionally
-    // do NOT call _cubit.close(), so its uncancelled StreamSubscription keeps
-    // the Cubit alive after this screen is popped — the precise tracker then
+    // Tell Radar the Cubit should now be collectable. We intentionally do NOT
+    // call _cubit.close(), so its uncancelled StreamSubscription keeps the
+    // Cubit alive after this screen is popped — the precise tracker then
     // reports it as a notGced leak.
-    LeakRadar.markDisposed(_cubit);
+    Radar.markDisposed(_cubit);
     super.dispose();
   }
 
@@ -56,7 +56,7 @@ class _LeakyBlocScreenState extends State<LeakyBlocScreen> {
               '  7. LeakyCubit has an uncancelled StreamSubscription\n'
               '     (bloc_uncancelled_subscription)\n\n'
               'Pop this screen to trigger a navigation scan,\n'
-              'then check the Leak Radar dashboard.',
+              'then check the Radar dashboard.',
               style: TextStyle(color: Colors.grey),
             ),
           ],
