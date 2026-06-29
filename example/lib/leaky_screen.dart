@@ -2,16 +2,16 @@
 //
 // Intentional leak testbed — demonstrates 6 lint-rule patterns in one State.
 //
-// Pattern 1  undisposed_controller      — TextEditingController created, never disposed
+// Pattern 1  undisposed_controller      — TextEditingController, never disposed
 // Pattern 2  uncancelled_subscription   — StreamSubscription field, never cancelled
 // Pattern 3  uncancelled_timer          — Timer.periodic field, never cancelled
 // Pattern 4  unclosed_stream_controller — StreamController field, never closed
-// Pattern 5  discarded_listen_result    — bare stream.listen() whose result is dropped
-// Pattern 6  missing_remove_listener    — addListener without removeListener in dispose()
+// Pattern 5  discarded_listen_result    — bare stream.listen() result dropped
+// Pattern 6  missing_remove_listener    — addListener without removeListener
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_leak_radar/flutter_leak_radar.dart';
+import 'package:radar/radar.dart';
 
 class LeakyScreen extends StatefulWidget {
   const LeakyScreen({super.key});
@@ -27,13 +27,13 @@ class _LeakyScreenState extends State<LeakyScreen> {
   // Pattern 2: uncancelled_subscription — StreamSubscription never cancelled.
   StreamSubscription<int>? _subscription;
 
-  // Pattern 3: uncancelled_timer — Timer.periodic never cancelled.
+  // Pattern 3: uncancelled_timer — Timer.periodic field, never cancelled.
   Timer? _timer;
 
   // Pattern 4: unclosed_stream_controller — StreamController never closed.
   final StreamController<int> _streamController = StreamController<int>();
 
-  // Pattern 6: missing_remove_listener — ValueNotifier addListener without removeListener.
+  // Pattern 6: missing_remove_listener — addListener without removeListener.
   final ValueNotifier<int> _notifier = ValueNotifier<int>(0);
 
   void _onNotifierChanged() {}
@@ -45,7 +45,7 @@ class _LeakyScreenState extends State<LeakyScreen> {
   @override
   void initState() {
     super.initState();
-    LeakRadar.track(this, tag: 'LeakyScreen');
+    Radar.track(this, tag: 'LeakyScreen');
 
     // Pattern 2: assign subscription to field, never cancel it.
     _subscription = Stream.periodic(const Duration(seconds: 1), (i) => i)
@@ -67,10 +67,10 @@ class _LeakyScreenState extends State<LeakyScreen> {
 
   @override
   void dispose() {
-    // Tell Leak Radar this State should now be collectable. Because we skip
-    // the teardown below, the live Timer/subscription keep it alive — so the
-    // precise tracker reports it as a notGced leak on a single navigation.
-    LeakRadar.markDisposed(this);
+    // Tell Radar this State should now be collectable. Because we skip the
+    // teardown below, the live Timer/subscription keep it alive — the precise
+    // tracker reports it as a notGced leak on a single navigation.
+    Radar.markDisposed(this);
     // Intentionally NOT calling:
     //   _textController.dispose()    (pattern 1)
     //   _subscription?.cancel()      (pattern 2)
@@ -89,14 +89,15 @@ class _LeakyScreenState extends State<LeakyScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'This screen intentionally leaks:\n'
               '  1. TextEditingController (undisposed_controller)\n'
               '  2. StreamSubscription (uncancelled_subscription)\n'
               '  3. Timer.periodic (uncancelled_timer)\n'
               '  4. StreamController (unclosed_stream_controller)\n'
               '  5. bare .listen() (discarded_listen_result)\n'
-              '  6. addListener without removeListener (missing_remove_listener)',
+              '  6. addListener without removeListener '
+              '(missing_remove_listener)',
             ),
             const SizedBox(height: 16),
             TextField(
@@ -107,8 +108,8 @@ class _LeakyScreenState extends State<LeakyScreen> {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Pop this screen, then open the Leak Radar dashboard\n'
-              'or wait for the navigation-triggered scan.',
+              'Pop this screen — the navigation scan fires automatically.\n'
+              'Check the Radar badge or open RadarScreen to see findings.',
               style: TextStyle(color: Colors.grey),
             ),
           ],

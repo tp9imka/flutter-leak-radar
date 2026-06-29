@@ -1,56 +1,52 @@
 // example/lib/main.dart
 //
-// Leak Radar demo app — full testbed for:
-//   • Runtime detector (heap-based, navigation-triggered + periodic scans)
-//   • Lint plugin (7 custom_lint rules exercised across leaky_screen.dart and
-//     leaky_cubit.dart)
+// Radar suite showcase app — real live demos of every unified-radar feature:
+//   • Leak tracking (precise notGced + heap-growth rules)
+//   • Perf tracing (sync + async spans → Spans tab p50/p95/p99)
+//   • Rebuild counting (TracedSubtree → Rebuilds panel)
+//   • Frame jank (real over-budget frames → Frames tab)
+//   • Stability errors (FlutterError handler → Stability tab)
+//   • Stall detection (busy-wait on the main isolate → Stability tab)
+//   • Lint plugin (7 custom_lint rules exercised in leaky_screen.dart)
 //
 // Run the app:   flutter run
 // Run lints:     dart run custom_lint   (from the example/ directory)
 import 'package:flutter/material.dart';
-import 'package:flutter_leak_radar/flutter_leak_radar.dart';
+import 'package:radar/radar.dart';
 
 import 'leak_self_test.dart';
 import 'leaky_bloc_screen.dart';
 import 'leaky_screen.dart';
+import 'showcase/showcase_home.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await LeakRadar.init(
-    LeakRadarConfig.standard(
-      autoScan: const AutoScan(
-        onNavigation: true,
-        period: Duration(seconds: 8),
+  await Radar.init(
+    RadarConfig(
+      leak: LeakRadarConfig.standard(
+        autoScan: const AutoScan(
+          onNavigation: true,
+          period: Duration(seconds: 8),
+        ),
+        // minClusterSize:1 surfaces a single-instance demo leak immediately.
+        // everyNthNavigation:5 keeps graph scans infrequent.
+        graphScan: const GraphScan(
+          everyNthNavigation: 5,
+          minClusterSize: 1,
+          maxGraphObjects: 500000,
+        ),
+        // Surface precise (track + markDisposed) leaks quickly in the demo.
+        gcCyclesForPreciseLeak: 1,
+        disposalGrace: const Duration(seconds: 1),
+        rules: const [
+          LeakRule.maxLive('_LeakyScreenState', 1),
+          LeakRule.growth('LeakyCubit'),
+        ],
+      ).copyWith(logLevel: LeakLogLevel.verbose),
+      perf: PerfRadarConfig.standard().copyWith(
+        // Lower stall threshold so the demo stall button fires quickly.
+        stallThresholdMicros: 200000,
       ),
-      // minClusterSize:1 surfaces a single-instance demo leak: one retained
-      // _LeakyScreenState (a cluster of 1) is reported after a single pop.
-      // Production may prefer 2 to require a repeated pattern before flagging.
-      // everyNthNavigation:5 + the engine's 30s cooldown keep graph scans
-      // infrequent; maxGraphObjects:500000 (the default) lets the pre-write
-      // size gate SKIP the snapshot once this leaky demo's heap bloats past it,
-      // rather than OOM-ing. The graph still surfaces early (fresh heap < 500k);
-      // once bloated it is safely skipped (logged), as it would be in a real app.
-      graphScan: const GraphScan(
-        everyNthNavigation: 5,
-        minClusterSize: 1,
-        maxGraphObjects: 500000,
-      ),
-      // Surface precise (track + markDisposed) leaks quickly in the demo:
-      // 1 GC cycle + 1s grace, instead of the 3-cycle / 2s production defaults.
-      // This is why popping a leaky screen once flags it within a scan or two.
-      gcCyclesForPreciseLeak: 1,
-      disposalGrace: const Duration(seconds: 1),
-      rules: const [
-        // Heap-growth rules. These need REPEATED visits to trip: maxLive fires
-        // only when >1 _LeakyScreenState is live at once, and growth needs
-        // LeakyCubit's instance count to climb across >=2 scans.
-        LeakRule.maxLive('_LeakyScreenState', 1),
-        LeakRule.growth('LeakyCubit'),
-      ],
-    ).copyWith(
-      // Verbose so each scan logs why it produced N findings (acquire path,
-      // forceGc, collectLeaks counts, graph analyze stats). See the console.
-      logLevel: LeakLogLevel.verbose,
     ),
   );
   runApp(const _App());
@@ -61,66 +57,21 @@ class _App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LeakRadar.overlay(
+    return Radar.overlay(
       child: MaterialApp(
-        title: 'Leak Radar Demo',
-        navigatorObservers: [LeakRadar.navigatorObserver],
-        home: const _HomeScreen(),
-      ),
-    );
-  }
-}
-
-class _HomeScreen extends StatelessWidget {
-  const _HomeScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Leak Radar Demo')),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Push a leaky screen, pop back, then wait for the\n'
-              'navigation scan (or open the dashboard manually).',
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const LeakyScreen()),
-              ),
-              child: const Text('Open Leaky Screen\n(patterns 1–6)'),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const LeakyBlocScreen(),
-                ),
-              ),
-              child: const Text('Open Leaky Bloc Screen\n(pattern 7)'),
-            ),
-            const SizedBox(height: 24),
-            OutlinedButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const LeakRadarScreen(),
-                ),
-              ),
-              child: const Text('Open Leak Radar Dashboard'),
-            ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: () => runLeakSelfTest(Navigator.of(context)),
-              child: const Text(
-                'Run leak self-test\n(drives + prints summary)',
-              ),
-            ),
-          ],
+        title: 'Radar Showcase',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData.dark(useMaterial3: true).copyWith(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF2fe39b),
+            brightness: Brightness.dark,
+          ),
+        ),
+        navigatorObservers: [Radar.navigatorObserver],
+        home: ShowcaseHome(
+          leakyScreenBuilder: () => const LeakyScreen(),
+          leakyBlocScreenBuilder: () => const LeakyBlocScreen(),
+          onSelfTest: (nav) => runLeakSelfTest(nav),
         ),
       ),
     );

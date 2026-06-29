@@ -2,50 +2,40 @@
 //
 // ON-DEVICE SELF-TEST (no test framework, no extra dependency).
 //
-// Drives the leak scenario inside the LIVE app — opens + pops LeakyScreen a few
-// times so leaked _LeakyScreenState instances accumulate (each retained by its
-// live Timer/StreamSubscription), then forces a GC + scan and PRINTS a
-// structured summary of every finding grouped by LeakKind to the console.
+// Drives the leak scenario inside the LIVE app — opens + pops LeakyScreen a
+// few times so leaked _LeakyScreenState instances accumulate (each retained
+// by its live Timer/StreamSubscription), then forces a GC + scan and PRINTS
+// a structured summary of every finding grouped by LeakKind.
 //
 // HOW TO USE
-//   flutter run -d <device>        # macOS/emulator => graph + growth work;
-//                                  # physical device => precise (notGced) only
-//   tap "Run leak self-test"       # on the home screen
-//   copy the block fenced between LEAK-RADAR-SUMMARY-BEGIN / -END from the logs
-//   and paste it back for diagnosis.
-//
-// Because it is plain app code it needs no `integration_test` package (and thus
-// no androidx.test native dependency), so it runs on any target — including a
-// physical Android/iOS device where the integration_test runner cannot.
+//   flutter run -d <device>    # macOS/emulator => graph + growth work
+//   tap "Run leak self-test"   # on the showcase home screen
+//   copy the block fenced between LEAK-RADAR-SUMMARY-BEGIN / -END from logs
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_leak_radar/flutter_leak_radar.dart';
+import 'package:radar/radar.dart';
 
 import 'leaky_screen.dart';
 
-/// Number of open+pop cycles. >=2 exceeds the graph scan's everyNthNavigation
-/// and minClusterSize bars with margin for GC/debounce timing.
+/// Number of open+pop cycles.
 const int _kCycles = 6;
 
-/// Opens + pops [LeakyScreen] [_kCycles] times, forces a GC + scan, then prints
-/// the leak summary. Pass the app's [NavigatorState] (e.g. `Navigator.of(context)`).
+/// Opens + pops [LeakyScreen] [_kCycles] times, forces a GC + scan, then
+/// prints the leak summary. Pass the app's [NavigatorState].
 Future<void> runLeakSelfTest(NavigatorState nav) async {
   _print('starting — status=${LeakRadar.status}');
   for (var i = 0; i < _kCycles; i++) {
-    // push() completes only when the route is popped, so fire-and-forget then
-    // pop it ourselves after it has settled.
+    // Fire-and-forget push then pop after settle.
     unawaited(
       nav.push(MaterialPageRoute<void>(builder: (_) => const LeakyScreen())),
     );
     await Future<void>.delayed(const Duration(milliseconds: 450));
     if (nav.canPop()) nav.pop();
-    // Let the debounced navigation scan + every-Nth-nav graph scan run.
     await Future<void>.delayed(const Duration(milliseconds: 750));
     _print('cycle ${i + 1}/$_kCycles done');
   }
 
-  // Let the last in-flight scan settle, then force a deterministic pass.
   await Future<void>.delayed(const Duration(seconds: 1));
   final forced = await LeakRadar.forceGcAndScan();
   _print(
@@ -71,8 +61,6 @@ void _printSummary(LeakReport report) {
     ..writeln('total findings : ${report.findings.length}')
     ..writeln('');
 
-  // Print every kind, including empty ones, so the absence of a path
-  // (graph/growth) is visible rather than ambiguous.
   for (final kind in LeakKind.values) {
     final group = byKind[kind] ?? const <LeakFinding>[];
     b.writeln('--- ${kind.name} (${group.length}) ---');
