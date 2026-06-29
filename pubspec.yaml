@@ -11,5 +11,6 @@ workspace:
   - packages/flutter_perf_radar
   - packages/flutter_leak_radar_devtools
   - packages/radar
+  - packages/radar_ui
 dev_dependencies:
   melos: ^6.0.0

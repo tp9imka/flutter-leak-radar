@@ -1,0 +1,43 @@
+name: radar_ui
+description: >-
+  Shared Flutter design-system package for the Flutter Radar suite.
+  Provides color tokens, typography, density constants, severity
+  mapping, and reusable primitive widgets (tags, sparklines, sort
+  headers, filter chips, metric tiles, live pulse dot).
+version: 0.1.0
+repository: https://github.com/tp9imka/flutter-leak-radar
+issue_tracker: https://github.com/tp9imka/flutter-leak-radar/issues
+homepage: https://tp9imka.github.io/flutter-leak-radar/
+topics:
+  - ui
+  - design-system
+  - flutter
+  - radar
+  - observability
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+  flutter: ">=3.38.0"
+
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  fonts:
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono.ttf
+    - family: SpaceGrotesk
+      fonts:
+        - asset: assets/fonts/SpaceGrotesk.ttf
+    - family: HankenGrotesk
+      fonts:
+        - asset: assets/fonts/HankenGrotesk.ttf

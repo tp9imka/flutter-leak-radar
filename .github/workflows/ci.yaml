@@ -93,3 +93,11 @@ jobs:
       - name: Test radar
         run: flutter test
         working-directory: packages/radar
+
+      - name: Analyze radar_ui
+        run: flutter analyze
+        working-directory: packages/radar_ui
+
+      - name: Test radar_ui
+        run: flutter test
+        working-directory: packages/radar_ui
