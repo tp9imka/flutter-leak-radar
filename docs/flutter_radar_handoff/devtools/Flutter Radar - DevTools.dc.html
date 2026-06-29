@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#0b0e10; -webkit-font-smoothing:antialiased; }
+  ::selection { background:rgba(47,227,155,0.28); color:#eafff5; }
+  .rdr ::-webkit-scrollbar { width:9px; height:9px; }
+  .rdr ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.13); border-radius:5px; }
+  .rdr ::-webkit-scrollbar-track { background:transparent; }
+  .nums { font-variant-numeric:tabular-nums; font-feature-settings:"tnum"; }
+  @keyframes rdr-live { 0%,100%{opacity:.4;} 50%{opacity:1;} }
+  @keyframes rdr-spin { to { transform:rotate(360deg);} }
+  @media (prefers-reduced-motion: reduce){ *{ animation:none !important; } }
+</style>
+</helmet>
+
+<div class="rdr" style="min-height:100vh; background:#0b0e10; color:#e7eef0; font-family:'Hanken Grotesk',system-ui,sans-serif; padding:clamp(16px,2.4vw,30px) clamp(14px,2.4vw,30px) 48px; box-sizing:border-box;">
+
+  <!-- harness header -->
+  <div style="max-width:1320px; margin:0 auto 16px; display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; justify-content:space-between;">
+    <div>
+      <div style="display:flex; align-items:center; gap:9px; margin-bottom:7px;">
+        <svg width="19" height="19" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="7" stroke="rgba(47,227,155,0.55)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#2fe39b;">DevTools companion · wide desktop · interactive</span>
+      </div>
+      <h1 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(22px,2.6vw,30px); letter-spacing:-0.02em; margin:0; line-height:1.05;">Flutter Radar — DevTools panel</h1>
+    </div>
+    <a href="Flutter Radar — Inspector.dc.html" style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#5ad1e6; text-decoration:none;" style-hover="text-decoration:underline;">← in-app Inspector</a>
+  </div>
+
+  <!-- ===================== DEVTOOLS PANEL ===================== -->
+  <div style="max-width:1320px; margin:0 auto; background:#0c1012; border:1px solid rgba(255,255,255,0.1); border-radius:14px; overflow:hidden; box-shadow:0 40px 90px -40px rgba(0,0,0,0.8);">
+
+    <!-- devtools tab strip -->
+    <div style="display:flex; align-items:center; gap:2px; padding:0 10px; background:#0a0d0e; border-bottom:1px solid rgba(255,255,255,0.08); height:38px;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178; padding:0 12px 0 4px;">DevTools</span>
+      <span style="font-family:'Hanken Grotesk',sans-serif; font-size:12.5px; color:#7d8e94; padding:0 12px;">Inspector</span>
+      <span style="font-family:'Hanken Grotesk',sans-serif; font-size:12.5px; color:#7d8e94; padding:0 12px;">Performance</span>
+      <span style="font-family:'Hanken Grotesk',sans-serif; font-size:12.5px; color:#7d8e94; padding:0 12px;">Memory</span>
+      <span style="display:inline-flex; align-items:center; gap:7px; font-family:'Hanken Grotesk',sans-serif; font-weight:600; font-size:12.5px; color:#2fe39b; padding:0 13px; height:100%; border-bottom:2px solid #2fe39b;"><svg width="13" height="13" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11" stroke="#2fe39b" stroke-width="1.6"/><circle cx="13" cy="13" r="2.6" fill="#2fe39b"/></svg> Radar</span>
+      <span style="font-family:'Hanken Grotesk',sans-serif; font-size:12.5px; color:#7d8e94; padding:0 12px;">Network</span>
+      <span style="font-family:'Hanken Grotesk',sans-serif; font-size:12.5px; color:#7d8e94; padding:0 12px;">Logging</span>
+    </div>
+
+    <!-- connection bar -->
+    <div style="display:flex; align-items:center; gap:14px; padding:9px 16px; background:#0c1113; border-bottom:1px solid rgba(255,255,255,0.07);">
+      <button type="button" onClick="{{ toggleConn }}" style="display:inline-flex; align-items:center; gap:7px; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:11px; color:{{ connColor }}; background:{{ connBg }}; border:1px solid {{ connBorder }}; padding:4px 10px; border-radius:7px;"><span style="width:7px; height:7px; border-radius:50%; background:{{ connColor }}; animation:{{ connAnim }};"></span>{{ connLabel }}</button>
+      <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8fa0a6;">{{ connApp }}</span>
+      <span style="color:#2a3338;">·</span>
+      <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8fa0a6;">{{ connIsolate }}</span>
+      <span class="nums" style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178;">heap {{ heapSize }} · uptime 12m</span>
+    </div>
+
+    <!-- body: rail + main -->
+    <div style="display:flex; min-height:660px;">
+      <!-- left rail -->
+      <div style="flex:0 0 198px; background:#0a0e0f; border-right:1px solid rgba(255,255,255,0.07); padding:14px 10px; display:flex; flex-direction:column; gap:4px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.1em; color:#3d4a4f; padding:6px 10px 4px;">MEMORY</div>
+        <button type="button" onClick="{{ vDiff }}" style="{{ navDiff }}">Snapshot &amp; diff</button>
+        <button type="button" onClick="{{ vHist }}" style="{{ navHist }}">Class histogram</button>
+        <button type="button" onClick="{{ vPaths }}" style="{{ navPaths }}">Retaining paths</button>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.1em; color:#3d4a4f; padding:14px 10px 4px;">PERFORMANCE</div>
+        <button type="button" onClick="{{ vTraces }}" style="{{ navTraces }}">Traces</button>
+        <button type="button" onClick="{{ vFrames }}" style="{{ navFrames }}">Frames</button>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.1em; color:#3d4a4f; padding:14px 10px 4px;">STABILITY</div>
+        <button type="button" onClick="{{ vErrors }}" style="{{ navErrors }}">Errors</button>
+        <button type="button" onClick="{{ vStalls }}" style="{{ navStalls }}">Stalls</button>
+        <div style="margin-top:auto; padding:10px; font-family:'JetBrains Mono',monospace; font-size:9.5px; line-height:1.6; color:#3d4a4f;">debug / profile only<br>no-op in release</div>
+      </div>
+
+      <!-- main -->
+      <div style="flex:1; min-width:0; display:flex; flex-direction:column;">
+
+        <!-- ============ SNAPSHOT & DIFF ============ -->
+        <sc-if value="{{ isDiff }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex; flex-direction:column; height:100%;">
+          <!-- toolbar -->
+          <div style="display:flex; align-items:center; gap:9px; padding:11px 16px; border-bottom:1px solid rgba(255,255,255,0.07);">
+            <button type="button" onClick="{{ capture }}" style="display:inline-flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:600; color:#090c0d; background:#2fe39b; border:0; padding:8px 15px; border-radius:9px; cursor:pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/></svg>{{ captureLabel }}</button>
+            <button type="button" onClick="{{ forceGc }}" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#5ad1e6; background:rgba(90,209,230,0.08); border:1px solid rgba(90,209,230,0.25); padding:8px 13px; border-radius:9px; cursor:pointer;">Force GC</button>
+            <sc-if value="{{ canReset }}" hint-placeholder-val="{{ false }}"><button type="button" onClick="{{ resetSnap }}" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#a7b6bc; background:transparent; border:1px solid rgba(255,255,255,0.12); padding:8px 13px; border-radius:9px; cursor:pointer;">New diff</button></sc-if>
+            <!-- spine -->
+            <div style="margin-left:auto; display:flex; align-items:center; gap:7px;">
+              <sc-for list="{{ spine }}" as="st" hint-placeholder-count="4">
+                <span style="display:inline-flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:{{ st.color }};"><span style="width:16px; height:16px; border-radius:50%; border:1px solid {{ st.ring }}; background:{{ st.fill }}; display:inline-flex; align-items:center; justify-content:center; font-size:9px; color:{{ st.numColor }};">{{ st.n }}</span>{{ st.label }}</span>
+                <span style="color:#2a3338;">{{ st.sep }}</span>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- empty state -->
+          <sc-if value="{{ snapEmpty }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px; text-align:center;">
+            <div style="width:64px; height:64px; border-radius:50%; border:1px dashed rgba(47,227,155,0.35); display:flex; align-items:center; justify-content:center; margin-bottom:18px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4M8 13h8M8 17h6"/></svg></div>
+            <div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:19px;">Capture → act → capture → diff</div>
+            <p style="font-size:13.5px; color:#8fa0a6; max-width:380px; line-height:1.6; margin:8px 0 0;">Capture a baseline heap snapshot, exercise the app (open and close the leaky flow), then capture again to see <span style="color:#cdd6da;">per-class growth deltas</span> and the retaining paths for what grew.</p>
+          </div>
+          </sc-if>
+
+          <!-- capturing / loading -->
+          <sc-if value="{{ snapLoading }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px; text-align:center;">
+            <div style="width:34px; height:34px; border-radius:50%; border:2px solid rgba(47,227,155,0.2); border-top-color:#2fe39b; animation:rdr-spin .8s linear infinite; margin-bottom:14px;"></div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#8fa0a6;">{{ loadingLabel }}</div>
+          </div>
+          </sc-if>
+
+          <!-- baseline captured (step 1) -->
+          <sc-if value="{{ snapBaseline }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px; text-align:center;">
+            <div style="background:#0e1316; border:1px solid rgba(47,227,155,0.25); border-radius:14px; padding:20px 26px; margin-bottom:18px;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#2fe39b;">SNAPSHOT A · BASELINE</div>
+              <div class="nums" style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:26px; margin-top:5px;">38.2 MB <span style="font-size:14px; color:#8fa0a6; font-weight:400;">· 142 classes · 14:30:02</span></div>
+            </div>
+            <div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:17px;">Now exercise the app</div>
+            <p style="font-size:13px; color:#8fa0a6; max-width:340px; line-height:1.55; margin:7px 0 0;">Open and close the flow you suspect, then capture again to diff against this baseline.</p>
+          </div>
+          </sc-if>
+
+          <!-- diff table (step 2) -->
+          <sc-if value="{{ snapDiffed }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1; display:flex; min-height:0;">
+            <!-- table -->
+            <div style="flex:1; min-width:0; display:flex; flex-direction:column; border-right:1px solid rgba(255,255,255,0.07);">
+              <div style="display:flex; align-items:center; gap:10px; padding:10px 16px; border-bottom:1px solid rgba(255,255,255,0.06);">
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#cdd6da;">A 38.2 MB → B 46.7 MB</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11.5px; font-weight:600; color:#ff5d6c;">Δ +8.5 MB</span>
+                <div style="margin-left:auto; display:flex; align-items:center; gap:6px; background:#11171a; border:1px solid rgba(255,255,255,0.09); border-radius:8px; padding:5px 10px;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5f7178" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+                  <input value="{{ diffQuery }}" onInput="{{ onDiffSearch }}" placeholder="filter class / library" style="background:transparent; border:0; outline:none; color:#e7eef0; font-family:'JetBrains Mono',monospace; font-size:11.5px; width:170px;"/>
+                </div>
+              </div>
+              <!-- header -->
+              <div style="display:grid; grid-template-columns:1.7fr 1.1fr 0.8fr 0.9fr 0.9fr; gap:10px; padding:8px 16px; background:#0b0f11; border-bottom:1px solid rgba(255,255,255,0.08);">
+                <sc-for list="{{ diffCols }}" as="c" hint-placeholder-count="5"><button type="button" onClick="{{ c.set }}" style="{{ c.style }}">{{ c.label }}</button></sc-for>
+              </div>
+              <!-- rows -->
+              <div style="flex:1; overflow:auto; min-height:0;">
+                <sc-for list="{{ diffRows }}" as="r" hint-placeholder-count="9">
+                  <button type="button" onClick="{{ r.select }}" style="width:100%; text-align:left; cursor:pointer; display:grid; grid-template-columns:1.7fr 1.1fr 0.8fr 0.9fr 0.9fr; gap:10px; align-items:center; padding:9px 16px; background:{{ r.bg }}; border:0; border-left:2px solid {{ r.accent }}; border-bottom:1px solid rgba(255,255,255,0.04);">
+                    <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#e7eef0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ r.cls }}</span>
+                    <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5f7178; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ r.lib }}</span>
+                    <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; color:{{ r.dColor }}; text-align:right;">{{ r.dInst }}</span>
+                    <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; color:{{ r.dColor }}; text-align:right;">{{ r.dBytes }}</span>
+                    <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a7b6bc; text-align:right;">{{ r.liveBytes }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+            <!-- retaining paths panel -->
+            <div style="flex:0 0 360px; display:flex; flex-direction:column;">
+              <sc-if value="{{ classSelected }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:14px 16px; overflow:auto;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:#e7eef0; word-break:break-all;">{{ selClass }}</div>
+                <div style="display:flex; gap:7px; margin:10px 0 16px;">
+                  <div style="flex:1; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:9px; padding:8px 10px;"><div style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#5f7178;">Δ inst</div><div class="nums" style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:600; color:#ff5d6c;">{{ selDInst }}</div></div>
+                  <div style="flex:1; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:9px; padding:8px 10px;"><div style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#5f7178;">Δ bytes</div><div class="nums" style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:600; color:#ff5d6c;">{{ selDBytes }}</div></div>
+                </div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.08em; color:#5f7178; margin-bottom:9px;">RETAINING PATH · with source</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:11px; line-height:2; color:#8fa0a6; background:#06090a; border:1px solid rgba(255,255,255,0.06); border-radius:9px; padding:12px 13px;">
+                  <div><span style="color:#5ad1e6;">GC root</span> <span style="color:#4a5a60;">· static</span></div>
+                  <div style="padding-left:13px;"><span style="color:#4a5a60;">└─</span> _ChatService.<span style="color:#c3e88d;">_activeRooms</span></div>
+                  <div style="padding-left:13px; color:#3d4a4f; font-size:10px;">chat_service.dart:41:7</div>
+                  <div style="padding-left:27px;"><span style="color:#4a5a60;">└─</span> _GrowableList <span style="color:#4a5a60;">[+12]</span></div>
+                  <div style="padding-left:41px;"><span style="color:#4a5a60;">└─</span> <span style="color:#ff5d6c;">{{ selClass }}</span></div>
+                  <div style="padding-left:41px; color:#3d4a4f; font-size:10px;">chat_room.dart:18:9 · retained</div>
+                </div>
+              </div>
+              </sc-if>
+              <sc-if value="{{ noClassSelected }}" hint-placeholder-val="{{ true }}">
+              <div style="flex:1; display:flex; align-items:center; justify-content:center; padding:30px; text-align:center;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178; line-height:1.6;">Select a grown class<br>to see its retaining path</div>
+              </div>
+              </sc-if>
+            </div>
+          </div>
+          </sc-if>
+        </div>
+        </sc-if>
+
+        <!-- ============ CLASS HISTOGRAM ============ -->
+        <sc-if value="{{ isHist }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; height:100%;">
+          <div style="display:flex; align-items:center; gap:10px; padding:11px 16px; border-bottom:1px solid rgba(255,255,255,0.07);">
+            <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px;">Class histogram</span>
+            <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178;">142 classes · {{ heapSize }}</span>
+            <div style="margin-left:auto; display:flex; align-items:center; gap:6px; background:#11171a; border:1px solid rgba(255,255,255,0.09); border-radius:8px; padding:5px 10px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5f7178" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+              <input value="{{ histQuery }}" onInput="{{ onHistSearch }}" placeholder="filter class" style="background:transparent; border:0; outline:none; color:#e7eef0; font-family:'JetBrains Mono',monospace; font-size:11.5px; width:160px;"/>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:2fr 1fr 1.2fr 1.4fr; gap:10px; padding:8px 16px; background:#0b0f11; border-bottom:1px solid rgba(255,255,255,0.08);">
+            <sc-for list="{{ histCols }}" as="c" hint-placeholder-count="4"><button type="button" onClick="{{ c.set }}" style="{{ c.style }}">{{ c.label }}</button></sc-for>
+          </div>
+          <div style="flex:1; overflow:auto; min-height:0;">
+            <sc-for list="{{ histRows }}" as="r" hint-placeholder-count="12">
+              <div style="display:grid; grid-template-columns:2fr 1fr 1.2fr 1.4fr; gap:10px; align-items:center; padding:8px 16px; border-bottom:1px solid rgba(255,255,255,0.04);">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#e7eef0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ r.cls }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#a7b6bc; text-align:right;">{{ r.inst }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#e7eef0; text-align:right;">{{ r.bytes }}</span>
+                <span style="display:flex; align-items:center; gap:8px;"><span style="flex:1; height:5px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;"><span style="display:block; height:100%; width:{{ r.pctW }}; background:{{ r.barBg }};"></span></span><span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#5f7178; width:34px; text-align:right;">{{ r.pct }}</span></span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ============ RETAINING PATHS (standalone) ============ -->
+        <sc-if value="{{ isPaths }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:16px; height:100%; overflow:auto;">
+          <div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px; margin-bottom:4px;">Retaining paths</div>
+          <p style="font-size:12.5px; color:#8fa0a6; margin:0 0 16px; max-width:560px; line-height:1.55;">Why each grown class is still alive — the chain of references from a GC root, with source locations. Picked from the latest diff.</p>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <sc-for list="{{ pathCards }}" as="p" hint-placeholder-count="3">
+              <div style="background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:13px 15px;">
+                <div style="display:flex; align-items:center; gap:9px; margin-bottom:9px;"><span style="font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:600; color:#e7eef0;">{{ p.cls }}</span><span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#ff5d6c;">{{ p.delta }}</span><span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10px; color:#5f7178;">{{ p.lib }}</span></div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:11px; line-height:1.9; color:#8fa0a6;">
+                  <span style="color:#5ad1e6;">GC root</span> <span style="color:#4a5a60;">→</span> {{ p.chain }} <span style="color:#4a5a60;">→</span> <span style="color:#ff5d6c;">{{ p.cls }}</span>
+                  <div style="color:#3d4a4f; font-size:10px; margin-top:3px;">{{ p.loc }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ============ TRACES (full wide table) ============ -->
+        <sc-if value="{{ isTraces }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; height:100%;">
+          <div style="display:flex; align-items:center; gap:9px; padding:11px 16px; border-bottom:1px solid rgba(255,255,255,0.07);">
+            <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px;">Traces</span>
+            <div style="display:flex; gap:5px; margin-left:6px;">
+              <sc-for list="{{ traceQuickChips }}" as="c" hint-placeholder-count="3"><button type="button" onClick="{{ c.set }}" style="{{ c.style }}">{{ c.label }}</button></sc-for>
+            </div>
+            <div style="margin-left:auto; display:flex; align-items:center; gap:6px; background:#11171a; border:1px solid rgba(255,255,255,0.09); border-radius:8px; padding:5px 10px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5f7178" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+              <input value="{{ traceQuery }}" onInput="{{ onTraceSearch }}" placeholder="filter operation / category" style="background:transparent; border:0; outline:none; color:#e7eef0; font-family:'JetBrains Mono',monospace; font-size:11.5px; width:200px;"/>
+            </div>
+          </div>
+          <!-- full column header -->
+          <div style="display:grid; grid-template-columns:2.2fr 0.8fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 0.9fr 0.9fr 0.7fr 0.7fr; gap:8px; padding:8px 16px; background:#0b0f11; border-bottom:1px solid rgba(255,255,255,0.08);">
+            <sc-for list="{{ traceCols }}" as="c" hint-placeholder-count="11"><button type="button" onClick="{{ c.set }}" style="{{ c.style }}">{{ c.label }}</button></sc-for>
+          </div>
+          <div style="flex:1; overflow:auto; min-height:0;">
+            <sc-for list="{{ tracesFull }}" as="t" hint-placeholder-count="11">
+              <button type="button" onClick="{{ t.open }}" style="width:100%; text-align:left; cursor:pointer; display:grid; grid-template-columns:2.2fr 0.8fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 0.9fr 0.9fr 0.7fr 0.7fr; gap:8px; align-items:center; padding:8px 16px; background:transparent; border:0; border-bottom:1px solid rgba(255,255,255,0.04);">
+                <span style="display:flex; align-items:center; gap:6px; min-width:0;"><span style="width:6px; height:6px; border-radius:50%; background:{{ t.activeDot }}; animation:{{ t.activeAnim }};"></span><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#e7eef0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ t.name }}</span><span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#5f7178;">{{ t.cat }}</span><sc-if value="{{ t.hot }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace; font-size:8px; font-weight:600; color:#f5b54a; background:rgba(245,181,74,0.14); padding:1px 4px; border-radius:3px;">HOT</span></sc-if></span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a7b6bc; text-align:right;">{{ t.count }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#e7eef0; font-weight:600; text-align:right;">{{ t.avg }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a7b6bc; text-align:right;">{{ t.p50 }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a7b6bc; text-align:right;">{{ t.p95 }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a7b6bc; text-align:right;">{{ t.p99 }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8fa0a6; text-align:right;">{{ t.max }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5ad1e6; text-align:right;">{{ t.total }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8fa0a6; text-align:right;">{{ t.interval }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8fa0a6; text-align:right;">{{ t.rate }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:{{ t.errColor }}; text-align:right;">{{ t.errors }}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ============ FRAMES ============ -->
+        <sc-if value="{{ isFrames }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:16px; height:100%; overflow:auto;">
+          <div style="display:flex; gap:10px; margin-bottom:14px;">
+            <div style="flex:1; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:13px 15px;"><div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#5f7178;">Jank frames</div><div class="nums" style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:26px; color:#ff5d6c;">{{ frJank }}</div></div>
+            <div style="flex:1; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:13px 15px;"><div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#5f7178;">Jank %</div><div class="nums" style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:26px; color:#f5b54a;">{{ frJankPct }}</div></div>
+            <div style="flex:1; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:13px 15px;"><div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#5f7178;">build p50/95/99</div><div class="nums" style="font-family:'JetBrains Mono',monospace; font-size:15px; margin-top:6px; color:#e7eef0;">{{ frBuild }}</div></div>
+            <div style="flex:1; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:13px 15px;"><div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#5f7178;">raster p50/95/99</div><div class="nums" style="font-family:'JetBrains Mono',monospace; font-size:15px; margin-top:6px; color:#e7eef0;">{{ frRaster }}</div></div>
+          </div>
+          <div style="background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:13px; padding:15px; margin-bottom:14px;">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#cdd6da; margin-bottom:11px;">Frame time · recent (16ms budget)</div>
+            <div style="display:flex; align-items:flex-end; gap:3px; height:90px;">
+              <sc-for list="{{ frameBars }}" as="b" hint-placeholder-count="40"><div style="flex:1; height:{{ b.h }}; background:{{ b.bg }}; border-radius:2px; min-height:3px;"></div></sc-for>
+            </div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5f7178; margin-bottom:8px;">WORST RECENT FRAMES</div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <sc-for list="{{ worst }}" as="w" hint-placeholder-count="3">
+              <div style="display:grid; grid-template-columns:auto auto auto 1fr; gap:14px; align-items:center; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:11px; padding:9px 14px;">
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178;">{{ w.f }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:#ff5d6c;">{{ w.total }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#8fa0a6;">b {{ w.build }} · r {{ w.raster }}</span>
+                <span style="font-size:12px; color:#a7b6bc;">{{ w.cause }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ============ ERRORS ============ -->
+        <sc-if value="{{ isErrors }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; height:100%;">
+          <div style="display:flex; align-items:center; gap:10px; padding:11px 16px; border-bottom:1px solid rgba(255,255,255,0.07);">
+            <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px;">Uncaught errors</span>
+            <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#ff5d6c;">4 distinct · 41 total</span>
+          </div>
+          <div style="display:grid; grid-template-columns:3fr 1fr 0.9fr 0.7fr; gap:10px; padding:8px 16px; background:#0b0f11; border-bottom:1px solid rgba(255,255,255,0.08); font-family:'JetBrains Mono',monospace; font-size:10px; color:#5f7178;">
+            <span>message</span><span>type</span><span style="text-align:right;">last seen</span><span style="text-align:right;">count</span>
+          </div>
+          <div style="flex:1; overflow:auto; min-height:0;">
+            <sc-for list="{{ errorsW }}" as="e" hint-placeholder-count="4">
+              <div style="display:grid; grid-template-columns:3fr 1fr 0.9fr 0.7fr; gap:10px; align-items:center; padding:10px 16px; border-bottom:1px solid rgba(255,255,255,0.04);">
+                <span style="font-size:12.5px; color:#e7eef0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ e.msg }}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#f5b54a;">{{ e.type }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5f7178; text-align:right;">{{ e.time }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; color:#ff5d6c; text-align:right;">×{{ e.repeats }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ============ STALLS ============ -->
+        <sc-if value="{{ isStalls }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:16px; height:100%; overflow:auto;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+            <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px;">Main-thread stalls</span>
+            <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#f5b54a;">5 over 250ms threshold</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:7px;">
+            <sc-for list="{{ stallsW }}" as="x" hint-placeholder-count="5">
+              <div style="display:grid; grid-template-columns:90px 1fr auto; gap:14px; align-items:center; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:11px; padding:11px 15px;">
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:600; color:{{ x.bg }};">{{ x.dur }}</span>
+                <div><div style="font-size:12.5px; color:#cdd6da; margin-bottom:6px;">{{ x.cause }}</div><div style="height:5px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;"><div style="height:100%; width:{{ x.w }}; background:{{ x.bg }}; border-radius:3px;"></div></div></div>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5f7178;">{{ x.time }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- toast -->
+  <sc-if value="{{ toastOpen }}" hint-placeholder-val="{{ false }}">
+  <div class="nums" style="position:fixed; left:50%; bottom:28px; transform:translateX(-50%); z-index:60; font-family:'JetBrains Mono',monospace; font-size:12px; color:#090c0d; background:#2fe39b; padding:9px 16px; border-radius:10px; box-shadow:0 14px 36px -10px rgba(0,0,0,0.6);">{{ toastMsg }}</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    view:'diff',            // diff|hist|paths|traces|frames|errors|stalls
+    connected:true,
+    snap:'empty',           // empty|loadingA|baseline|loadingB|diffed
+    selClass:null,
+    diffSort:'dBytes', diffDir:'desc', diffQuery:'',
+    histSort:'bytes', histDir:'desc', histQuery:'',
+    traceSort:'total', traceDir:'desc', traceQuery:'', traceQuick:'all',
+    toast:'',
+  };
+
+  DIFF=[
+    { cls:'ChatRoomController', lib:'app/chat', dInst:12, dBytes:2150000, liveBytes:3400000 },
+    { cls:'_MessageModel', lib:'app/chat', dInst:840, dBytes:1980000, liveBytes:5200000 },
+    { cls:'Uint8List', lib:'dart:typed_data', dInst:36, dBytes:1640000, liveBytes:9100000 },
+    { cls:'ImageCache._CachedImage', lib:'flutter/painting', dInst:40, dBytes:1180000, liveBytes:2600000 },
+    { cls:'_PresenceSubscription', lib:'app/net', dInst:3, dBytes:540000, liveBytes:720000 },
+    { cls:'VideoPlayerController', lib:'pkg:video_player', dInst:6, dBytes:430000, liveBytes:880000 },
+    { cls:'HeartbeatTimer', lib:'app/net', dInst:5, dBytes:120000, liveBytes:160000 },
+    { cls:'DashboardBloc', lib:'app/dashboard', dInst:2, dBytes:96000, liveBytes:180000 },
+    { cls:'String', lib:'dart:core', dInst:-220, dBytes:-180000, liveBytes:4100000 },
+  ];
+
+  HIST=[
+    { cls:'String', inst:48200, bytes:4100000 },
+    { cls:'Uint8List', inst:1240, bytes:9100000 },
+    { cls:'_MessageModel', inst:5400, bytes:5200000 },
+    { cls:'ChatRoomController', inst:48, bytes:3400000 },
+    { cls:'ImageCache._CachedImage', inst:220, bytes:2600000 },
+    { cls:'_OneByteString', inst:31200, bytes:1900000 },
+    { cls:'List', inst:8800, bytes:1450000 },
+    { cls:'Map', inst:4100, bytes:980000 },
+    { cls:'VideoPlayerController', inst:12, bytes:880000 },
+    { cls:'_PresenceSubscription', inst:9, bytes:720000 },
+    { cls:'Widget', inst:6200, bytes:610000 },
+    { cls:'DashboardBloc', inst:4, bytes:180000 },
+  ];
+
+  TRACES=[
+    { name:'scroll.layout', cat:'render', count:5400, avg:0.6, p50:0.4, p95:1.4, p99:2.8, max:6, total:3240, interval:11, errors:0, hot:true, active:true },
+    { name:'json.decode', cat:'cpu', count:2200, avg:0.8, p50:0.5, p95:2.1, p99:4.0, max:9, total:1760, interval:40, errors:0, hot:true, active:true },
+    { name:'bloc.mapEvent', cat:'state', count:1500, avg:2.1, p50:1.4, p95:5.2, p99:9.1, max:18, total:3150, interval:64, errors:0, hot:true, active:true },
+    { name:'build:HomeScreen', cat:'render', count:1240, avg:4.2, p50:3.1, p95:9.8, p99:14.2, max:22, total:5208, interval:96, errors:0, hot:false, active:true },
+    { name:'db.query(messages)', cat:'db', count:880, avg:12, p50:8, p95:34, p99:58, max:120, total:10560, interval:120, errors:0, hot:true, active:true },
+    { name:'analytics.track', cat:'network', count:980, avg:14, p50:9, p95:40, p99:88, max:210, total:13720, interval:108, errors:2, hot:false, active:true },
+    { name:'cache.write', cat:'io', count:600, avg:3.4, p50:2.1, p95:9, p99:16, max:34, total:2040, interval:175, errors:0, hot:false, active:false },
+    { name:'image.decode', cat:'cpu', count:320, avg:28, p50:18, p95:74, p99:140, max:280, total:8960, interval:330, errors:0, hot:false, active:false },
+    { name:'api.fetchMessages', cat:'network', count:410, avg:182, p50:150, p95:410, p99:720, max:980, total:74620, interval:220, errors:6, hot:false, active:true },
+    { name:'nav.push', cat:'nav', count:64, avg:6, p50:5, p95:12, p99:18, max:31, total:384, interval:980, errors:0, hot:false, active:false },
+    { name:'auth.refresh', cat:'network', count:12, avg:240, p50:210, p95:480, p99:610, max:680, total:2880, interval:9800, errors:1, hot:false, active:false },
+  ];
+
+  FRAMES={ jank:14, jankPct:4.2, build:{p50:3.2,p95:8.1,p99:16.4}, raster:{p50:2.1,p95:6.4,p99:12.8},
+    timeline:[6,7,5,8,6,9,7,18,6,5,7,6,8,24,7,6,5,9,6,7,31,8,6,5,7,6,9,6,7,5,8,17,6,7,5,6,9,6,7,6],
+    worst:[{f:'#3104',total:31.2,build:22.1,raster:9.1,cause:'ChatBubble rebuild storm'},{f:'#2990',total:24.4,build:8.2,raster:16.2,cause:'Large image raster'},{f:'#3022',total:18.1,build:12.4,raster:5.7,cause:'Synchronous layout pass'}] };
+
+  ERRORS=[
+    { msg:'Null check operator used on a null value', type:'_TypeError', time:'14:31:08', repeats:23 },
+    { msg:'SocketException: Connection refused (port 443)', type:'SocketException', time:'14:19:02', repeats:8 },
+    { msg:'Bad state: Cannot add to a closed StreamController', type:'StateError', time:'14:22:41', repeats:6 },
+    { msg:'RangeError (index): Invalid value: Not in 0..3', type:'RangeError', time:'14:28:55', repeats:4 },
+  ];
+  STALLS=[
+    { dur:1240, time:'14:30:11', cause:'jsonDecode on main isolate (2.1 MB)' },
+    { dur:980, time:'14:27:39', cause:'Synchronous file write' },
+    { dur:720, time:'14:21:55', cause:'Image decode on UI thread' },
+    { dur:540, time:'14:18:20', cause:'Large list rebuild' },
+    { dur:410, time:'14:05:03', cause:'Cold cache query' },
+  ];
+
+  _ms(v){ return v>=1000 ? (v/1000).toFixed(v>=10000?0:1)+'s' : (v<10?v.toFixed(1):Math.round(v))+'ms'; }
+  _bytes(v){ const a=Math.abs(v); const s=v<0?'-':'+'; if(a>=1e6) return (v/1e6).toFixed(1)+' MB'; if(a>=1e3) return Math.round(v/1e3)+' KB'; return v+' B'; }
+  _bytesAbs(v){ if(v>=1e6) return (v/1e6).toFixed(1)+' MB'; if(v>=1e3) return Math.round(v/1e3)+' KB'; return v+' B'; }
+  _rate(t){ return t.interval>0 ? (1000/t.interval).toFixed(t.interval<100?1:2) : '—'; }
+  _toast(m){ clearTimeout(this._t); this.setState({toast:m}); this._t=setTimeout(()=>this.setState({toast:''}),1800); }
+
+  renderVals(){
+    const s=this.state;
+    const nav=(on)=>`text-align:left;font-family:'Hanken Grotesk',sans-serif;font-size:13px;padding:8px 11px;border-radius:8px;border:0;cursor:pointer;${on?'background:rgba(47,227,155,0.1);color:#2fe39b;font-weight:600;':'background:transparent;color:#a7b6bc;'}`;
+    const chip=(on,c)=>`font-family:'JetBrains Mono',monospace;font-size:10.5px;white-space:nowrap;padding:4px 9px;border-radius:7px;cursor:pointer;border:1px solid ${on?'transparent':'rgba(255,255,255,0.08)'};${on?`background:${c||'#2fe39b'};color:#0a0d0e;font-weight:600;`:'background:rgba(255,255,255,0.04);color:#c4d0d4;'}`;
+    const colBtn=(active,dir,k,align)=>`font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.02em;cursor:pointer;background:transparent;border:0;padding:0;text-align:${align};${active?'color:#2fe39b;font-weight:600;':'color:#5f7178;'}`;
+
+    // conn
+    const conn = s.connected
+      ? {label:'VM connected', color:'#2fe39b', anim:'rdr-live 2s ease-in-out infinite'}
+      : {label:'disconnected', color:'#ff5d6c', anim:'none'};
+
+    // ---- DIFF ----
+    let diff=[...this.DIFF];
+    if(s.diffQuery.trim()){ const q=s.diffQuery.toLowerCase(); diff=diff.filter(d=>(d.cls+' '+d.lib).toLowerCase().includes(q)); }
+    const dk=s.diffSort, ddir=s.diffDir==='desc'?-1:1;
+    diff.sort((a,b)=> dk==='cls'?a.cls.localeCompare(b.cls)*(ddir*-1) : dk==='lib'?a.lib.localeCompare(b.lib)*(ddir*-1) : (a[dk]-b[dk])*ddir);
+    const diffRows=diff.map(d=>({ cls:d.cls, lib:d.lib, dInst:(d.dInst>0?'+':'')+d.dInst, dBytes:this._bytes(d.dBytes), liveBytes:this._bytesAbs(d.liveBytes),
+      dColor:d.dBytes>0?'#ff5d6c':'#2fe39b', accent:d.cls===s.selClass?'#2fe39b':'transparent', bg:d.cls===s.selClass?'rgba(47,227,155,0.06)':'transparent',
+      select:()=>this.setState({selClass:d.cls}) }));
+    const dcols=[['cls','class','left'],['lib','library','left'],['dInst','Δ inst','right'],['dBytes','Δ bytes','right'],['liveBytes','live','right']];
+    const diffCols=dcols.map(([k,l,al])=>({label:l+(s.diffSort===k?(s.diffDir==='desc'?' ↓':' ↑'):''),style:colBtn(s.diffSort===k,s.diffDir,k,al),set:()=>this.setState(p=>({diffSort:k,diffDir:p.diffSort===k&&p.diffDir==='desc'?'asc':'desc'}))}));
+    const selRow=this.DIFF.find(d=>d.cls===s.selClass);
+
+    // spine
+    const stepN = s.snap==='empty'?0 : (s.snap==='loadingA'||s.snap==='baseline')?1 : s.snap==='loadingB'?2 : 3;
+    const spineDef=[[1,'Capture A'],[2,'Exercise app'],[3,'Capture B'],[4,'Diff']];
+    const spine=spineDef.map((x,i)=>{ const done=i<stepN, cur=i===stepN; return {n:x[0], label:x[1], sep:i<3?'›':'',
+      color:done?'#2fe39b':cur?'#e7eef0':'#5f7178', ring:done||cur?'#2fe39b':'#3d4a4f', fill:done?'#2fe39b':'transparent', numColor:done?'#0a0d0e':done||cur?'#2fe39b':'#5f7178'}; });
+
+    // ---- HIST ----
+    let hist=[...this.HIST];
+    if(s.histQuery.trim()){ const q=s.histQuery.toLowerCase(); hist=hist.filter(h=>h.cls.toLowerCase().includes(q)); }
+    const hk=s.histSort, hdir=s.histDir==='desc'?-1:1;
+    hist.sort((a,b)=> hk==='cls'?a.cls.localeCompare(b.cls)*(hdir*-1) : (a[hk]-b[hk])*hdir);
+    const totalBytes=this.HIST.reduce((a,b)=>a+b.bytes,0);
+    const hmax=Math.max(...this.HIST.map(h=>h.bytes));
+    const histRows=hist.map(h=>({cls:h.cls, inst:h.inst.toLocaleString(), bytes:this._bytesAbs(h.bytes), pct:(h.bytes/totalBytes*100).toFixed(1)+'%',
+      pctW:Math.round(h.bytes/hmax*100)+'%', barBg:h.bytes>3e6?'#ff5d6c':h.bytes>1e6?'#f5b54a':'rgba(47,227,155,0.4)'}));
+    const hcols=[['cls','class','left'],['inst','instances','right'],['bytes','bytes','right'],['bytes','% of heap','left']];
+    const histCols=hcols.map(([k,l,al],i)=>({label:l+(s.histSort===k&&i!==3?(s.histDir==='desc'?' ↓':' ↑'):''),style:colBtn(s.histSort===k,s.histDir,k,al),set:()=>this.setState(p=>({histSort:k,histDir:p.histSort===k&&p.histDir==='desc'?'asc':'desc'}))}));
+
+    // ---- PATHS ----
+    const pathCards=[
+      {cls:'ChatRoomController', delta:'+12 · +2.1 MB', lib:'app/chat', chain:'_ChatService._activeRooms → _GrowableList', loc:'chat_service.dart:41:7 → chat_room.dart:18:9'},
+      {cls:'_PresenceSubscription', delta:'+3 · +540 KB', lib:'app/net', chain:'PresenceService._subs → StreamSubscription', loc:'presence_service.dart:27:5'},
+      {cls:'VideoPlayerController', delta:'+6 · +430 KB', lib:'pkg:video_player', chain:'_FeedState._controllers → List', loc:'feed_screen.dart:88:11'},
+    ];
+
+    // ---- TRACES ----
+    let traces=[...this.TRACES];
+    if(s.traceQuick==='errors') traces=traces.filter(t=>t.errors>0);
+    if(s.traceQuick==='hot') traces=traces.filter(t=>t.hot);
+    if(s.traceQuery.trim()){ const q=s.traceQuery.toLowerCase(); traces=traces.filter(t=>(t.name+' '+t.cat).toLowerCase().includes(q)); }
+    const tk=s.traceSort, tdir=s.traceDir==='desc'?-1:1;
+    traces.sort((a,b)=> tk==='name'?a.name.localeCompare(b.name)*(tdir*-1) : (a[tk]-b[tk])*tdir);
+    const tracesFull=traces.map(t=>({ name:t.name, cat:t.cat, hot:t.hot, count:t.count.toLocaleString(), avg:this._ms(t.avg), p50:this._ms(t.p50), p95:this._ms(t.p95), p99:this._ms(t.p99), max:this._ms(t.max), total:this._ms(t.total), interval:this._ms(t.interval), rate:this._rate(t), errors:t.errors||'', errColor:t.errors>0?'#ff5d6c':'#3d4a4f',
+      activeDot:t.active?'#2fe39b':'#3d4a4f', activeAnim:t.active?'rdr-live 2s ease-in-out infinite':'none', open:()=>this._toast('Trace detail: '+t.name) }));
+    const tcols=[['name','operation','left'],['count','count','right'],['avg','avg','right'],['p50','p50','right'],['p95','p95','right'],['p99','p99','right'],['max','max','right'],['total','total','right'],['interval','intvl','right'],['interval','rate','right'],['errors','err','right']];
+    const traceCols=tcols.map(([k,l,al],i)=>({label:l+(s.traceSort===k&&i!==9?(s.traceDir==='desc'?' ↓':' ↑'):''),style:colBtn(s.traceSort===k,s.traceDir,k,al),set:()=>this.setState(p=>({traceSort:k,traceDir:p.traceSort===k&&p.traceDir==='desc'?'asc':'desc'}))}));
+    const traceQuickChips=[['all','all'],['hot','hot / dup'],['errors','errors']].map(([k,l])=>({label:l,style:chip(s.traceQuick===k,k==='hot'?'#f5b54a':k==='errors'?'#ff5d6c':'#2fe39b'),set:()=>this.setState({traceQuick:k})}));
+
+    // ---- FRAMES ----
+    const fr=this.FRAMES, frMax=Math.max(...fr.timeline);
+    const frameBars=fr.timeline.map(v=>({h:Math.max(8,Math.round(v/frMax*100))+'%', bg:v>16?'#ff5d6c':v>10?'#f5b54a':'rgba(47,227,155,0.45)'}));
+    const worst=fr.worst.map(w=>({f:w.f, total:this._ms(w.total), build:this._ms(w.build), raster:this._ms(w.raster), cause:w.cause}));
+
+    // ---- ERRORS / STALLS ----
+    const errorsW=[...this.ERRORS];
+    const stMax=Math.max(...this.STALLS.map(x=>x.dur));
+    const stallsW=this.STALLS.map(x=>({dur:this._ms(x.dur), time:x.time, cause:x.cause, w:Math.round(x.dur/stMax*100)+'%', bg:x.dur>1000?'#ff5d6c':x.dur>600?'#f5b54a':'rgba(245,181,74,0.5)'}));
+
+    return {
+      // nav
+      isDiff:s.view==='diff', isHist:s.view==='hist', isPaths:s.view==='paths', isTraces:s.view==='traces', isFrames:s.view==='frames', isErrors:s.view==='errors', isStalls:s.view==='stalls',
+      vDiff:()=>this.setState({view:'diff'}), vHist:()=>this.setState({view:'hist'}), vPaths:()=>this.setState({view:'paths'}), vTraces:()=>this.setState({view:'traces'}), vFrames:()=>this.setState({view:'frames'}), vErrors:()=>this.setState({view:'errors'}), vStalls:()=>this.setState({view:'stalls'}),
+      navDiff:nav(s.view==='diff'), navHist:nav(s.view==='hist'), navPaths:nav(s.view==='paths'), navTraces:nav(s.view==='traces'), navFrames:nav(s.view==='frames'), navErrors:nav(s.view==='errors'), navStalls:nav(s.view==='stalls'),
+      // conn
+      toggleConn:()=>this.setState(p=>({connected:!p.connected})),
+      connLabel:conn.label, connColor:conn.color, connBg:conn.color+'1f', connBorder:conn.color+'4d', connAnim:conn.anim,
+      connApp:'leaky_chat (debug)', connIsolate:'main · isolate#1', heapSize:'46.7 MB',
+      // snapshot flow
+      captureLabel: s.snap==='empty'?'Capture snapshot' : (s.snap==='baseline')?'Capture again & diff' : 'Capture snapshot',
+      capture:()=>{ const cur=this.state.snap;
+        if(cur==='empty'||cur==='diffed'){ this.setState({snap:'loadingA',selClass:null}); setTimeout(()=>this.setState({snap:'baseline'}),900); }
+        else if(cur==='baseline'){ this.setState({snap:'loadingB'}); setTimeout(()=>this.setState({snap:'diffed'}),900); } },
+      resetSnap:()=>this.setState({snap:'empty',selClass:null}), canReset:s.snap==='diffed'||s.snap==='baseline',
+      forceGc:()=>this._toast('GC forced on main isolate'),
+      snapEmpty:s.snap==='empty', snapLoading:s.snap==='loadingA'||s.snap==='loadingB', snapBaseline:s.snap==='baseline', snapDiffed:s.snap==='diffed',
+      loadingLabel:s.snap==='loadingA'?'Capturing baseline heap snapshot…':'Capturing & diffing…',
+      spine,
+      // diff
+      diffRows, diffCols, diffQuery:s.diffQuery, onDiffSearch:(e)=>this.setState({diffQuery:e.target.value}),
+      classSelected:!!s.selClass, noClassSelected:!s.selClass, selClass:s.selClass||'',
+      selDInst:selRow?((selRow.dInst>0?'+':'')+selRow.dInst):'', selDBytes:selRow?this._bytes(selRow.dBytes):'',
+      // hist
+      histRows, histCols, histQuery:s.histQuery, onHistSearch:(e)=>this.setState({histQuery:e.target.value}),
+      // paths
+      pathCards,
+      // traces
+      tracesFull, traceCols, traceQuickChips, traceQuery:s.traceQuery, onTraceSearch:(e)=>this.setState({traceQuery:e.target.value}),
+      // frames
+      frJank:fr.jank, frJankPct:fr.jankPct+'%', frBuild:`${fr.build.p50}/${fr.build.p95}/${fr.build.p99}`, frRaster:`${fr.raster.p50}/${fr.raster.p95}/${fr.raster.p99}`, frameBars, worst,
+      // errors/stalls
+      errorsW, stallsW,
+      // toast
+      toastOpen:!!s.toast, toastMsg:s.toast,
+    };
+  }
+  componentWillUnmount(){ clearTimeout(this._t); }
+}
+</script>
+</body>
+</html>
