@@ -7,7 +7,7 @@ import 'package:flutter/painting.dart';
 /// Use these named constants wherever raw hex values would otherwise appear.
 /// All values match the design handoff exactly.
 abstract final class RadarColors {
-  // ── Base backgrounds ──────────────────────────────────────────────────────
+  // ── Base backgrounds ───────────────────────────────────────────────────
 
   /// Canvas background for the phone overlay (`#090c0d`).
   static const Color bgPhone = Color(0xFF090c0d);
@@ -33,7 +33,7 @@ abstract final class RadarColors {
   /// DevTools left rail (`#0a0e0f`).
   static const Color bgRail = Color(0xFF0a0e0f);
 
-  // ── Accent ────────────────────────────────────────────────────────────────
+  // ── Accent ─────────────────────────────────────────────────────────────
 
   /// Primary accent: "connected", healthy, sort arrows, active chips.
   static const Color accent = Color(0xFF2fe39b);
@@ -44,7 +44,7 @@ abstract final class RadarColors {
   /// Semi-transparent accent fill (active chip background / rail selection).
   static const Color accentSubtle = Color.fromRGBO(47, 227, 155, 0.10);
 
-  // ── Severity spine ────────────────────────────────────────────────────────
+  // ── Severity spine ───────────────────────────────────────────────────────
 
   /// Critical severity (`#ff5d6c`).
   static const Color critical = Color(0xFFff5d6c);
@@ -55,7 +55,7 @@ abstract final class RadarColors {
   /// Info / secondary severity (`#5ad1e6`).
   static const Color info = Color(0xFF5ad1e6);
 
-  // ── Text scale ────────────────────────────────────────────────────────────
+  // ── Text scale ───────────────────────────────────────────────────────────
 
   /// Primary text: values, names (`#e7eef0`).
   static const Color text100 = Color(0xFFe7eef0);
@@ -81,7 +81,7 @@ abstract final class RadarColors {
   /// Tree connectors, zeros (`#3d4a4f`).
   static const Color text10 = Color(0xFF3d4a4f);
 
-  // ── Hairline borders (white-alpha) ────────────────────────────────────────
+  // ── Hairline borders (white-alpha) ──────────────────────────────────────
 
   /// Subtlest hairline (0.04 opacity).
   static const Color hairline04 = Color.fromRGBO(255, 255, 255, 0.04);
