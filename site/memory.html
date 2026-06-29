@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Memory — Flutter Radar</title>
+  <meta name="description" content="Catch leaks twice: a static custom_lint plugin stops leak-prone code before it ships, and a runtime detector inspects the live heap to flag classes that grow and never return.">
+  <meta name="color-scheme" content="dark">
+  <link rel="preload" href="fonts/SpaceGrotesk.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { margin: 0; background: #07090a; color: #e7eef0; font-family: 'Hanken Grotesk', system-ui, sans-serif; }
+    .nav { position: sticky; top: 0; z-index: 50; background: rgba(7,9,10,0.72); border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .pillar-hero__title { font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="bg-glow bg-glow--memory" aria-hidden="true"></div>
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <div class="page">
+    <!-- NAV -->
+    <nav class="nav" aria-label="Primary">
+      <div class="nav__inner">
+        <a class="nav__brand" href="index.html" aria-label="Flutter Radar home">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="7" stroke="rgba(47,227,155,0.55)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+          <span class="nav__brand-name">Flutter Radar</span>
+        </a>
+        <div class="nav__links">
+          <a class="nav__link" href="memory.html" aria-current="page">Memory</a>
+          <a class="nav__link" href="performance.html">Performance</a>
+          <a class="nav__link" href="stability.html">Stability</a>
+          <a class="nav__cta" href="index.html#install">Install</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- BREADCRUMB -->
+    <nav class="breadcrumb breadcrumb--memory" aria-label="Breadcrumb">
+      <a href="index.html">Flutter Radar</a>
+      <span class="breadcrumb__sep" aria-hidden="true">/</span>
+      <span class="breadcrumb__current--memory">Memory</span>
+    </nav>
+
+    <!-- HERO -->
+    <header class="pillar-hero">
+      <div class="pillar-hero__grid">
+        <div class="pillar-hero__copy">
+          <div class="pillar-badge pillar-badge--memory" data-reveal>Pillar 01 &middot; Memory</div>
+          <h1 class="pillar-hero__title" data-reveal>Catch leaks <span class="accent-memory">twice</span> &mdash; before they ship, and while they run.</h1>
+          <p class="pillar-hero__lead pillar-hero__lead--narrow" data-reveal>A static <code class="icode">custom_lint</code> plugin stops leak-prone code at analysis time. A runtime detector inspects the live heap on a real device and flags classes that grow and never return. <span class="strong">No mixins, no base classes.</span></p>
+          <div class="statrow" data-reveal>
+            <div>
+              <div class="stat__value nums">7</div>
+              <div class="stat__label">lint rules + auto-fixes</div>
+            </div>
+            <div class="statrow__divider" aria-hidden="true"></div>
+            <div>
+              <div class="stat__value nums">0</div>
+              <div class="stat__label">mixins to implement</div>
+            </div>
+            <div class="statrow__divider" aria-hidden="true"></div>
+            <div>
+              <div class="stat__value nums">2</div>
+              <div class="stat__label">calls for precise opt-in</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Findings mock -->
+        <div class="pillar-hero__mock" data-reveal>
+          <div class="findings">
+            <div class="findings__bar">
+              <div class="findings__title">
+                <svg width="14" height="14" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11" stroke="rgba(47,227,155,0.45)" stroke-width="1.4"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+                <span>Leak findings</span>
+              </div>
+              <span class="findings__time nums">scan 14:32</span>
+            </div>
+            <div class="findings__body">
+              <div class="finding finding--alert">
+                <span class="finding__rail finding__rail--red" aria-hidden="true"></span>
+                <div class="finding__main">
+                  <div class="finding__head">
+                    <span class="finding__name">ChatRoomController</span>
+                    <span class="finding__delta finding__delta--red nums">+48</span>
+                  </div>
+                  <div class="finding__meta">
+                    <span class="finding__flag finding__flag--red">NOT DISPOSED</span>
+                    <svg class="finding__spark" width="60" height="16" viewBox="0 0 60 16" aria-hidden="true"><path d="M1 14 L12 12 L23 9 L34 6 L45 4 L59 1" stroke="#ff5d6c" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+                  </div>
+                </div>
+              </div>
+              <div class="finding">
+                <span class="finding__rail finding__rail--amber" aria-hidden="true"></span>
+                <div class="finding__main">
+                  <div class="finding__head">
+                    <span class="finding__name finding__name--dim">VideoPlayerController</span>
+                    <span class="finding__delta finding__delta--amber nums">+6</span>
+                  </div>
+                  <div class="finding__meta">
+                    <span class="finding__flag finding__flag--amber">GROWTH</span>
+                  </div>
+                </div>
+              </div>
+              <div class="finding">
+                <span class="finding__rail finding__rail--cyan" aria-hidden="true"></span>
+                <div class="finding__main">
+                  <div class="finding__head">
+                    <span class="finding__name finding__name--dim">_PresenceSubscription</span>
+                    <span class="finding__delta finding__delta--cyan nums">+3</span>
+                  </div>
+                  <div class="finding__meta">
+                    <span class="finding__flag finding__flag--cyan">NOT DISPOSED</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="findings__foot">
+              <span>8 classes &middot; 57 live</span>
+              <span>Scan now &#8635;</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- RUNTIME DETECTION -->
+      <section class="section section--ruled" aria-labelledby="runtime-heading">
+        <div class="section-head" data-reveal>
+          <p class="eyebrow eyebrow--green">Runtime detection</p>
+          <h2 class="section-title" id="runtime-heading">It tracks instance growth so you don't have to.</h2>
+          <p class="section-intro">Radar inspects the live heap through the Dart VM service. It counts live instances per class across forced-GC captures and flags any class that keeps growing and never comes back down &mdash; screens, blocs, controllers, subscriptions, timers.</p>
+        </div>
+        <div class="feature-grid">
+          <div class="feature" data-reveal>
+            <div class="feature__title">Zero-config</div>
+            <p class="feature__desc">One <code>init</code> call. No mixins, no interfaces, nothing to implement on your own types.</p>
+          </div>
+          <div class="feature" data-reveal>
+            <div class="feature__title">Heap-based, not hooks</div>
+            <p class="feature__desc">It reads the real object graph from the VM &mdash; so it sees what's actually retained, not what you remembered to instrument.</p>
+          </div>
+          <div class="feature" data-reveal>
+            <div class="feature__title">Precise opt-in</div>
+            <p class="feature__desc">Want exactness on a specific object? <code>track(obj)</code> and <code>markDisposed(obj)</code> &mdash; two calls, optional.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- STATIC PREVENTION / LINT -->
+      <section class="section section--ruled" aria-labelledby="lint-heading">
+        <div class="split">
+          <div class="split__copy" data-reveal>
+            <p class="eyebrow eyebrow--cyan">Static prevention &middot; custom_lint</p>
+            <h2 class="split__title split__title--lg" id="lint-heading">Stop the classics before they ship.</h2>
+            <p class="split__p">Seven rules, each with an auto-fix, flag leak-prone code right in your editor &mdash; and they're false-positive-disciplined: they understand disposal inside <code class="icode">if</code>/<code class="icode">try</code> blocks, constructor-injected (externally-owned) fields, and local variables.</p>
+            <ul class="checklist checklist--cyan">
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Undisposed controllers</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Uncancelled <code>StreamSubscription</code> &amp; <code>Timer</code></li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Unclosed <code>StreamController</code></li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Discarded <code>.listen()</code> results</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Missing <code>removeListener</code></li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Bloc subscriptions never cancelled in <code>close()</code></li>
+            </ul>
+          </div>
+          <!-- Diagnostic mock -->
+          <div class="split__media" data-reveal>
+            <div class="codewin codewin--shadow">
+              <div class="codewin__bar--traffic">
+                <span class="dot dot--r" aria-hidden="true"></span>
+                <span class="dot dot--y" aria-hidden="true"></span>
+                <span class="dot dot--g" aria-hidden="true"></span>
+                <span class="codewin__file">chat_screen.dart</span>
+              </div>
+              <pre class="code--lg"><code><span class="tk">class</span> <span class="tt">_ChatScreenState</span> <span class="tk">extends</span> <span class="tt">State</span> {
+  <span class="tk">final</span> <span class="wavy">_controller</span> = <span class="tt">TextEditingController</span>();
+
+  <span class="tc">// &#128721; leak_radar: never disposed.</span>
+  <span class="tc">//    Quick fix &rarr; add dispose()</span>
+}</code></pre>
+              <div class="quickfix">
+                <div class="quickfix__head">QUICK FIX</div>
+                <div class="quickfix__body">
+                  <div>+ @override</div>
+                  <div>+ void dispose() {</div>
+                  <div class="indent">_controller.dispose();</div>
+                  <div class="indent">super.dispose();</div>
+                  <div>+ }</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ON-DEVICE UX (bento) -->
+      <section class="section section--ruled" aria-labelledby="ondevice-heading">
+        <div class="section-head" data-reveal>
+          <p class="eyebrow eyebrow--green">On-device UX</p>
+          <h2 class="section-title" id="ondevice-heading">The signal comes to you.</h2>
+        </div>
+        <div class="bento">
+          <div class="bento__cell bento__cell--7" data-reveal>
+            <div class="bento__head">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#5ad1e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7 7l4 4M13 13l4 4M11 11h2v2"/></svg>
+              <h3>Retaining paths, on demand</h3>
+            </div>
+            <p class="bento__p">Lazily fetched so capture stays cheap. See exactly what holds the reference &mdash; gc-root &rarr; field &rarr; &hellip; &rarr; object, with source locations.</p>
+            <div class="retain">
+              <div><span class="t-cyan">GC root</span> <span class="t-tree">&middot; static</span></div>
+              <div class="indent-1"><span class="t-tree">&#9492;&#9472;</span> _ChatService.<span class="t-string">_activeRooms</span> <span class="t-dim">:41:7</span></div>
+              <div class="indent-2"><span class="t-tree">&#9492;&#9472;</span> _GrowableList <span class="t-tree">[3]</span></div>
+              <div class="indent-3"><span class="t-tree">&#9492;&#9472;</span> <span class="t-leak">ChatRoomController</span> <span class="t-tree">&larr; leaked</span></div>
+            </div>
+          </div>
+          <div class="bento__cell bento__cell--5" data-reveal>
+            <div class="bento__head">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5"/></svg>
+              <h3>Triggers that fit your flow</h3>
+            </div>
+            <p class="bento__p">A <code>NavigatorObserver</code> scans on screen-pop &mdash; the natural "this should be gone now" checkpoint.</p>
+            <div class="tagrow">
+              <span class="tag tag--neutral">Scan now</span>
+              <span class="tag tag--neutral">Periodic</span>
+              <span class="tag tag--green">On screen-pop</span>
+            </div>
+          </div>
+          <div class="bento__cell bento__cell--4" data-reveal>
+            <div class="bento__title">Draggable badge</div>
+            <p class="bento__p bento__p--sm bento__p--last">Live worst-severity + count, floating over your app. Tap for findings; growth sparklines per class.</p>
+          </div>
+          <div class="bento__cell bento__cell--4" data-reveal>
+            <div class="bento__title">Full heap snapshot</div>
+            <p class="bento__p bento__p--sm bento__p--last">Capture a real <code>.dartheap</code> to file for offline DevTools analysis.</p>
+          </div>
+          <div class="bento__cell bento__cell--4" data-reveal>
+            <div class="bento__title">Export &amp; share</div>
+            <p class="bento__p bento__p--sm bento__p--last">Findings as JSON or Markdown, shareable straight from the device.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- DEVTOOLS -->
+      <section class="section section--ruled" aria-labelledby="devtools-heading">
+        <div class="split">
+          <div class="split__copy" data-reveal>
+            <p class="eyebrow eyebrow--cyan">In DevTools</p>
+            <h2 class="split__title" id="devtools-heading">Capture &rarr; act &rarr; capture &rarr; diff.</h2>
+            <p class="split__p">When you want to go deep, the DevTools companion captures a baseline, lets you exercise the app, then diffs &mdash; ranking per-class growth by instances and bytes, with retaining paths for whatever grew. Plus a full class histogram.</p>
+          </div>
+          <div class="split__media" data-reveal>
+            <div class="difftable">
+              <div class="difftable__bar">
+                <span class="difftable__summary nums">A 38.2 MB &rarr; B 46.7 MB</span>
+                <span class="difftable__delta nums">&Delta; +8.5 MB</span>
+              </div>
+              <div class="difftable__grid">
+                <div class="diffrow diffrow--head"><span>class</span><span>&Delta; inst</span><span>&Delta; bytes</span></div>
+                <div class="diffrow diffrow--flagged"><span>ChatRoomController</span><span class="col-num num-up nums">+12</span><span class="col-num num-up nums">+2.1 MB</span></div>
+                <div class="diffrow"><span>_MessageModel</span><span class="col-num num-up nums">+840</span><span class="col-num num-up nums">+1.9 MB</span></div>
+                <div class="diffrow"><span>Uint8List</span><span class="col-num num-up nums">+36</span><span class="col-num num-up nums">+1.6 MB</span></div>
+                <div class="diffrow" style="border-bottom:0;"><span>String</span><span class="col-num num-down nums">-220</span><span class="col-num num-down nums">-180 KB</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- REAL CODE (tabs) -->
+      <section class="section section--ruled" aria-labelledby="code-heading">
+        <div class="section-head" data-reveal style="margin-bottom:24px;">
+          <p class="eyebrow eyebrow--green">Real code</p>
+          <h2 class="section-title section-title--md" id="code-heading" style="margin:0;">The whole memory setup.</h2>
+        </div>
+        <div class="codetabs" role="tablist" aria-label="Memory code examples" data-tabs data-reveal>
+          <button class="codetab" role="tab" id="mem-tab-init" aria-controls="mem-panel-init" aria-selected="true" tabindex="0" type="button">init</button>
+          <button class="codetab" role="tab" id="mem-tab-optin" aria-controls="mem-panel-optin" aria-selected="false" tabindex="-1" type="button">precise opt-in</button>
+        </div>
+        <div data-reveal>
+          <div class="codewin codewin--shadow codepanel" role="tabpanel" id="mem-panel-init" aria-labelledby="mem-tab-init">
+            <div class="codewin__bar--traffic">
+              <span class="dot dot--r" aria-hidden="true"></span>
+              <span class="dot dot--y" aria-hidden="true"></span>
+              <span class="dot dot--g" aria-hidden="true"></span>
+              <span class="codewin__file">main.dart</span>
+            </div>
+            <pre class="code--lg"><code><span class="tk">import</span> <span class="ts">'package:flutter_radar/flutter_radar.dart'</span>;
+
+<span class="tt">void</span> <span class="tf">main</span>() {
+  FlutterRadar.<span class="tf">init</span>(
+    memory: MemoryConfig(
+      autoScan: AutoScan.<span class="tt">onScreenPop</span>,
+      threshold: Severity.<span class="tt">warning</span>,
+    ),
+    overlay: <span class="tl">true</span>,
+  );
+  <span class="tf">runApp</span>(<span class="tk">const</span> MyApp());
+}</code></pre>
+          </div>
+          <div class="codewin codewin--shadow codepanel" role="tabpanel" id="mem-panel-optin" aria-labelledby="mem-tab-optin" hidden>
+            <div class="codewin__bar--traffic">
+              <span class="dot dot--r" aria-hidden="true"></span>
+              <span class="dot dot--y" aria-hidden="true"></span>
+              <span class="dot dot--g" aria-hidden="true"></span>
+              <span class="codewin__file">chat_room.dart</span>
+            </div>
+            <pre class="code--lg"><code><span class="tc">// Optional &mdash; heap detection already works without this.</span>
+<span class="tc">// Use it when you want exactness on one object.</span>
+
+<span class="tk">final</span> controller = <span class="tt">ChatRoomController</span>();
+FlutterRadar.<span class="tf">track</span>(controller);
+
+<span class="tc">// later, when you believe it's gone:</span>
+controller.<span class="tf">dispose</span>();
+FlutterRadar.<span class="tf">markDisposed</span>(controller);</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- CROSS LINKS -->
+      <section class="section section--ruled" aria-label="Other pillars">
+        <div class="crosslinks">
+          <a class="crosslink crosslink--performance" href="performance.html" data-reveal>
+            <span class="crosslink__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#f5b54a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+            <span>
+              <span class="crosslink__kicker">NEXT PILLAR</span>
+              <span class="crosslink__title">Performance &rarr;</span>
+            </span>
+          </a>
+          <a class="crosslink crosslink--stability" href="stability.html" data-reveal>
+            <span class="crosslink__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#5ad1e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5z"/></svg></span>
+            <span>
+              <span class="crosslink__kicker">PILLAR</span>
+              <span class="crosslink__title">Stability &rarr;</span>
+            </span>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer footer--compact">
+      <div class="footer__inner">
+        <a class="footer__brand-link" href="index.html">
+          <svg width="22" height="22" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+          <span class="footer__brand-name">Flutter Radar</span>
+        </a>
+        <span class="footer__meta">MIT licensed &middot; debug &amp; profile only &middot; no-op in release</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="main.js" defer></script>
+</body>
+</html>

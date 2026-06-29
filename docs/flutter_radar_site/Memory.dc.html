@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html { scroll-behavior:smooth; }
+  body { margin:0; background:#07090a; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+  ::selection { background:rgba(47,227,155,0.28); color:#eafff5; }
+  .nums { font-variant-numeric:tabular-nums; }
+  [data-reveal] { opacity:0; transform:translateY(18px); transition:opacity .7s cubic-bezier(.22,1,.36,1), transform .7s cubic-bezier(.22,1,.36,1); }
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} [data-reveal]{opacity:1!important; transform:none!important; transition:none!important;} }
+</style>
+</helmet>
+
+<div style="background:#07090a; color:#e7eef0; font-family:'Hanken Grotesk',system-ui,sans-serif; position:relative; overflow-x:hidden; min-height:100vh;">
+  <div aria-hidden="true" style="position:fixed; inset:0; pointer-events:none; z-index:0; background:radial-gradient(900px 560px at 80% -8%, rgba(47,227,155,0.09), transparent 60%);"></div>
+  <div aria-hidden="true" style="position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.4; background-image:linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px); background-size:64px 64px; mask-image:radial-gradient(1000px 640px at 72% 0%, #000, transparent 75%);"></div>
+
+  <!-- NAV -->
+  <nav style="position:sticky; top:0; z-index:50; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); background:rgba(7,9,10,0.72); border-bottom:1px solid rgba(255,255,255,0.07);">
+    <div style="max-width:1240px; margin:0 auto; padding:13px clamp(18px,4vw,40px); display:flex; align-items:center; justify-content:space-between; gap:20px;">
+      <a href="Flutter Radar.dc.html" style="display:flex; align-items:center; gap:11px; text-decoration:none; color:inherit;">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="7" stroke="rgba(47,227,155,0.55)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+        <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16.5px; letter-spacing:-0.01em;">Flutter Radar</span>
+      </a>
+      <div style="display:flex; align-items:center; gap:4px;">
+        <a href="Memory.dc.html" style="color:#2fe39b; text-decoration:none; font-size:13.5px; padding:8px 12px; border-radius:8px; background:rgba(47,227,155,0.08);">Memory</a>
+        <a href="Performance.dc.html" style="color:#a7b6bc; text-decoration:none; font-size:13.5px; padding:8px 12px; border-radius:8px;" style-hover="background:rgba(255,255,255,0.05); color:#fff;">Performance</a>
+        <a href="Stability.dc.html" style="color:#a7b6bc; text-decoration:none; font-size:13.5px; padding:8px 12px; border-radius:8px;" style-hover="background:rgba(255,255,255,0.05); color:#fff;">Stability</a>
+        <a href="Flutter Radar.dc.html#install" style="margin-left:8px; display:inline-flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#07090a; background:#2fe39b; text-decoration:none; padding:9px 15px; border-radius:9px; font-weight:600;" style-hover="background:#52f0b0;">Install</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- breadcrumb -->
+  <div style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:18px clamp(18px,4vw,40px) 0; font-family:'JetBrains Mono',monospace; font-size:12px; color:#5f7178;"><a href="Flutter Radar.dc.html" style="color:#5f7178; text-decoration:none;" style-hover="color:#2fe39b;">Flutter Radar</a> <span style="color:#2a3338;">/</span> <span style="color:#2fe39b;">Memory</span></div>
+
+  <!-- HERO -->
+  <header data-screen-label="Memory hero" style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(28px,4vw,52px) clamp(18px,4vw,40px) clamp(36px,5vw,60px);">
+    <div style="display:flex; flex-wrap:wrap; gap:clamp(32px,5vw,64px); align-items:center;">
+      <div style="flex:1 1 460px; min-width:300px;">
+        <div data-reveal style="display:inline-flex; align-items:center; gap:9px; font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase; color:#2fe39b; border:1px solid rgba(47,227,155,0.28); background:rgba(47,227,155,0.06); padding:6px 12px; border-radius:999px; margin-bottom:22px;">Pillar 01 · Memory</div>
+        <h1 data-reveal style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(36px,5.6vw,64px); line-height:1.0; letter-spacing:-0.03em; margin:0 0 20px; text-wrap:balance;">Catch leaks <span style="color:#2fe39b;">twice</span> — before they ship, and while they run.</h1>
+        <p data-reveal style="font-size:clamp(15px,1.7vw,18.5px); line-height:1.6; color:#a7b6bc; max-width:540px; margin:0 0 28px;">A static <code style="font-family:'JetBrains Mono',monospace; font-size:0.92em; color:#d6e2e5;">custom_lint</code> plugin stops leak-prone code at analysis time. A runtime detector inspects the live heap on a real device and flags classes that grow and never return. <span style="color:#d6e2e5;">No mixins, no base classes.</span></p>
+        <div data-reveal style="display:flex; flex-wrap:wrap; gap:18px;">
+          <div><div class="nums" style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:26px; color:#2fe39b;">7</div><div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#7d8e94;">lint rules + auto-fixes</div></div>
+          <div style="width:1px; background:rgba(255,255,255,0.1);"></div>
+          <div><div class="nums" style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:26px; color:#2fe39b;">0</div><div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#7d8e94;">mixins to implement</div></div>
+          <div style="width:1px; background:rgba(255,255,255,0.1);"></div>
+          <div><div class="nums" style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:26px; color:#2fe39b;">2</div><div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#7d8e94;">calls for precise opt-in</div></div>
+        </div>
+      </div>
+      <!-- findings mock -->
+      <div data-reveal style="flex:1 1 320px; min-width:280px; display:flex; justify-content:center;">
+        <div style="width:clamp(280px,30vw,330px); background:linear-gradient(180deg,#0e1417,#0b0f11); border:1px solid rgba(255,255,255,0.1); border-radius:18px; box-shadow:0 40px 90px -34px rgba(0,0,0,0.8); overflow:hidden;">
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:13px 15px; border-bottom:1px solid rgba(255,255,255,0.06);"><div style="display:flex; align-items:center; gap:8px;"><svg width="14" height="14" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11" stroke="rgba(47,227,155,0.45)" stroke-width="1.4"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg><span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13px;">Leak findings</span></div><span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#5f7178;">scan 14:32</span></div>
+          <div style="padding:6px;">
+            <div style="display:flex; gap:10px; padding:10px; border-radius:11px; background:rgba(255,93,108,0.06);"><span style="width:4px; border-radius:2px; background:#ff5d6c;"></span><div style="flex:1; min-width:0;"><div style="display:flex; justify-content:space-between;"><span style="font-family:'JetBrains Mono',monospace; font-size:12px;">ChatRoomController</span><span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#ff5d6c; font-weight:600;">+48</span></div><div style="display:flex; gap:7px; align-items:center; margin-top:5px;"><span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#ff5d6c; background:rgba(255,93,108,0.12); padding:1px 6px; border-radius:4px;">NOT DISPOSED</span><svg width="60" height="16" viewBox="0 0 60 16" style="margin-left:auto;"><path d="M1 14 L12 12 L23 9 L34 6 L45 4 L59 1" stroke="#ff5d6c" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg></div></div></div>
+            <div style="display:flex; gap:10px; padding:10px;"><span style="width:4px; border-radius:2px; background:#f5b54a;"></span><div style="flex:1; min-width:0;"><div style="display:flex; justify-content:space-between;"><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#cdd6da;">VideoPlayerController</span><span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#f5b54a; font-weight:600;">+6</span></div><div style="display:flex; gap:7px; align-items:center; margin-top:5px;"><span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#f5b54a; background:rgba(245,181,74,0.12); padding:1px 6px; border-radius:4px;">GROWTH</span></div></div></div>
+            <div style="display:flex; gap:10px; padding:10px;"><span style="width:4px; border-radius:2px; background:#5ad1e6;"></span><div style="flex:1; min-width:0;"><div style="display:flex; justify-content:space-between;"><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#cdd6da;">_PresenceSubscription</span><span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#5ad1e6; font-weight:600;">+3</span></div><div style="display:flex; gap:7px; align-items:center; margin-top:5px;"><span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#5ad1e6; background:rgba(90,209,230,0.12); padding:1px 6px; border-radius:4px;">NOT DISPOSED</span></div></div></div>
+          </div>
+          <div style="padding:10px 15px; border-top:1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between;"><span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5f7178;">8 classes · 57 live</span><span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#2fe39b;">Scan now ↺</span></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- HOW DETECTION WORKS -->
+  <section style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(40px,6vw,80px) clamp(18px,4vw,40px); border-top:1px solid rgba(255,255,255,0.06);">
+    <div data-reveal style="max-width:640px; margin-bottom:clamp(28px,4vw,44px);">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#2fe39b; margin-bottom:14px;">Runtime detection</div>
+      <h2 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(26px,4vw,44px); line-height:1.06; letter-spacing:-0.025em; margin:0 0 16px;">It tracks instance growth so you don't have to.</h2>
+      <p style="font-size:16px; line-height:1.6; color:#a7b6bc; margin:0;">Radar inspects the live heap through the Dart VM service. It counts live instances per class across forced-GC captures and flags any class that keeps growing and never comes back down — screens, blocs, controllers, subscriptions, timers.</p>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:clamp(14px,1.8vw,18px);">
+      <div data-reveal style="background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:24px;"><div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16px; margin-bottom:8px;">Zero-config</div><p style="font-size:13.5px; line-height:1.6; color:#a7b6bc; margin:0;">One <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">init</code> call. No mixins, no interfaces, nothing to implement on your own types.</p></div>
+      <div data-reveal style="background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:24px;"><div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16px; margin-bottom:8px;">Heap-based, not hooks</div><p style="font-size:13.5px; line-height:1.6; color:#a7b6bc; margin:0;">It reads the real object graph from the VM — so it sees what's actually retained, not what you remembered to instrument.</p></div>
+      <div data-reveal style="background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:24px;"><div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16px; margin-bottom:8px;">Precise opt-in</div><p style="font-size:13.5px; line-height:1.6; color:#a7b6bc; margin:0;">Want exactness on a specific object? <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">track(obj)</code> and <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">markDisposed(obj)</code> — two calls, optional.</p></div>
+    </div>
+  </section>
+
+  <!-- LINT -->
+  <section style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(40px,6vw,80px) clamp(18px,4vw,40px); border-top:1px solid rgba(255,255,255,0.06);">
+    <div style="display:flex; flex-wrap:wrap; gap:clamp(32px,5vw,60px); align-items:center;">
+      <div data-reveal style="flex:1 1 380px; min-width:290px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#5ad1e6; margin-bottom:14px;">Static prevention · custom_lint</div>
+        <h2 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(26px,4vw,42px); line-height:1.06; letter-spacing:-0.025em; margin:0 0 16px;">Stop the classics before they ship.</h2>
+        <p style="font-size:15.5px; line-height:1.6; color:#a7b6bc; margin:0 0 18px;">Seven rules, each with an auto-fix, flag leak-prone code right in your editor — and they're false-positive-disciplined: they understand disposal inside <code style="font-family:'JetBrains Mono',monospace; font-size:0.9em; color:#e7eef0;">if</code>/<code style="font-family:'JetBrains Mono',monospace; font-size:0.9em; color:#e7eef0;">try</code> blocks, constructor-injected (externally-owned) fields, and local variables.</p>
+        <ul style="list-style:none; padding:0; margin:0; display:grid; gap:9px;">
+          <li style="display:flex; gap:10px; font-size:14px; color:#c4d0d4;"><span style="color:#5ad1e6; font-family:'JetBrains Mono',monospace;">›</span> Undisposed controllers</li>
+          <li style="display:flex; gap:10px; font-size:14px; color:#c4d0d4;"><span style="color:#5ad1e6; font-family:'JetBrains Mono',monospace;">›</span> Uncancelled <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">StreamSubscription</code> &amp; <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">Timer</code></li>
+          <li style="display:flex; gap:10px; font-size:14px; color:#c4d0d4;"><span style="color:#5ad1e6; font-family:'JetBrains Mono',monospace;">›</span> Unclosed <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">StreamController</code></li>
+          <li style="display:flex; gap:10px; font-size:14px; color:#c4d0d4;"><span style="color:#5ad1e6; font-family:'JetBrains Mono',monospace;">›</span> Discarded <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">.listen()</code> results</li>
+          <li style="display:flex; gap:10px; font-size:14px; color:#c4d0d4;"><span style="color:#5ad1e6; font-family:'JetBrains Mono',monospace;">›</span> Missing <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">removeListener</code></li>
+          <li style="display:flex; gap:10px; font-size:14px; color:#c4d0d4;"><span style="color:#5ad1e6; font-family:'JetBrains Mono',monospace;">›</span> Bloc subscriptions never cancelled in <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">close()</code></li>
+        </ul>
+      </div>
+      <!-- diagnostic mock -->
+      <div data-reveal style="flex:1 1 380px; min-width:300px; background:#06090a; border:1px solid rgba(255,255,255,0.1); border-radius:14px; overflow:hidden; box-shadow:0 30px 70px -34px rgba(0,0,0,0.7);">
+        <div style="display:flex; align-items:center; gap:8px; padding:11px 15px; border-bottom:1px solid rgba(255,255,255,0.07); background:#0a0e0f;"><span style="width:11px; height:11px; border-radius:50%; background:#ff5f57;"></span><span style="width:11px; height:11px; border-radius:50%; background:#febc2e;"></span><span style="width:11px; height:11px; border-radius:50%; background:#28c840;"></span><span style="margin-left:8px; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#5f7178;">chat_screen.dart</span></div>
+        <pre style="margin:0; padding:18px 20px; font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.85; color:#cdd6da; overflow-x:auto;"><code><span style="color:#ff85a1;">class</span> <span style="color:#5ccfe6;">_ChatScreenState</span> <span style="color:#ff85a1;">extends</span> <span style="color:#5ccfe6;">State</span> {
+  <span style="color:#ff85a1;">final</span> <span style="color:#ff5d6c; text-decoration:underline wavy #ff5d6c; text-decoration-thickness:1.5px; text-underline-offset:4px;">_controller</span> = <span style="color:#5ccfe6;">TextEditingController</span>();
+
+  <span style="color:#5f7178;">// 🛑 leak_radar: never disposed.</span>
+  <span style="color:#5f7178;">//    Quick fix → add dispose()</span>
+}</code></pre>
+        <div style="border-top:1px solid rgba(255,255,255,0.07); padding:12px 16px; background:#0a0e0f;"><div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#2fe39b; margin-bottom:8px;">QUICK FIX</div><div style="font-family:'JetBrains Mono',monospace; font-size:11.5px; line-height:1.7; color:#7ee0b0;"><div>+ @override</div><div>+ void dispose() {</div><div style="padding-left:12px;">_controller.dispose();</div><div style="padding-left:12px;">super.dispose();</div><div>+ }</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ON-DEVICE UX -->
+  <section style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(40px,6vw,80px) clamp(18px,4vw,40px); border-top:1px solid rgba(255,255,255,0.06);">
+    <div data-reveal style="max-width:640px; margin-bottom:clamp(28px,4vw,40px);"><div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#2fe39b; margin-bottom:14px;">On-device UX</div><h2 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(26px,4vw,42px); line-height:1.06; letter-spacing:-0.025em; margin:0;">The signal comes to you.</h2></div>
+    <div style="display:grid; grid-template-columns:repeat(12,1fr); gap:clamp(12px,1.6vw,16px);">
+      <div data-reveal style="grid-column:span 7; min-width:0; background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:18px; padding:clamp(20px,2.4vw,28px);"><div style="display:flex; align-items:center; gap:9px; margin-bottom:12px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#5ad1e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7 7l4 4M13 13l4 4M11 11h2v2"/></svg><h3 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:18px; margin:0;">Retaining paths, on demand</h3></div><p style="font-size:14px; line-height:1.6; color:#a7b6bc; margin:0 0 14px;">Lazily fetched so capture stays cheap. See exactly what holds the reference — gc-root → field → … → object, with source locations.</p><div style="font-family:'JetBrains Mono',monospace; font-size:11.5px; line-height:1.9; color:#8fa0a6; background:#06090a; border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:13px 14px; overflow-x:auto;"><div><span style="color:#5ad1e6;">GC root</span> <span style="color:#4a5a60;">· static</span></div><div style="padding-left:13px;"><span style="color:#4a5a60;">└─</span> _ChatService.<span style="color:#c3e88d;">_activeRooms</span> <span style="color:#3d4a4f;">:41:7</span></div><div style="padding-left:27px;"><span style="color:#4a5a60;">└─</span> _GrowableList <span style="color:#4a5a60;">[3]</span></div><div style="padding-left:41px;"><span style="color:#4a5a60;">└─</span> <span style="color:#ff5d6c;">ChatRoomController</span> <span style="color:#4a5a60;">← leaked</span></div></div></div>
+      <div data-reveal style="grid-column:span 5; min-width:0; background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:18px; padding:clamp(20px,2.4vw,28px); display:flex; flex-direction:column;"><div style="display:flex; align-items:center; gap:9px; margin-bottom:12px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5"/></svg><h3 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:18px; margin:0;">Triggers that fit your flow</h3></div><p style="font-size:14px; line-height:1.6; color:#a7b6bc; margin:0 0 14px;">A <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">NavigatorObserver</code> scans on screen-pop — the natural "this should be gone now" checkpoint.</p><div style="margin-top:auto; display:flex; flex-wrap:wrap; gap:7px;"><span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#c4d0d4; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); padding:5px 10px; border-radius:7px;">Scan now</span><span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#c4d0d4; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); padding:5px 10px; border-radius:7px;">Periodic</span><span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#2fe39b; background:rgba(47,227,155,0.08); border:1px solid rgba(47,227,155,0.25); padding:5px 10px; border-radius:7px;">On screen-pop</span></div></div>
+      <div data-reveal style="grid-column:span 4; min-width:0; background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:18px; padding:clamp(20px,2.4vw,28px);"><div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16px; margin-bottom:8px;">Draggable badge</div><p style="font-size:13.5px; line-height:1.6; color:#a7b6bc; margin:0;">Live worst-severity + count, floating over your app. Tap for findings; growth sparklines per class.</p></div>
+      <div data-reveal style="grid-column:span 4; min-width:0; background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:18px; padding:clamp(20px,2.4vw,28px);"><div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16px; margin-bottom:8px;">Full heap snapshot</div><p style="font-size:13.5px; line-height:1.6; color:#a7b6bc; margin:0;">Capture a real <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0;">.dartheap</code> to file for offline DevTools analysis.</p></div>
+      <div data-reveal style="grid-column:span 4; min-width:0; background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:18px; padding:clamp(20px,2.4vw,28px);"><div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16px; margin-bottom:8px;">Export &amp; share</div><p style="font-size:13.5px; line-height:1.6; color:#a7b6bc; margin:0;">Findings as JSON or Markdown, shareable straight from the device.</p></div>
+    </div>
+  </section>
+
+  <!-- DEVTOOLS -->
+  <section style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(40px,6vw,80px) clamp(18px,4vw,40px); border-top:1px solid rgba(255,255,255,0.06);">
+    <div style="display:flex; flex-wrap:wrap; gap:clamp(32px,5vw,60px); align-items:center;">
+      <div data-reveal style="flex:1 1 360px; min-width:290px;"><div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#5ad1e6; margin-bottom:14px;">In DevTools</div><h2 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(24px,3.6vw,38px); line-height:1.06; letter-spacing:-0.025em; margin:0 0 16px;">Capture → act → capture → diff.</h2><p style="font-size:15px; line-height:1.6; color:#a7b6bc; margin:0;">When you want to go deep, the DevTools companion captures a baseline, lets you exercise the app, then diffs — ranking per-class growth by instances and bytes, with retaining paths for whatever grew. Plus a full class histogram.</p></div>
+      <div data-reveal style="flex:1 1 380px; min-width:300px; background:#0c1012; border:1px solid rgba(255,255,255,0.1); border-radius:14px; overflow:hidden; box-shadow:0 30px 70px -34px rgba(0,0,0,0.7);">
+        <div style="padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.07); display:flex; align-items:center; gap:10px;"><span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#cdd6da;">A 38.2 MB → B 46.7 MB</span><span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#ff5d6c; font-weight:600;">Δ +8.5 MB</span></div>
+        <div style="font-family:'JetBrains Mono',monospace;">
+          <div style="display:grid; grid-template-columns:1.6fr 0.7fr 0.8fr; gap:8px; padding:7px 14px; background:#0b0f11; font-size:9.5px; color:#5f7178;"><span>class</span><span style="text-align:right;">Δ inst</span><span style="text-align:right;">Δ bytes</span></div>
+          <div style="display:grid; grid-template-columns:1.6fr 0.7fr 0.8fr; gap:8px; padding:8px 14px; border-bottom:1px solid rgba(255,255,255,0.04); border-left:2px solid #2fe39b; background:rgba(47,227,155,0.05);"><span style="font-size:11.5px; color:#e7eef0;">ChatRoomController</span><span class="nums" style="font-size:11px; color:#ff5d6c; text-align:right;">+12</span><span class="nums" style="font-size:11px; color:#ff5d6c; text-align:right;">+2.1 MB</span></div>
+          <div style="display:grid; grid-template-columns:1.6fr 0.7fr 0.8fr; gap:8px; padding:8px 14px; border-bottom:1px solid rgba(255,255,255,0.04); border-left:2px solid transparent;"><span style="font-size:11.5px; color:#cdd6da;">_MessageModel</span><span class="nums" style="font-size:11px; color:#ff5d6c; text-align:right;">+840</span><span class="nums" style="font-size:11px; color:#ff5d6c; text-align:right;">+1.9 MB</span></div>
+          <div style="display:grid; grid-template-columns:1.6fr 0.7fr 0.8fr; gap:8px; padding:8px 14px; border-bottom:1px solid rgba(255,255,255,0.04); border-left:2px solid transparent;"><span style="font-size:11.5px; color:#cdd6da;">Uint8List</span><span class="nums" style="font-size:11px; color:#ff5d6c; text-align:right;">+36</span><span class="nums" style="font-size:11px; color:#ff5d6c; text-align:right;">+1.6 MB</span></div>
+          <div style="display:grid; grid-template-columns:1.6fr 0.7fr 0.8fr; gap:8px; padding:8px 14px; border-left:2px solid transparent;"><span style="font-size:11.5px; color:#cdd6da;">String</span><span class="nums" style="font-size:11px; color:#2fe39b; text-align:right;">-220</span><span class="nums" style="font-size:11px; color:#2fe39b; text-align:right;">-180 KB</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- REAL CODE -->
+  <section style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(40px,6vw,80px) clamp(18px,4vw,40px); border-top:1px solid rgba(255,255,255,0.06);">
+    <div data-reveal style="max-width:600px; margin-bottom:24px;"><div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#2fe39b; margin-bottom:14px;">Real code</div><h2 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(24px,3.6vw,40px); line-height:1.06; letter-spacing:-0.025em; margin:0;">The whole memory setup.</h2></div>
+    <div data-reveal style="display:inline-flex; gap:4px; padding:4px; background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:11px; margin-bottom:18px;">
+      <button type="button" onClick="{{ tabInit }}" style="{{ sInit }}">init</button>
+      <button type="button" onClick="{{ tabOptin }}" style="{{ sOptin }}">precise opt-in</button>
+    </div>
+    <div data-reveal style="background:#06090a; border:1px solid rgba(255,255,255,0.1); border-radius:14px; overflow:hidden; box-shadow:0 30px 70px -34px rgba(0,0,0,0.7);">
+      <div style="display:flex; align-items:center; gap:8px; padding:11px 16px; border-bottom:1px solid rgba(255,255,255,0.07); background:#0a0e0f;"><span style="width:11px; height:11px; border-radius:50%; background:#ff5f57;"></span><span style="width:11px; height:11px; border-radius:50%; background:#febc2e;"></span><span style="width:11px; height:11px; border-radius:50%; background:#28c840;"></span><span style="margin-left:8px; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#5f7178;">{{ codeFile }}</span></div>
+      <sc-if value="{{ showInit }}" hint-placeholder-val="{{ true }}">
+      <pre style="margin:0; padding:20px 22px; font-family:'JetBrains Mono',monospace; font-size:13px; line-height:1.85; color:#cdd6da; overflow-x:auto;"><code><span style="color:#ff85a1;">import</span> <span style="color:#c3e88d;">'package:flutter_radar/flutter_radar.dart'</span>;
+
+<span style="color:#5ccfe6;">void</span> <span style="color:#82aaff;">main</span>() {
+  FlutterRadar.<span style="color:#82aaff;">init</span>(
+    memory: MemoryConfig(
+      autoScan: AutoScan.<span style="color:#5ccfe6;">onScreenPop</span>,
+      threshold: Severity.<span style="color:#5ccfe6;">warning</span>,
+    ),
+    overlay: <span style="color:#f78c6c;">true</span>,
+  );
+  <span style="color:#82aaff;">runApp</span>(<span style="color:#ff85a1;">const</span> MyApp());
+}</code></pre>
+      </sc-if>
+      <sc-if value="{{ showOptin }}" hint-placeholder-val="{{ false }}">
+      <pre style="margin:0; padding:20px 22px; font-family:'JetBrains Mono',monospace; font-size:13px; line-height:1.85; color:#cdd6da; overflow-x:auto;"><code><span style="color:#5f7178;">// Optional — heap detection already works without this.</span>
+<span style="color:#5f7178;">// Use it when you want exactness on one object.</span>
+
+<span style="color:#ff85a1;">final</span> controller = <span style="color:#5ccfe6;">ChatRoomController</span>();
+FlutterRadar.<span style="color:#82aaff;">track</span>(controller);
+
+<span style="color:#5f7178;">// later, when you believe it's gone:</span>
+controller.<span style="color:#82aaff;">dispose</span>();
+FlutterRadar.<span style="color:#82aaff;">markDisposed</span>(controller);</code></pre>
+      </sc-if>
+    </div>
+  </section>
+
+  <!-- CROSS LINKS -->
+  <section style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(36px,5vw,60px) clamp(18px,4vw,40px) clamp(60px,9vw,100px); border-top:1px solid rgba(255,255,255,0.06);">
+    <div style="display:flex; flex-wrap:wrap; gap:14px;">
+      <a href="Performance.dc.html" data-reveal style="flex:1 1 300px; text-decoration:none; display:flex; align-items:center; gap:16px; background:#0a0e0f; border:1px solid rgba(245,181,74,0.2); border-radius:16px; padding:22px 24px;" style-hover="border-color:rgba(245,181,74,0.45);"><div style="width:40px; height:40px; border-radius:11px; background:rgba(245,181,74,0.1); border:1px solid rgba(245,181,74,0.28); display:flex; align-items:center; justify-content:center;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#f5b54a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div style="flex:1;"><div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#f5b54a;">NEXT PILLAR</div><div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:18px; color:#e7eef0;">Performance →</div></div></a>
+      <a href="Stability.dc.html" data-reveal style="flex:1 1 300px; text-decoration:none; display:flex; align-items:center; gap:16px; background:#0a0e0f; border:1px solid rgba(90,209,230,0.2); border-radius:16px; padding:22px 24px;" style-hover="border-color:rgba(90,209,230,0.45);"><div style="width:40px; height:40px; border-radius:11px; background:rgba(90,209,230,0.1); border:1px solid rgba(90,209,230,0.28); display:flex; align-items:center; justify-content:center;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#5ad1e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5z"/></svg></div><div style="flex:1;"><div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5ad1e6;">PILLAR</div><div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:18px; color:#e7eef0;">Stability →</div></div></a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer style="position:relative; z-index:1; border-top:1px solid rgba(255,255,255,0.07); background:#06090a;">
+    <div style="max-width:1240px; margin:0 auto; padding:clamp(36px,5vw,56px) clamp(18px,4vw,40px); display:flex; flex-wrap:wrap; gap:16px; justify-content:space-between; align-items:center;">
+      <a href="Flutter Radar.dc.html" style="display:flex; align-items:center; gap:10px; text-decoration:none; color:inherit;"><svg width="22" height="22" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg><span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px;">Flutter Radar</span></a>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#3d4a4f;">MIT licensed · debug &amp; profile only · no-op in release</span>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;}}">
+class Component extends DCLogic {
+  state = { tab: 'init' };
+  componentDidMount() {
+    const io = new IntersectionObserver((es) => { es.forEach((e) => { if (e.isIntersecting) { e.target.style.opacity='1'; e.target.style.transform='none'; io.unobserve(e.target); } }); }, { threshold: 0.12, rootMargin:'0px 0px -7% 0px' });
+    document.querySelectorAll('[data-reveal]').forEach((el) => io.observe(el));
+    this._s = setTimeout(() => document.querySelectorAll('[data-reveal]').forEach((el)=>{el.style.opacity='1';el.style.transform='none';}), 4000);
+  }
+  componentWillUnmount(){ clearTimeout(this._s); }
+  renderVals() {
+    const init = this.state.tab === 'init';
+    const base = "font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:500; padding:8px 16px; border-radius:8px; border:0; cursor:pointer;";
+    return {
+      showInit: init, showOptin: !init,
+      codeFile: init ? 'main.dart' : 'chat_room.dart',
+      sInit: base + (init ? 'background:#2fe39b; color:#07090a;' : 'background:transparent; color:#8fa0a6;'),
+      sOptin: base + (!init ? 'background:#2fe39b; color:#07090a;' : 'background:transparent; color:#8fa0a6;'),
+      tabInit: () => this.setState({ tab:'init' }), tabOptin: () => this.setState({ tab:'optin' }),
+    };
+  }
+}
+</script>
+</body>
+</html>

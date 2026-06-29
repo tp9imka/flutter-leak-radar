@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html { scroll-behavior:smooth; }
+  body { margin:0; background:#07090a; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+  ::selection { background:rgba(245,181,74,0.28); color:#fff4e0; }
+  .nums { font-variant-numeric:tabular-nums; }
+  [data-reveal] { opacity:0; transform:translateY(18px); transition:opacity .7s cubic-bezier(.22,1,.36,1), transform .7s cubic-bezier(.22,1,.36,1); }
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} [data-reveal]{opacity:1!important; transform:none!important; transition:none!important;} }
+</style>
+</helmet>
+
+<div style="background:#07090a; color:#e7eef0; font-family:'Hanken Grotesk',system-ui,sans-serif; position:relative; overflow-x:hidden; min-height:100vh;">
+  <div aria-hidden="true" style="position:fixed; inset:0; pointer-events:none; z-index:0; background:radial-gradient(900px 560px at 80% -8%, rgba(245,181,74,0.09), transparent 60%);"></div>
+  <div aria-hidden="true" style="position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.4; background-image:linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px); background-size:64px 64px; mask-image:radial-gradient(1000px 640px at 72% 0%, #000, transparent 75%);"></div>
+
+  <!-- NAV -->
+  <nav style="position:sticky; top:0; z-index:50; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); background:rgba(7,9,10,0.72); border-bottom:1px solid rgba(255,255,255,0.07);">
+    <div style="max-width:1240px; margin:0 auto; padding:13px clamp(18px,4vw,40px); display:flex; align-items:center; justify-content:space-between; gap:20px;">
+      <a href="Flutter Radar.dc.html" style="display:flex; align-items:center; gap:11px; text-decoration:none; color:inherit;"><svg width="26" height="26" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="7" stroke="rgba(47,227,155,0.55)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg><span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16.5px; letter-spacing:-0.01em;">Flutter Radar</span></a>
+      <div style="display:flex; align-items:center; gap:4px;">
+        <a href="Memory.dc.html" style="color:#a7b6bc; text-decoration:none; font-size:13.5px; padding:8px 12px; border-radius:8px;" style-hover="background:rgba(255,255,255,0.05); color:#fff;">Memory</a>
+        <a href="Performance.dc.html" style="color:#f5b54a; text-decoration:none; font-size:13.5px; padding:8px 12px; border-radius:8px; background:rgba(245,181,74,0.08);">Performance</a>
+        <a href="Stability.dc.html" style="color:#a7b6bc; text-decoration:none; font-size:13.5px; padding:8px 12px; border-radius:8px;" style-hover="background:rgba(255,255,255,0.05); color:#fff;">Stability</a>
+        <a href="Flutter Radar.dc.html#install" style="margin-left:8px; display:inline-flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#07090a; background:#2fe39b; text-decoration:none; padding:9px 15px; border-radius:9px; font-weight:600;" style-hover="background:#52f0b0;">Install</a>
+      </div>
+    </div>
+  </nav>
+
+  <div style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:18px clamp(18px,4vw,40px) 0; font-family:'JetBrains Mono',monospace; font-size:12px; color:#5f7178;"><a href="Flutter Radar.dc.html" style="color:#5f7178; text-decoration:none;" style-hover="color:#f5b54a;">Flutter Radar</a> <span style="color:#2a3338;">/</span> <span style="color:#f5b54a;">Performance</span></div>
+
+  <!-- HERO -->
+  <header data-screen-label="Performance hero" style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(28px,4vw,52px) clamp(18px,4vw,40px) clamp(36px,5vw,56px);">
+    <div style="max-width:760px;">
+      <div data-reveal style="display:inline-flex; align-items:center; gap:9px; font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase; color:#f5b54a; border:1px solid rgba(245,181,74,0.28); background:rgba(245,181,74,0.06); padding:6px 12px; border-radius:999px; margin-bottom:22px;">Pillar 02 · Performance</div>
+      <h1 data-reveal style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(36px,5.6vw,64px); line-height:1.0; letter-spacing:-0.03em; margin:0 0 20px; text-wrap:balance;">Find the slow path — and the redundant one.</h1>
+      <p data-reveal style="font-size:clamp(15px,1.7vw,18.5px); line-height:1.6; color:#a7b6bc; max-width:600px; margin:0;">Timed traces, frame and jank timing, widget rebuild counts, and startup — every one a truthfully-measured number, surfaced as a dense, sortable analytics table instead of a wall of sparse cards.</p>
+    </div>
+  </header>
+
+  <!-- TRACES (priority) -->
+  <section style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(30px,4vw,52px) clamp(18px,4vw,40px); border-top:1px solid rgba(255,255,255,0.06);">
+    <div data-reveal style="display:flex; flex-wrap:wrap; align-items:flex-end; gap:14px; justify-content:space-between; margin-bottom:clamp(22px,3vw,34px);">
+      <div style="max-width:600px;"><div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#f5b54a; margin-bottom:14px;">Traces · timed spans</div><h2 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(26px,4vw,42px); line-height:1.06; letter-spacing:-0.025em; margin:0 0 14px;">One row per operation. Every metric that matters.</h2><p style="font-size:15px; line-height:1.6; color:#a7b6bc; margin:0;">Count, averages, the full percentile spread, total cost, how often it fires, and how fast — all sortable, all searchable. Operations fired suspiciously often get a <span style="color:#f5b54a;">HOT</span> flag so redundant work stops hiding in the noise.</p></div>
+    </div>
+    <!-- dense table mock -->
+    <div data-reveal style="background:#0c1012; border:1px solid rgba(255,255,255,0.1); border-radius:14px; overflow:hidden; box-shadow:0 30px 70px -34px rgba(0,0,0,0.7);">
+      <div style="display:flex; align-items:center; gap:9px; padding:11px 16px; border-bottom:1px solid rgba(255,255,255,0.07);"><span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13.5px;">Traces</span><span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#f5b54a; background:rgba(245,181,74,0.1); border:1px solid rgba(245,181,74,0.25); padding:3px 8px; border-radius:6px;">hot / dup</span><span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#c4d0d4; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); padding:3px 8px; border-radius:6px;">errors</span><span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5f7178;">sorted: total ↓</span></div>
+      <div style="overflow-x:auto;">
+        <div style="min-width:760px;">
+          <div style="display:grid; grid-template-columns:2.2fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 0.9fr 0.9fr 0.6fr 0.5fr; gap:8px; padding:8px 16px; background:#0b0f11; border-bottom:1px solid rgba(255,255,255,0.08); font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#5f7178;"><span>operation</span><span style="text-align:right;">count</span><span style="color:#f5b54a; text-align:right;">avg ↓</span><span style="text-align:right;">p95</span><span style="text-align:right;">p99</span><span style="text-align:right;">max</span><span style="color:#5ad1e6; text-align:right;">total</span><span style="text-align:right;">intvl</span><span style="text-align:right;">rate</span><span style="text-align:right;">err</span></div>
+          <sc-for list="{{ traces }}" as="t" hint-placeholder-count="7">
+            <div style="display:grid; grid-template-columns:2.2fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 0.9fr 0.9fr 0.6fr 0.5fr; gap:8px; align-items:center; padding:8px 16px; border-bottom:1px solid rgba(255,255,255,0.04);">
+              <span style="display:flex; align-items:center; gap:6px; min-width:0;"><span style="width:6px; height:6px; border-radius:50%; background:{{ t.dot }};"></span><span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#e7eef0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ t.name }}</span><span style="font-family:'JetBrains Mono',monospace; font-size:8.5px; color:#5f7178;">{{ t.cat }}</span><sc-if value="{{ t.hot }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace; font-size:8px; font-weight:600; color:#f5b54a; background:rgba(245,181,74,0.14); padding:1px 4px; border-radius:3px;">HOT</span></sc-if></span>
+              <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a7b6bc; text-align:right;">{{ t.count }}</span>
+              <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#e7eef0; font-weight:600; text-align:right;">{{ t.avg }}</span>
+              <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a7b6bc; text-align:right;">{{ t.p95 }}</span>
+              <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a7b6bc; text-align:right;">{{ t.p99 }}</span>
+              <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8fa0a6; text-align:right;">{{ t.max }}</span>
+              <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5ad1e6; text-align:right;">{{ t.total }}</span>
+              <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8fa0a6; text-align:right;">{{ t.interval }}</span>
+              <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8fa0a6; text-align:right;">{{ t.rate }}</span>
+              <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:{{ t.errColor }}; text-align:right;">{{ t.errors }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+    <p data-reveal style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#5f7178; margin:12px 2px 0;">avg inter-call interval (<span style="color:#a7b6bc;">intvl</span>) + count is how duplicate work surfaces — a tight interval at a high count means the same op is firing back-to-back.</p>
+  </section>
+
+  <!-- TRACE DRILL-DOWN -->
+  <section style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(36px,5vw,70px) clamp(18px,4vw,40px); border-top:1px solid rgba(255,255,255,0.06);">
+    <div data-reveal style="max-width:600px; margin-bottom:clamp(22px,3vw,34px);"><div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#f5b54a; margin-bottom:14px;">Drill into any key</div><h2 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(24px,3.6vw,38px); line-height:1.06; letter-spacing:-0.025em; margin:0;">Distribution, exemplars, and the span tree.</h2></div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:clamp(14px,1.8vw,18px);">
+      <div data-reveal style="background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:22px;"><div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px; margin-bottom:12px;">Latency distribution</div><div style="display:flex; align-items:flex-end; gap:5px; height:64px;"><sc-for list="{{ hist }}" as="h" hint-placeholder-count="8"><div style="flex:1; height:{{ h.h }}; background:rgba(245,181,74,0.5); border-radius:3px 3px 0 0; min-height:4px;"></div></sc-for></div><p style="font-size:12.5px; color:#7d8e94; margin:11px 0 0;">Where calls actually land — not just the average.</p></div>
+      <div data-reveal style="background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:22px;"><div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px; margin-bottom:12px;">Slowest exemplars</div><div style="display:flex; flex-direction:column; gap:9px;"><div style="display:flex; gap:10px; align-items:center;"><span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:#ff5d6c; width:52px;">980ms</span><span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8fa0a6;">roomId=heavy · cold</span></div><div style="display:flex; gap:10px; align-items:center;"><span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:#f5b54a; width:52px;">720ms</span><span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8fa0a6;">roomId=general</span></div><div style="display:flex; gap:10px; align-items:center;"><span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:#f5b54a; width:52px;">410ms</span><span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8fa0a6;">roomId=alerts</span></div></div><p style="font-size:12.5px; color:#7d8e94; margin:14px 0 0;">Real calls with timing + attributes.</p></div>
+      <div data-reveal style="background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:22px;"><div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px; margin-bottom:12px;">Span tree</div><div style="display:flex; flex-direction:column; gap:4px;"><div style="height:17px; background:rgba(90,209,230,0.3); border:1px solid rgba(90,209,230,0.5); border-radius:4px; display:flex; align-items:center; padding:0 8px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#cdeefa;">api.fetchMessages · 182ms</div><div style="margin-left:16px; width:72%; height:17px; background:rgba(245,181,74,0.25); border:1px solid rgba(245,181,74,0.5); border-radius:4px; display:flex; align-items:center; padding:0 8px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#f6dca8;">db.query · 96ms</div><div style="margin-left:32px; width:42%; height:17px; background:rgba(47,227,155,0.22); border:1px solid rgba(47,227,155,0.5); border-radius:4px; display:flex; align-items:center; padding:0 8px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#bdf3da;">json.decode · 58ms</div></div><p style="font-size:12.5px; color:#7d8e94; margin:13px 0 0;">Nested spans on a shared monotonic clock.</p></div>
+    </div>
+  </section>
+
+  <!-- FRAMES / REBUILDS / STARTUP -->
+  <section style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(36px,5vw,70px) clamp(18px,4vw,40px); border-top:1px solid rgba(255,255,255,0.06);">
+    <div data-reveal style="max-width:600px; margin-bottom:clamp(24px,3vw,40px);"><div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#f5b54a; margin-bottom:14px;">Beyond traces</div><h2 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(24px,3.6vw,40px); line-height:1.06; letter-spacing:-0.025em; margin:0;">Frames, rebuilds, and startup.</h2></div>
+    <div style="display:grid; grid-template-columns:repeat(12,1fr); gap:clamp(12px,1.6vw,16px);">
+      <!-- frames -->
+      <div data-reveal style="grid-column:span 7; min-width:0; background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:18px; padding:clamp(20px,2.4vw,28px);">
+        <div style="display:flex; align-items:center; gap:9px; margin-bottom:14px;"><h3 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:18px; margin:0; flex:1;">Frames &amp; jank</h3><span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#ff5d6c;">14 jank · 4.2%</span></div>
+        <div style="display:flex; align-items:flex-end; gap:3px; height:70px; margin-bottom:12px;"><sc-for list="{{ frames }}" as="b" hint-placeholder-count="40"><div style="flex:1; height:{{ b.h }}; background:{{ b.bg }}; border-radius:2px; min-height:3px;"></div></sc-for></div>
+        <div style="display:flex; gap:8px; font-family:'JetBrains Mono',monospace;"><div style="flex:1; background:#06090a; border:1px solid rgba(255,255,255,0.06); border-radius:9px; padding:9px 11px;"><div style="font-size:9.5px; color:#5f7178;">build p50/95/99</div><div class="nums" style="font-size:12px; color:#e7eef0; margin-top:3px;">3.2/8.1/16.4</div></div><div style="flex:1; background:#06090a; border:1px solid rgba(255,255,255,0.06); border-radius:9px; padding:9px 11px;"><div style="font-size:9.5px; color:#5f7178;">raster p50/95/99</div><div class="nums" style="font-size:12px; color:#e7eef0; margin-top:3px;">2.1/6.4/12.8</div></div></div>
+        <p style="font-size:12.5px; color:#7d8e94; margin:12px 0 0;">Frame-time timeline with build/raster/total percentiles and the worst recent frames + their cause.</p>
+      </div>
+      <!-- rebuilds -->
+      <div data-reveal style="grid-column:span 5; min-width:0; background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:18px; padding:clamp(20px,2.4vw,28px);">
+        <h3 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:18px; margin:0 0 14px;">Widget rebuilds</h3>
+        <div style="display:flex; flex-direction:column; gap:9px;">
+          <sc-for list="{{ rebuilds }}" as="r" hint-placeholder-count="4">
+            <div><div style="display:flex; align-items:center; gap:7px; margin-bottom:5px;"><sc-if value="{{ r.flagged }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace; font-size:8px; font-weight:600; color:#ff5d6c; background:rgba(255,93,108,0.14); padding:1px 4px; border-radius:3px;">EXCESSIVE</span></sc-if><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#e7eef0; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ r.label }}</span><span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; color:{{ r.color }};">{{ r.count }}</span></div><div style="height:4px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;"><div style="height:100%; width:{{ r.w }}; background:{{ r.bar }};"></div></div></div>
+          </sc-for>
+        </div>
+        <p style="font-size:12.5px; color:#7d8e94; margin:13px 0 0;">Per-label counts from instrumented subtrees. Excessive rebuilders flagged.</p>
+      </div>
+      <!-- startup -->
+      <div data-reveal style="grid-column:span 12; min-width:0; background:linear-gradient(135deg,#13110c,#090c0d); border:1px solid rgba(245,181,74,0.18); border-radius:18px; padding:clamp(22px,2.6vw,30px); display:flex; flex-wrap:wrap; gap:24px; align-items:center; justify-content:space-between;">
+        <div style="flex:1 1 280px;"><div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#f5b54a; margin-bottom:8px;">STARTUP · TIME TO FIRST FRAME</div><div class="nums" style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(34px,5vw,48px); line-height:1; color:#f5b54a;">480ms</div><p style="font-size:13.5px; color:#a7b6bc; margin:10px 0 0; max-width:380px;">A single headline metric from init to first frame, broken down by phase — and an honest "not measured" state when it wasn't captured.</p></div>
+        <div style="flex:1 1 300px; min-width:260px;"><div style="display:flex; height:10px; border-radius:5px; overflow:hidden; gap:1px; margin-bottom:12px;"><div style="width:25%; background:#2fe39b;"></div><div style="width:19%; background:#5ad1e6;"></div><div style="width:44%; background:#f5b54a;"></div><div style="width:12%; background:#ff8a5d;"></div></div><div style="display:flex; flex-direction:column; gap:7px; font-family:'JetBrains Mono',monospace; font-size:12px;"><div style="display:flex; align-items:center; gap:9px;"><span style="width:8px; height:8px; border-radius:2px; background:#2fe39b;"></span><span style="color:#cdd6da; flex:1;">Engine init</span><span class="nums" style="color:#e7eef0;">120ms</span></div><div style="display:flex; align-items:center; gap:9px;"><span style="width:8px; height:8px; border-radius:2px; background:#5ad1e6;"></span><span style="color:#cdd6da; flex:1;">Dart VM + isolate</span><span class="nums" style="color:#e7eef0;">90ms</span></div><div style="display:flex; align-items:center; gap:9px;"><span style="width:8px; height:8px; border-radius:2px; background:#f5b54a;"></span><span style="color:#cdd6da; flex:1;">First frame build</span><span class="nums" style="color:#e7eef0;">210ms</span></div><div style="display:flex; align-items:center; gap:9px;"><span style="width:8px; height:8px; border-radius:2px; background:#ff8a5d;"></span><span style="color:#cdd6da; flex:1;">First frame raster</span><span class="nums" style="color:#e7eef0;">60ms</span></div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- REAL CODE -->
+  <section style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(36px,5vw,70px) clamp(18px,4vw,40px); border-top:1px solid rgba(255,255,255,0.06);">
+    <div data-reveal style="max-width:600px; margin-bottom:24px;"><div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#f5b54a; margin-bottom:14px;">Real code</div><h2 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(24px,3.6vw,40px); line-height:1.06; letter-spacing:-0.025em; margin:0;">Trace a span. Count a rebuild.</h2></div>
+    <div data-reveal style="display:inline-flex; gap:4px; padding:4px; background:#0a0e0f; border:1px solid rgba(255,255,255,0.08); border-radius:11px; margin-bottom:18px;">
+      <button type="button" onClick="{{ tabTrace }}" style="{{ sTrace }}">trace a span</button>
+      <button type="button" onClick="{{ tabRebuild }}" style="{{ sRebuild }}">count rebuilds</button>
+    </div>
+    <div data-reveal style="background:#06090a; border:1px solid rgba(255,255,255,0.1); border-radius:14px; overflow:hidden; box-shadow:0 30px 70px -34px rgba(0,0,0,0.7);">
+      <div style="display:flex; align-items:center; gap:8px; padding:11px 16px; border-bottom:1px solid rgba(255,255,255,0.07); background:#0a0e0f;"><span style="width:11px; height:11px; border-radius:50%; background:#ff5f57;"></span><span style="width:11px; height:11px; border-radius:50%; background:#febc2e;"></span><span style="width:11px; height:11px; border-radius:50%; background:#28c840;"></span><span style="margin-left:8px; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#5f7178;">{{ codeFile }}</span></div>
+      <sc-if value="{{ showTrace }}" hint-placeholder-val="{{ true }}">
+      <pre style="margin:0; padding:20px 22px; font-family:'JetBrains Mono',monospace; font-size:13px; line-height:1.85; color:#cdd6da; overflow-x:auto;"><code><span style="color:#5f7178;">// Wrap any operation — sync or async.</span>
+<span style="color:#ff85a1;">final</span> messages = <span style="color:#ff85a1;">await</span> Radar.<span style="color:#82aaff;">trace</span>(
+  <span style="color:#c3e88d;">'api.fetchMessages'</span>,
+  category: <span style="color:#c3e88d;">'network'</span>,
+  () =&gt; api.<span style="color:#82aaff;">fetchMessages</span>(roomId),
+);
+
+<span style="color:#5f7178;">// Nested spans share a monotonic clock —</span>
+<span style="color:#5f7178;">// they roll up into a parent/child tree.</span></code></pre>
+      </sc-if>
+      <sc-if value="{{ showRebuild }}" hint-placeholder-val="{{ false }}">
+      <pre style="margin:0; padding:20px 22px; font-family:'JetBrains Mono',monospace; font-size:13px; line-height:1.85; color:#cdd6da; overflow-x:auto;"><code><span style="color:#5f7178;">// Wrap a subtree to count its rebuilds.</span>
+RadarRebuildScope(
+  label: <span style="color:#c3e88d;">'ChatBubble'</span>,
+  child: ChatBubble(message: m),
+)
+
+<span style="color:#5f7178;">// Excessive rebuilders are flagged automatically</span>
+<span style="color:#5f7178;">// in the Rebuilds view.</span></code></pre>
+      </sc-if>
+    </div>
+  </section>
+
+  <!-- CROSS LINKS -->
+  <section style="position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:clamp(36px,5vw,60px) clamp(18px,4vw,40px) clamp(60px,9vw,100px); border-top:1px solid rgba(255,255,255,0.06);">
+    <div style="display:flex; flex-wrap:wrap; gap:14px;">
+      <a href="Memory.dc.html" data-reveal style="flex:1 1 300px; text-decoration:none; display:flex; align-items:center; gap:16px; background:#0a0e0f; border:1px solid rgba(47,227,155,0.2); border-radius:16px; padding:22px 24px;" style-hover="border-color:rgba(47,227,155,0.45);"><div style="width:40px; height:40px; border-radius:11px; background:rgba(47,227,155,0.1); border:1px solid rgba(47,227,155,0.28); display:flex; align-items:center; justify-content:center;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 6v12M11 6v12M15 6v12"/></svg></div><div style="flex:1;"><div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#2fe39b;">PILLAR</div><div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:18px; color:#e7eef0;">Memory →</div></div></a>
+      <a href="Stability.dc.html" data-reveal style="flex:1 1 300px; text-decoration:none; display:flex; align-items:center; gap:16px; background:#0a0e0f; border:1px solid rgba(90,209,230,0.2); border-radius:16px; padding:22px 24px;" style-hover="border-color:rgba(90,209,230,0.45);"><div style="width:40px; height:40px; border-radius:11px; background:rgba(90,209,230,0.1); border:1px solid rgba(90,209,230,0.28); display:flex; align-items:center; justify-content:center;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#5ad1e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5z"/></svg></div><div style="flex:1;"><div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5ad1e6;">NEXT PILLAR</div><div style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:18px; color:#e7eef0;">Stability →</div></div></a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer style="position:relative; z-index:1; border-top:1px solid rgba(255,255,255,0.07); background:#06090a;">
+    <div style="max-width:1240px; margin:0 auto; padding:clamp(36px,5vw,56px) clamp(18px,4vw,40px); display:flex; flex-wrap:wrap; gap:16px; justify-content:space-between; align-items:center;">
+      <a href="Flutter Radar.dc.html" style="display:flex; align-items:center; gap:10px; text-decoration:none; color:inherit;"><svg width="22" height="22" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg><span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px;">Flutter Radar</span></a>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#3d4a4f;">MIT licensed · debug &amp; profile only · no-op in release</span>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;}}">
+class Component extends DCLogic {
+  state = { tab: 'trace' };
+  TRACES = [
+    { name:'api.fetchMessages', cat:'network', count:'410', avg:'182ms', p95:'410ms', p99:'720ms', max:'980ms', total:'74.6s', interval:'220ms', rate:'4.5', errors:6, hot:false, active:true },
+    { name:'analytics.track', cat:'network', count:'980', avg:'14ms', p95:'40ms', p99:'88ms', max:'210ms', total:'13.7s', interval:'108ms', rate:'9.3', errors:2, hot:false, active:true },
+    { name:'db.query(messages)', cat:'db', count:'880', avg:'12ms', p95:'34ms', p99:'58ms', max:'120ms', total:'10.6s', interval:'120ms', rate:'8.3', errors:0, hot:true, active:true },
+    { name:'image.decode', cat:'cpu', count:'320', avg:'28ms', p95:'74ms', p99:'140ms', max:'280ms', total:'9.0s', interval:'330ms', rate:'3.0', errors:0, hot:false, active:false },
+    { name:'build:HomeScreen', cat:'render', count:'1,240', avg:'4.2ms', p95:'9.8ms', p99:'14ms', max:'22ms', total:'5.2s', interval:'96ms', rate:'10.4', errors:0, hot:false, active:true },
+    { name:'bloc.mapEvent', cat:'state', count:'1,500', avg:'2.1ms', p95:'5.2ms', p99:'9.1ms', max:'18ms', total:'3.2s', interval:'64ms', rate:'15.6', errors:0, hot:true, active:true },
+    { name:'scroll.layout', cat:'render', count:'5,400', avg:'0.6ms', p95:'1.4ms', p99:'2.8ms', max:'6ms', total:'3.2s', interval:'11ms', rate:'90.9', errors:0, hot:true, active:true },
+    { name:'json.decode', cat:'cpu', count:'2,200', avg:'0.8ms', p95:'2.1ms', p99:'4.0ms', max:'9ms', total:'1.8s', interval:'40ms', rate:'25.0', errors:0, hot:true, active:true },
+  ];
+  componentDidMount() {
+    const io = new IntersectionObserver((es)=>{es.forEach((e)=>{if(e.isIntersecting){e.target.style.opacity='1';e.target.style.transform='none';io.unobserve(e.target);}});},{threshold:0.1, rootMargin:'0px 0px -6% 0px'});
+    document.querySelectorAll('[data-reveal]').forEach((el)=>io.observe(el));
+    this._s=setTimeout(()=>document.querySelectorAll('[data-reveal]').forEach((el)=>{el.style.opacity='1';el.style.transform='none';}),4000);
+  }
+  componentWillUnmount(){ clearTimeout(this._s); }
+  renderVals() {
+    const traces = this.TRACES.map(t=>({ ...t, dot:t.active?'#2fe39b':'#3d4a4f', errColor:t.errors>0?'#ff5d6c':'#3d4a4f', errors:t.errors||'·' }));
+    const hist=[4,9,17,28,22,12,6,3]; const hmx=Math.max(...hist);
+    const fr=[6,7,5,8,6,9,7,18,6,5,7,6,8,24,7,6,5,9,6,7,31,8,6,5,7,6,9,6,7,5,8,17,6,7,5,6,9,6,7,6]; const frMx=Math.max(...fr);
+    const rb=[['ChatBubble','5,400',true],['MessageList','1,240',true],['PresenceDot','880',false],['ComposerField','320',false]];
+    const rbMx=5400;
+    const trace = this.state.tab==='trace';
+    const base="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:500; padding:8px 16px; border-radius:8px; border:0; cursor:pointer;";
+    return {
+      traces,
+      hist: hist.map(v=>({h:Math.round(v/hmx*100)+'%'})),
+      frames: fr.map(v=>({h:Math.max(8,Math.round(v/frMx*100))+'%', bg:v>16?'#ff5d6c':v>10?'#f5b54a':'rgba(245,181,74,0.45)'})),
+      rebuilds: rb.map(([l,c,f])=>({label:l, count:c, flagged:f, color:f?'#ff5d6c':'#cdd6da', w:Math.round(parseInt(c.replace(/,/g,''))/rbMx*100)+'%', bar:f?'#ff5d6c':'rgba(245,181,74,0.4)'})),
+      showTrace:trace, showRebuild:!trace, codeFile: trace?'chat_repository.dart':'chat_screen.dart',
+      sTrace: base+(trace?'background:#f5b54a; color:#07090a;':'background:transparent; color:#8fa0a6;'),
+      sRebuild: base+(!trace?'background:#f5b54a; color:#07090a;':'background:transparent; color:#8fa0a6;'),
+      tabTrace:()=>this.setState({tab:'trace'}), tabRebuild:()=>this.setState({tab:'rebuild'}),
+    };
+  }
+}
+</script>
+</body>
+</html>
