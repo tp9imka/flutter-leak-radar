@@ -39,7 +39,10 @@ class ShowcaseHome extends StatelessWidget {
         actions: [_InspectorButton()],
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: EdgeInsets.only(
+          top: 8,
+          bottom: 8 + MediaQuery.of(context).padding.bottom,
+        ),
         children: [
           _SectionHeader('Leaks'),
           _ShowcaseTile(

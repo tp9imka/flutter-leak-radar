@@ -27,7 +27,10 @@ class SpanStatsTable extends StatelessWidget {
 
     return ListView.builder(
       itemCount: entries.length,
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: EdgeInsets.only(
+        top: 8,
+        bottom: 8 + MediaQuery.of(context).padding.bottom,
+      ),
       itemBuilder: (context, i) => _SpanRow(stats: entries[i]),
     );
   }
