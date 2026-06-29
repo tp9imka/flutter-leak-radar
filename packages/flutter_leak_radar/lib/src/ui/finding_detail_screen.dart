@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:radar_ui/radar_ui.dart';
 
 import '../leak_radar.dart';
 import '../model/leak_finding.dart';
@@ -131,7 +132,10 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SeverityTag(severity: widget.finding.severity),
+        RadarTag(
+          label: widget.finding.severity.name.toUpperCase(),
+          severity: _radarSeverity(widget.finding.severity),
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: Column(
@@ -157,6 +161,13 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
     ),
   );
 
+  /// Maps [LeakSeverity] to [RadarSeverity] for radar_ui widgets.
+  RadarSeverity _radarSeverity(LeakSeverity s) => switch (s) {
+    LeakSeverity.critical => RadarSeverity.critical,
+    LeakSeverity.warning => RadarSeverity.warning,
+    LeakSeverity.info => RadarSeverity.info,
+  };
+
   Widget _buildStatCards() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     child: IntrinsicHeight(
@@ -164,26 +175,24 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: _StatCard(
+            child: RadarMetricTile(
               label: 'LIVE NOW',
               value: '${widget.finding.liveCount}',
-              valueColor: severityTokens(widget.finding.severity).text,
+              severity: _radarSeverity(widget.finding.severity),
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: _StatCard(
-              label: 'NET GROWTH',
+            child: RadarMetricTile(
+              label: 'GROWTH',
               value: widget.finding.series.isEmpty ? '—' : '+$_growth',
-              valueColor: LeakRadarColors.text100,
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: _StatCard(
+            child: RadarMetricTile(
               label: 'FIRST SEEN',
               value: _formatFirstSeen(widget.finding.firstSeen),
-              valueColor: LeakRadarColors.text100,
             ),
           ),
         ],
@@ -554,69 +563,6 @@ class _IconBtn extends StatelessWidget {
               : LeakRadarColors.text25,
         ),
       ),
-    ),
-  );
-}
-
-class _SeverityTag extends StatelessWidget {
-  const _SeverityTag({required this.severity});
-
-  final LeakSeverity severity;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = severityTokens(severity);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: tokens.tagBg,
-        border: Border.all(color: tokens.tagBorder),
-        borderRadius: BorderRadius.circular(LeakRadarTheme.tagRadius),
-      ),
-      child: Text(
-        severity.name.toUpperCase(),
-        style: LeakRadarText.severityTag,
-      ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.valueColor,
-  });
-
-  final String label;
-  final String value;
-  final Color valueColor;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    decoration: BoxDecoration(
-      color: LeakRadarColors.cardBg,
-      border: Border.all(color: LeakRadarColors.border08),
-      borderRadius: BorderRadius.circular(13),
-    ),
-    padding: const EdgeInsets.all(12),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: monoFont(fontSize: 11, color: LeakRadarColors.text25),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: displayFont(
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
-            color: valueColor,
-          ),
-        ),
-      ],
     ),
   );
 }

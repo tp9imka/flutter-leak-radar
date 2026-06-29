@@ -21,6 +21,8 @@ dependencies:
   meta: ^1.15.0
   share_plus: ^13.1.0
   leak_graph: ^0.1.0
+  radar_ui:
+    path: ../radar_ui
 dev_dependencies:
   flutter_test:
     sdk: flutter
