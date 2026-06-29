@@ -37,9 +37,9 @@ class _RadarLivePulseDotState extends State<RadarLivePulseDot>
     super.didChangeDependencies();
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     if (reduceMotion) {
-      _tearDown();
+      setState(_tearDown);
     } else {
-      _setUp();
+      setState(_setUp);
     }
   }
 

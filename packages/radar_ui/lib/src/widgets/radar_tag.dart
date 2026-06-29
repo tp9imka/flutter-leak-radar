@@ -15,12 +15,7 @@ import '../tokens/typography.dart';
 ///
 /// Spec: 9–10px mono, border radius 4–6px (uses [RadarDensity.tagRadius]).
 class RadarTag extends StatelessWidget {
-  const RadarTag({
-    super.key,
-    required this.label,
-    this.severity,
-    this.color,
-  });
+  const RadarTag({super.key, required this.label, this.severity, this.color});
 
   /// The text displayed inside the tag (shown as-is; caller supplies casing).
   final String label;
@@ -59,16 +54,22 @@ class RadarTag extends StatelessWidget {
   }
 
   Color _tagBg(Color c) => Color.fromRGBO(
-        (c.r * 255.0).round().clamp(0, 255),
-        (c.g * 255.0).round().clamp(0, 255),
-        (c.b * 255.0).round().clamp(0, 255),
-        0.12,
-      );
+    // ignore: deprecated_member_use
+    c.red,
+    // ignore: deprecated_member_use
+    c.green,
+    // ignore: deprecated_member_use
+    c.blue,
+    0.12,
+  );
 
   Color _tagBorder(Color c) => Color.fromRGBO(
-        (c.r * 255.0).round().clamp(0, 255),
-        (c.g * 255.0).round().clamp(0, 255),
-        (c.b * 255.0).round().clamp(0, 255),
-        0.30,
-      );
+    // ignore: deprecated_member_use
+    c.red,
+    // ignore: deprecated_member_use
+    c.green,
+    // ignore: deprecated_member_use
+    c.blue,
+    0.30,
+  );
 }

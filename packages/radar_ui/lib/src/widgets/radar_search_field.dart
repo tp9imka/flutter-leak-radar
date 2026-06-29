@@ -57,21 +57,21 @@ class RadarSearchField extends StatelessWidget {
             color: RadarColors.hairline08,
             width: RadarDensity.hairline,
           ),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: RadarDensity.inputRadius,
         ),
         enabledBorder: OutlineInputBorder(
           borderSide: const BorderSide(
             color: RadarColors.hairline08,
             width: RadarDensity.hairline,
           ),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: RadarDensity.inputRadius,
         ),
         focusedBorder: OutlineInputBorder(
           borderSide: const BorderSide(
             color: RadarColors.accent,
             width: RadarDensity.hairline,
           ),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: RadarDensity.inputRadius,
         ),
       ),
     );

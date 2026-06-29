@@ -26,8 +26,7 @@ abstract final class RadarDensity {
   static const double rowHPad = 10.0;
 
   /// Border radius for list / table rows (11px).
-  static const BorderRadius rowRadius =
-      BorderRadius.all(Radius.circular(11));
+  static const BorderRadius rowRadius = BorderRadius.all(Radius.circular(11));
 
   // ── Tags / pills ──────────────────────────────────────────────────────────
 
@@ -38,8 +37,12 @@ abstract final class RadarDensity {
   static const double tagVPad = 3.0;
 
   /// Border radius for tag pills (5px — mid of the 4–6 range).
-  static const BorderRadius tagRadius =
-      BorderRadius.all(Radius.circular(5));
+  static const BorderRadius tagRadius = BorderRadius.all(Radius.circular(5));
+
+  // ── Input fields / metric tiles ───────────────────────────────────────────
+
+  /// Border radius for input fields and metric tiles (8px).
+  static const BorderRadius inputRadius = BorderRadius.all(Radius.circular(8));
 
   // ── Icon buttons ──────────────────────────────────────────────────────────
 
@@ -47,8 +50,9 @@ abstract final class RadarDensity {
   static const double iconButtonSize = 31.0;
 
   /// Border radius for icon buttons (8px).
-  static const BorderRadius iconButtonRadius =
-      BorderRadius.all(Radius.circular(8));
+  static const BorderRadius iconButtonRadius = BorderRadius.all(
+    Radius.circular(8),
+  );
 
   // ── Sparkline ─────────────────────────────────────────────────────────────
 
@@ -81,6 +85,5 @@ abstract final class RadarDensity {
   static const double chipVPad = 6.0;
 
   /// Chip border radius (20px — fully rounded).
-  static const BorderRadius chipRadius =
-      BorderRadius.all(Radius.circular(20));
+  static const BorderRadius chipRadius = BorderRadius.all(Radius.circular(20));
 }

@@ -41,17 +41,14 @@ class RadarMetricTile extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: RadarColors.bgSurface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: RadarDensity.inputRadius,
         border: Border.all(
           color: RadarColors.hairline08,
           width: RadarDensity.hairline,
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 10,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
