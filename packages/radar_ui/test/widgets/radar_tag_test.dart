@@ -8,9 +8,7 @@ void main() {
     testWidgets('renders label text', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: RadarTag(label: 'NOT DISPOSED'),
-          ),
+          home: Scaffold(body: RadarTag(label: 'NOT DISPOSED')),
         ),
       );
       expect(find.text('NOT DISPOSED'), findsOneWidget);
@@ -20,10 +18,7 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: RadarTag(
-              label: 'CRITICAL',
-              severity: RadarSeverity.critical,
-            ),
+            body: RadarTag(label: 'CRITICAL', severity: RadarSeverity.critical),
           ),
         ),
       );
@@ -37,10 +32,7 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: RadarTag(
-              label: 'HOT',
-              severity: RadarSeverity.warning,
-            ),
+            body: RadarTag(label: 'HOT', severity: RadarSeverity.warning),
           ),
         ),
       );
@@ -52,10 +44,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: RadarTag(
-              label: 'CUSTOM',
-              color: RadarColors.info,
-            ),
+            body: RadarTag(label: 'CUSTOM', color: RadarColors.info),
           ),
         ),
       );

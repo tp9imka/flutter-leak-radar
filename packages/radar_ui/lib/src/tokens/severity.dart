@@ -76,19 +76,19 @@ const _healthyTokens = SeverityTokens(
 extension RadarSeverityX on RadarSeverity {
   /// The primary foreground color for this severity level.
   Color get color => switch (this) {
-        RadarSeverity.critical => RadarColors.critical,
-        RadarSeverity.warning => RadarColors.warning,
-        RadarSeverity.info => RadarColors.info,
-        RadarSeverity.healthy => RadarColors.accent,
-      };
+    RadarSeverity.critical => RadarColors.critical,
+    RadarSeverity.warning => RadarColors.warning,
+    RadarSeverity.info => RadarColors.info,
+    RadarSeverity.healthy => RadarColors.accent,
+  };
 
   /// Full set of derived design tokens for tags and rows.
   SeverityTokens get tokens => switch (this) {
-        RadarSeverity.critical => _criticalTokens,
-        RadarSeverity.warning => _warningTokens,
-        RadarSeverity.info => _infoTokens,
-        RadarSeverity.healthy => _healthyTokens,
-      };
+    RadarSeverity.critical => _criticalTokens,
+    RadarSeverity.warning => _warningTokens,
+    RadarSeverity.info => _infoTokens,
+    RadarSeverity.healthy => _healthyTokens,
+  };
 }
 
 /// Returns the primary foreground [Color] for the given [severity].

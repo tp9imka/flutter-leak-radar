@@ -42,10 +42,7 @@ class RadarFilterChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: RadarDensity.chipRadius,
-          border: Border.all(
-            color: borderColor,
-            width: RadarDensity.hairline,
-          ),
+          border: Border.all(color: borderColor, width: RadarDensity.hairline),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(

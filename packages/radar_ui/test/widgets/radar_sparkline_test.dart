@@ -4,13 +4,10 @@ import 'package:radar_ui/radar_ui.dart';
 
 void main() {
   group('RadarSparkline', () {
-    testWidgets('renders without error with non-empty series',
-        (tester) async {
+    testWidgets('renders without error with non-empty series', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: RadarSparkline(series: [1, 3, 2, 5, 4]),
-          ),
+          home: Scaffold(body: RadarSparkline(series: [1, 3, 2, 5, 4])),
         ),
       );
       expect(find.byType(RadarSparkline), findsOneWidget);
@@ -19,21 +16,18 @@ void main() {
     testWidgets('renders without error with empty series', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: RadarSparkline(series: []),
-          ),
+          home: Scaffold(body: RadarSparkline(series: [])),
         ),
       );
       expect(find.byType(RadarSparkline), findsOneWidget);
     });
 
-    testWidgets('renders without error with single-point series',
-        (tester) async {
+    testWidgets('renders without error with single-point series', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: RadarSparkline(series: [42]),
-          ),
+          home: Scaffold(body: RadarSparkline(series: [42])),
         ),
       );
       expect(find.byType(RadarSparkline), findsOneWidget);
@@ -42,9 +36,7 @@ void main() {
     testWidgets('defaults to spec size 52×16', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: RadarSparkline(series: [1, 2, 3]),
-          ),
+          home: Scaffold(body: RadarSparkline(series: [1, 2, 3])),
         ),
       );
       final size = tester.getSize(find.byType(RadarSparkline));

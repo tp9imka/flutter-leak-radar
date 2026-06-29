@@ -64,13 +64,8 @@ ThemeData radarDarkTheme() {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: RadarColors.bgInput,
-      hintStyle: RadarTypography.monoInput.copyWith(
-        color: RadarColors.text25,
-      ),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 10,
-      ),
+      hintStyle: RadarTypography.monoInput.copyWith(color: RadarColors.text25),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       border: OutlineInputBorder(
         borderSide: const BorderSide(
           color: RadarColors.hairline08,

@@ -28,9 +28,9 @@ void main() {
       expect(find.text('avg'), findsOneWidget);
     });
 
-    testWidgets(
-        'active column shows descending arrow ↓ in accent color',
-        (tester) async {
+    testWidgets('active column shows descending arrow ↓ in accent color', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         buildHeader(
           activeSortKey: 'avg',
@@ -44,9 +44,9 @@ void main() {
       expect(arrowText.style?.color, RadarColors.accent);
     });
 
-    testWidgets(
-        'active column shows ascending arrow ↑ in accent color',
-        (tester) async {
+    testWidgets('active column shows ascending arrow ↑ in accent color', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         buildHeader(
           activeSortKey: 'avg',
@@ -59,9 +59,7 @@ void main() {
     });
 
     testWidgets('inactive column shows no arrow', (tester) async {
-      await tester.pumpWidget(
-        buildHeader(activeSortKey: 'count'),
-      );
+      await tester.pumpWidget(buildHeader(activeSortKey: 'count'));
       expect(find.text('↓'), findsNothing);
       expect(find.text('↑'), findsNothing);
     });
@@ -84,8 +82,9 @@ void main() {
       expect(gotDir, RadarSortDirection.ascending);
     });
 
-    testWidgets('tap sets descending when column becomes active',
-        (tester) async {
+    testWidgets('tap sets descending when column becomes active', (
+      tester,
+    ) async {
       String? gotKey;
       RadarSortDirection? gotDir;
       await tester.pumpWidget(

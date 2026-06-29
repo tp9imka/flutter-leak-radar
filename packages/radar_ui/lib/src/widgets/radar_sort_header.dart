@@ -48,21 +48,22 @@ class RadarSortHeader extends StatelessWidget {
   bool get _isActive => sortKey == activeSortKey;
 
   String get _arrow => switch (direction) {
-        RadarSortDirection.descending => '↓',
-        RadarSortDirection.ascending => '↑',
-      };
+    RadarSortDirection.descending => '↓',
+    RadarSortDirection.ascending => '↑',
+  };
 
   RadarSortDirection get _nextDirection => switch (direction) {
-        RadarSortDirection.descending => RadarSortDirection.ascending,
-        RadarSortDirection.ascending => RadarSortDirection.descending,
-      };
+    RadarSortDirection.descending => RadarSortDirection.ascending,
+    RadarSortDirection.ascending => RadarSortDirection.descending,
+  };
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        final newDir =
-            _isActive ? _nextDirection : RadarSortDirection.descending;
+        final newDir = _isActive
+            ? _nextDirection
+            : RadarSortDirection.descending;
         onSort(sortKey, newDir);
       },
       child: Row(

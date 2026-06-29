@@ -7,9 +7,7 @@ void main() {
     testWidgets('renders with default hint text', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: RadarSearchField(onChanged: (_) {}),
-          ),
+          home: Scaffold(body: RadarSearchField(onChanged: (_) {})),
         ),
       );
       expect(find.byType(RadarSearchField), findsOneWidget);
@@ -21,9 +19,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: RadarSearchField(
-              onChanged: (v) => captured = v,
-            ),
+            body: RadarSearchField(onChanged: (v) => captured = v),
           ),
         ),
       );
