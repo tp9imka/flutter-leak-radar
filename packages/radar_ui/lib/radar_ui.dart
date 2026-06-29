@@ -1,3 +1,9 @@
+/// Flutter Radar shared design system.
+///
+/// Import this library to access all tokens (colors, typography,
+/// density, severity) and reusable widgets (tags, sparklines,
+/// metric tiles, search fields, sort headers, filter chips,
+/// live pulse dot) for the Flutter Radar suite.
 library;
 
 export 'src/tokens/colors.dart';

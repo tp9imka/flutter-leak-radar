@@ -49,12 +49,10 @@ class _RadarLivePulseDotState extends State<RadarLivePulseDot>
       vsync: this,
       duration: const Duration(milliseconds: 2000),
     )..repeat(reverse: true);
-    _opacity = Tween<double>(begin: 0.3, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller!,
-        curve: Curves.easeInOut,
-      ),
-    );
+    _opacity = Tween<double>(
+      begin: 0.3,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller!, curve: Curves.easeInOut));
   }
 
   void _tearDown() {
@@ -65,7 +63,7 @@ class _RadarLivePulseDotState extends State<RadarLivePulseDot>
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _tearDown();
     super.dispose();
   }
 
@@ -75,19 +73,13 @@ class _RadarLivePulseDotState extends State<RadarLivePulseDot>
       width: widget.size,
       height: widget.size,
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: widget.color,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
       ),
     );
 
     final anim = _opacity;
     if (anim == null) return dot;
 
-    return FadeTransition(
-      opacity: anim,
-      child: dot,
-    );
+    return FadeTransition(opacity: anim, child: dot);
   }
 }
