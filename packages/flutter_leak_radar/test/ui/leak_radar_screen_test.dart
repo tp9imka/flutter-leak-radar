@@ -32,11 +32,11 @@ Finder get _scanBtn => find.byKey(const Key('leak_radar_scan_btn'));
 void main() {
   tearDown(() => LeakRadar.dispose());
 
-  // ── Summary row: actions + stats ────────────────────────────────────────────
+  // ── Summary row: stats ──────────────────────────────────────────────────────
 
   group('_SummaryRow', () {
     testWidgets(
-      'shows the GC action; class/instance stats appear exactly once',
+      'GC action in overflow menu; class/instance stats appear exactly once',
       (tester) async {
         final probe = FakeHeapProbe([
           snap({'HomeBloc': 1}),
@@ -58,8 +58,15 @@ void main() {
         await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
         await tester.pumpAndSettle();
 
-        expect(find.byTooltip('Force GC and rescan'), findsOneWidget);
-        expect(find.text('GC'), findsOneWidget);
+        // Force GC is in the AppBar overflow menu (More tooltip).
+        expect(find.byTooltip('More'), findsOneWidget);
+        await tester.tap(find.byTooltip('More'));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Force GC'), findsOneWidget);
+        // Dismiss menu.
+        await tester.tapAt(const Offset(10, 10));
+        await tester.pumpAndSettle();
+
         // Stats live in exactly ONE place (the bottom bar), not duplicated in
         // the summary row.
         expect(find.textContaining('instances'), findsOneWidget);
@@ -69,7 +76,7 @@ void main() {
     testWidgets('summary row does not overflow at 320 px with many findings', (
       tester,
     ) async {
-      // 40 distinct growing classes → wide severity tallies + the action pills.
+      // 40 distinct growing classes → wide severity tallies.
       final grown = {for (var i = 0; i < 40; i++) 'Bloc$i': i + 2};
       final probe = FakeHeapProbe([
         snap({for (final k in grown.keys) k: 1}),
@@ -218,7 +225,7 @@ void main() {
     });
   });
 
-  // ── Filter chips ──────────────────────────────────────────────────────────
+  // ── Filter chips (kind-based) ─────────────────────────────────────────────
 
   group('filter chips', () {
     setUp(() async {
@@ -230,58 +237,65 @@ void main() {
       );
     });
 
-    testWidgets('Critical filter chip is visible and tappable', (tester) async {
+    testWidgets('"all" filter chip is visible and tappable', (tester) async {
       await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
       await tester.pump();
 
-      expect(find.text('Critical'), findsOneWidget);
-      await tester.tap(find.text('Critical'));
+      expect(find.text('all'), findsOneWidget);
+      await tester.tap(find.text('all'));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Growing filter chip is visible and tappable', (tester) async {
+    testWidgets('"growth" filter chip is visible and tappable', (tester) async {
       await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
       await tester.pump();
 
-      expect(find.text('Growing'), findsOneWidget);
-      await tester.tap(find.text('Growing'));
+      // 'growth' appears in both the sort header row and the filter chip row.
+      expect(find.text('growth'), findsWidgets);
+      // The filter chip row is rendered after the sort row, so the chip is last.
+      await tester.tap(find.text('growth').last);
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Critical filter with real findings shows only matching rows', (
-      tester,
-    ) async {
-      final probe = FakeHeapProbe([
-        snap({'CriticalBloc': 1}),
-        snap({'CriticalBloc': 3}),
-        snap({'CriticalBloc': 6}),
-      ]);
-      final engine = LeakEngine(
-        probe: probe,
-        analyzer: const LeakAnalyzer(
-          SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
-        ),
-      );
-      await LeakRadar.debugInstall(engine);
-      await LeakRadar.scan();
-      await LeakRadar.scan();
-      await LeakRadar.scan();
+    testWidgets(
+      '"growth" filter with real findings still shows matching rows',
+      (tester) async {
+        final probe = FakeHeapProbe([
+          snap({'CriticalBloc': 1}),
+          snap({'CriticalBloc': 3}),
+          snap({'CriticalBloc': 6}),
+        ]);
+        final engine = LeakEngine(
+          probe: probe,
+          analyzer: const LeakAnalyzer(
+            SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
+          ),
+        );
+        await LeakRadar.debugInstall(engine);
+        await LeakRadar.scan();
+        await LeakRadar.scan();
+        await LeakRadar.scan();
 
-      await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
+        await tester.pumpAndSettle();
 
-      expect(find.text('CriticalBloc'), findsOneWidget);
+        expect(find.text('CriticalBloc'), findsOneWidget);
 
-      await tester.tap(find.text('Critical'));
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-    });
+        // Tap the filter chip — 'growth' appears in both sort row and chip row;
+        // the chip is the last widget found in tree order.
+        await tester.tap(find.text('growth').last);
+        await tester.pumpAndSettle();
+        // Growth finding remains visible after selecting growth filter.
+        expect(find.text('CriticalBloc'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
 
-    testWidgets('Growing filter shows findings with growth > 0', (
+    testWidgets('"growth" filter shows findings with growth > 0', (
       tester,
     ) async {
       final probe = FakeHeapProbe([
@@ -305,7 +319,9 @@ void main() {
 
       expect(find.text('GrowingBloc'), findsOneWidget);
 
-      await tester.tap(find.text('Growing'));
+      // Tap the filter chip — 'growth' appears in both sort row and chip row;
+      // the chip is the last widget found in tree order.
+      await tester.tap(find.text('growth').last);
       await tester.pumpAndSettle();
       // Finding has growth > 0, so it remains visible after filter.
       expect(find.text('GrowingBloc'), findsOneWidget);
@@ -351,41 +367,10 @@ void main() {
     });
   });
 
-  // ── Swipe-to-dismiss ─────────────────────────────────────────────────────
+  // ── Scan re-adds findings ─────────────────────────────────────────────────
 
-  group('swipe-to-dismiss', () {
-    testWidgets('swiping a finding row removes it from the displayed list', (
-      tester,
-    ) async {
-      final probe = FakeHeapProbe([
-        snap({'HomeBloc': 1}),
-        snap({'HomeBloc': 2}),
-        snap({'HomeBloc': 3}),
-      ]);
-      final engine = LeakEngine(
-        probe: probe,
-        analyzer: const LeakAnalyzer(
-          SuspectSet(<LeakRule>[LeakRule.growth('*Bloc')]),
-        ),
-      );
-      await LeakRadar.debugInstall(engine);
-      await LeakRadar.scan();
-      await LeakRadar.scan();
-      await LeakRadar.scan();
-
-      await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
-      await tester.pumpAndSettle();
-
-      expect(find.text('HomeBloc'), findsOneWidget);
-
-      await tester.drag(find.text('HomeBloc'), const Offset(-500, 0));
-      await tester.pumpAndSettle();
-
-      expect(find.text('HomeBloc'), findsNothing);
-      expect(find.text('No findings match this filter'), findsOneWidget);
-    });
-
-    testWidgets('a new scan re-adds a dismissed finding if still leaking', (
+  group('scan re-adds findings', () {
+    testWidgets('a new scan brings back a previously unseen finding', (
       tester,
     ) async {
       // 3 snapshots: 2 pre-seeded, 1 consumed by button tap.
@@ -416,12 +401,7 @@ void main() {
 
       expect(find.text('HomeBloc'), findsOneWidget);
 
-      await tester.drag(find.text('HomeBloc'), const Offset(-500, 0));
-      await tester.pumpAndSettle();
-
-      expect(find.text('HomeBloc'), findsNothing);
-
-      // 4th scan re-seeds dismissed set; HomeBloc still leaking.
+      // 4th scan (button) — finding still present.
       await tester.tap(_scanBtn);
       await tester.pumpAndSettle();
 
