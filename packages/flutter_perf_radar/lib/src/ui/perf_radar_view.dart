@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:radar_trace/radar_trace.dart';
 import 'package:radar_ui/radar_ui.dart';
 
-export 'widgets/stability_panel.dart';
+export 'stability_screen.dart';
+export 'stability_view.dart';
 
 import '../facade/perf_radar.dart';
 import '../model/frame_stats.dart';
