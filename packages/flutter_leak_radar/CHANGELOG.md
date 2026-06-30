@@ -1,3 +1,19 @@
+## 0.2.0
+
+Redesigned the in-app Leaks inspector on the shared `radar_ui` design system
+(new dependency). The public API (`LeakRadar`, `LeakRadarScreen`, and the
+`LeakRadarView` embed contract) is unchanged.
+
+- Dense two-line findings rows: severity bar, class name, growth delta, a
+  sparkline over recent scans, and a leak-kind tag.
+- A live **VM-connection status chip** with an honest degraded-fallback banner —
+  it shows the reason and that it fell back to an on-device heap snapshot,
+  rather than hiding why data is degraded.
+- Search, sort (severity / growth / live count / name), and kind quick-filters.
+- Rebuilt leak-detail view: a growth-series chart and the retaining-path tree
+  (source locations rendered only where the data provides them — no fabrication).
+- Scrollable lists respect the bottom safe-area inset.
+
 ## 0.1.1
 
 Makes the detector fully functional on a **physical device with no VM-service

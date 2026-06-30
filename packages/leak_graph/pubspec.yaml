@@ -2,7 +2,7 @@ name: leak_graph
 description: >-
   Pure-Dart library for loading VM heap snapshots and analysing object
   retaining paths to surface memory leaks.
-version: 0.1.0
+version: 0.2.0
 repository: https://github.com/tp9imka/flutter-leak-radar
 issue_tracker: https://github.com/tp9imka/flutter-leak-radar/issues
 homepage: https://github.com/tp9imka/flutter-leak-radar
