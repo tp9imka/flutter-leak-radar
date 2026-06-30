@@ -127,6 +127,21 @@ class DiffController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Requests a GC cycle from the VM service.
+  ///
+  /// Uses [getAllocationProfile] with `reset: true` as a GC trigger since it
+  /// is available without special VM flags. No-op when not connected.
+  Future<void> forceGc() async {
+    final svc = _connection.vmService;
+    final iso = _connection.isolateRef;
+    if (svc == null || iso == null) return;
+    try {
+      await svc.getAllocationProfile(iso.id!, reset: true);
+    } catch (e, s) {
+      developer.log('forceGc failed', name: _log, error: e, stackTrace: s);
+    }
+  }
+
   /// Resets to [CapturePhase.idle] so a new A→B cycle can begin.
   void reset() {
     _snapshotA = null;
