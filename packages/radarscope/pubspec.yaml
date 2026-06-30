@@ -1,8 +1,8 @@
 name: radarscope
-description: >
-  Umbrella package for Leak Radar + Perf Radar. One import, one overlay,
-  one unified dashboard — composes flutter_leak_radar and flutter_perf_radar
-  without duplicating any domain logic.
+description: >-
+  All-in-one umbrella for the Radar observability suite — one import and one
+  init for Flutter memory, performance, and stability, with an overlay badge
+  and a unified inspector.
 version: 0.1.0
 repository: https://github.com/tp9imka/flutter-leak-radar
 issue_tracker: https://github.com/tp9imka/flutter-leak-radar/issues
