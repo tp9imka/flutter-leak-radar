@@ -422,6 +422,11 @@ void main() {
       );
       expect(find.text('Startup not measured'), findsNothing);
       expect(find.text('Time to first frame'), findsOneWidget);
+      // Fabricated phase split must be absent
+      expect(find.text('Engine init'), findsNothing);
+      expect(find.text('Dart VM + isolate'), findsNothing);
+      expect(find.text('First frame build'), findsNothing);
+      expect(find.text('First frame raster'), findsNothing);
     });
   });
 

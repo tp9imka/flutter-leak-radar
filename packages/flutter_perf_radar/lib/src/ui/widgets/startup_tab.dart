@@ -11,29 +11,14 @@ const String _kStartupKeyName = 'startup';
 /// The span category emitted by PerfEngine for the startup span.
 const String _kStartupKeyCategory = 'perf_radar';
 
-// ── Phase model ───────────────────────────────────────────────────────────────
-
-class _Phase {
-  const _Phase({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-}
-
-const _phases = [
-  _Phase(label: 'Engine init', color: Color(0xFF5ad1e6)),
-  _Phase(label: 'Dart VM + isolate', color: Color(0xFF2fe39b)),
-  _Phase(label: 'First frame build', color: Color(0xFFf5b54a)),
-  _Phase(label: 'First frame raster', color: Color(0xFFff5d6c)),
-];
-
 // ── Public widget ─────────────────────────────────────────────────────────────
 
 /// Startup sub-tab.
 ///
 /// When the startup span has been recorded (via PerfEngine's
 /// `addPostFrameCallback`), shows the big "Time to first frame" headline
-/// + stacked phase bar + per-phase list.
+/// and an honest note explaining that per-phase breakdown requires
+/// explicit instrumentation.
 ///
 /// When no startup data is present, shows a dashed ∅ not-measured state
 /// with guidance — never fabricates a number.
@@ -63,6 +48,11 @@ class StartupTab extends StatelessWidget {
 
 // ── Measured state ────────────────────────────────────────────────────────────
 
+/// Shows the single measured startup span as a TTF headline.
+///
+/// The engine records one startup span — that is the only honest startup
+/// datum available. Per-phase breakdown is not instrumented by default;
+/// users are directed to [PerfRadar.trace] for that detail.
 class _MeasuredState extends StatelessWidget {
   const _MeasuredState({required this.stats});
 
@@ -73,26 +63,9 @@ class _MeasuredState extends StatelessWidget {
     return '${(micros / 1000).toStringAsFixed(0)}ms';
   }
 
-  /// Distribute the measured total across phases with honest approximation.
-  ///
-  /// Without per-phase instrumentation, we distribute the total evenly
-  /// weighted by a typical Flutter startup profile. Phases are labeled
-  /// clearly so the user knows this is a single-span measurement.
-  List<(String, int, Color)> _phaseBreakdown(int totalMicros) {
-    // Typical Flutter startup weight distribution (from public benchmarks)
-    const weights = [0.15, 0.45, 0.30, 0.10];
-    final result = <(String, int, Color)>[];
-    for (var i = 0; i < _phases.length; i++) {
-      final phaseMicros = (totalMicros * weights[i]).round();
-      result.add((_phases[i].label, phaseMicros, _phases[i].color));
-    }
-    return result;
-  }
-
   @override
   Widget build(BuildContext context) {
     final totalMicros = stats.meanMicros;
-    final phases = _phaseBreakdown(totalMicros);
 
     return ListView(
       padding: EdgeInsets.fromLTRB(
@@ -112,23 +85,7 @@ class _MeasuredState extends StatelessWidget {
         ),
         const SizedBox(height: 20),
 
-        // Stacked proportional phase bar
-        _StackedPhaseBar(phases: phases, totalMicros: totalMicros),
-        const SizedBox(height: 14),
-
-        // Per-phase list
-        ...phases.map(
-          (p) => _PhaseRow(
-            label: p.$1,
-            durationMicros: p.$2,
-            color: p.$3,
-            totalMicros: totalMicros,
-            fmtMs: _fmtMs,
-          ),
-        ),
-
-        const SizedBox(height: 12),
-        // Note about single-span measurement
+        // Honest note — no fabricated phase rows below this
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
@@ -137,83 +94,13 @@ class _MeasuredState extends StatelessWidget {
             border: Border.all(color: RadarColors.hairline08),
           ),
           child: Text(
-            'Phase breakdown is estimated from the total startup span. '
-            'For per-phase accuracy, instrument each phase with '
-            'PerfRadar.trace().',
+            'Per-phase breakdown is not instrumented. '
+            'Wrap individual startup phases in PerfRadar.trace() '
+            'to see a real breakdown.',
             style: RadarTypography.caption,
           ),
         ),
       ],
-    );
-  }
-}
-
-// ── Stacked phase bar ─────────────────────────────────────────────────────────
-
-class _StackedPhaseBar extends StatelessWidget {
-  const _StackedPhaseBar({required this.phases, required this.totalMicros});
-
-  final List<(String, int, Color)> phases;
-  final int totalMicros;
-
-  @override
-  Widget build(BuildContext context) {
-    if (totalMicros == 0) return const SizedBox.shrink();
-
-    return ClipRRect(
-      borderRadius: RadarDensity.inputRadius,
-      child: SizedBox(
-        height: 12,
-        child: Row(
-          children: [
-            for (final p in phases)
-              Flexible(
-                flex: (p.$2 * 1000 ~/ totalMicros).clamp(1, 1000),
-                child: Container(color: p.$3),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Per-phase row ─────────────────────────────────────────────────────────────
-
-class _PhaseRow extends StatelessWidget {
-  const _PhaseRow({
-    required this.label,
-    required this.durationMicros,
-    required this.color,
-    required this.totalMicros,
-    required this.fmtMs,
-  });
-
-  final String label;
-  final int durationMicros;
-  final Color color;
-  final int totalMicros;
-  final String Function(int) fmtMs;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            margin: const EdgeInsets.only(right: 8, top: 1),
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          Expanded(child: Text(label, style: RadarTypography.monoBody)),
-          Text(
-            fmtMs(durationMicros),
-            style: RadarTypography.monoNumber.copyWith(color: color),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -14,6 +14,9 @@ const int _kFrameBudgetMicros = 16000;
 /// Critical threshold: 33ms = 30fps or worse.
 const int _kFrameCriticalMicros = 33000;
 
+/// Number of worst frames shown in the worst-frames list.
+const int _kWorstFrameCount = 5;
+
 // ── Public widget ─────────────────────────────────────────────────────────────
 
 /// Frames tab: jank tiles + frame-time bar timeline + percentiles + worst list.
@@ -134,7 +137,7 @@ class FramesTab extends StatelessWidget {
         const SizedBox(height: 14),
 
         // ── Worst frames list ─────────────────────────────────────────────
-        if (stats.frameCount > 0) ...[
+        if (stats.recentFrames.isNotEmpty) ...[
           const _SectionLabel('WORST RECENT FRAMES'),
           const SizedBox(height: 6),
           _WorstFrames(stats: stats, fmtMicros: _pct),
@@ -191,11 +194,12 @@ class _PercentileTile extends StatelessWidget {
 
 // ── Frame-time bar timeline ───────────────────────────────────────────────────
 
-/// Synthetic bar chart showing recent frame-time distribution.
+/// Bar chart of the real recent frame-time ring ([FrameStatsSnapshot.recentFrames]).
 ///
-/// Without access to per-frame history, this derives a representative
-/// distribution from the percentile data rather than fabricating raw data.
-/// Bars over [_kFrameBudgetMicros] go amber; over [_kFrameCriticalMicros] red.
+/// One bar per recorded sample, chronological left-to-right.
+/// Bar height is proportional to [FrameSample.totalMicros]; colour reflects
+/// the existing budget/critical thresholds; the 16ms hairline is drawn over
+/// the bars. When the ring is empty the placeholder is shown.
 class _FrameTimeline extends StatelessWidget {
   const _FrameTimeline({required this.stats});
 
@@ -203,7 +207,8 @@ class _FrameTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (stats.frameCount == 0) {
+    final frames = stats.recentFrames;
+    if (frames.isEmpty) {
       return Container(
         height: 48,
         alignment: Alignment.center,
@@ -215,9 +220,7 @@ class _FrameTimeline extends StatelessWidget {
       );
     }
 
-    // Build synthetic bars from percentile bands (honest representation).
-    final bars = _syntheticBars();
-    final maxMicros = bars.fold(0, (m, b) => math.max(m, b));
+    final maxMicros = frames.fold(0, (m, f) => math.max(m, f.totalMicros));
 
     return Container(
       height: 52,
@@ -262,11 +265,11 @@ class _FrameTimeline extends StatelessWidget {
                         color: RadarColors.warning.withValues(alpha: 0.4),
                       ),
                     ),
-                    // Bars
+                    // Real bars — one per FrameSample
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        for (final v in bars)
+                        for (final frame in frames)
                           Expanded(
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
@@ -274,12 +277,15 @@ class _FrameTimeline extends StatelessWidget {
                               ),
                               child: FractionallySizedBox(
                                 heightFactor: maxMicros > 0
-                                    ? (v / maxMicros).clamp(0.04, 1.0)
+                                    ? (frame.totalMicros / maxMicros).clamp(
+                                        0.04,
+                                        1.0,
+                                      )
                                     : 0.1,
                                 alignment: Alignment.bottomCenter,
                                 child: DecoratedBox(
                                   decoration: BoxDecoration(
-                                    color: _barColor(v),
+                                    color: _barColor(frame.totalMicros),
                                     borderRadius: const BorderRadius.vertical(
                                       top: Radius.circular(1),
                                     ),
@@ -305,50 +311,15 @@ class _FrameTimeline extends StatelessWidget {
     if (micros > _kFrameBudgetMicros) return RadarColors.warning;
     return RadarColors.accent.withValues(alpha: 0.65);
   }
-
-  /// Derives 24 representative frame values from the percentile data.
-  /// This is honest: we show the statistical distribution, not made-up data.
-  List<int> _syntheticBars() {
-    const kBars = 24;
-    final p50 = stats.totalP50 ?? 0;
-    final p95 = stats.totalP95 ?? 0;
-    final p99 = stats.totalP99 ?? 0;
-
-    if (p50 == 0) return List.filled(kBars, 0);
-
-    // Distribute bars across percentile bands
-    final result = <int>[];
-
-    // ~60% of frames near p50 (good frames)
-    final goodCount = (kBars * 0.60).round();
-    for (var i = 0; i < goodCount; i++) {
-      // Vary around p50 ±20%
-      final jitter = (i % 3 - 1) * (p50 * 0.2).round();
-      result.add((p50 + jitter).clamp(0, p95));
-    }
-
-    // ~30% between p50 and p95 (moderate frames)
-    final modCount = (kBars * 0.30).round();
-    for (var i = 0; i < modCount; i++) {
-      final t = i / modCount;
-      result.add(p50 + ((p95 - p50) * t).round());
-    }
-
-    // ~10% near p99 (worst frames — jank territory)
-    final worstCount = kBars - goodCount - modCount;
-    for (var i = 0; i < worstCount; i++) {
-      final t = i / math.max(worstCount - 1, 1);
-      result.add(p95 + ((p99 - p95) * t).round());
-    }
-
-    // Shuffle to interleave slow and fast frames naturally
-    result.shuffle();
-    return result;
-  }
 }
 
 // ── Worst frames list ─────────────────────────────────────────────────────────
 
+/// Shows the top-[_kWorstFrameCount] frames from the real recent ring,
+/// sorted by [FrameSample.totalMicros] descending.
+///
+/// Each row shows total time (color-graded), a build/raster sub-line, and
+/// an honest BUILD-BOUND/RASTER-BOUND tag derived from which phase is larger.
 class _WorstFrames extends StatelessWidget {
   const _WorstFrames({required this.stats, required this.fmtMicros});
 
@@ -357,29 +328,20 @@ class _WorstFrames extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Surface the known percentile points as worst-frame rows.
-    // Without per-frame history, these are the honest worst-case references.
-    final candidates = <(String, int?)>[
-      ('p99 frame', stats.totalP99),
-      ('p95 frame', stats.totalP95),
-    ];
+    final sorted = [...stats.recentFrames]
+      ..sort((a, b) => b.totalMicros.compareTo(a.totalMicros));
+    final worst = sorted.take(_kWorstFrameCount).toList();
 
-    final rows = candidates.where((c) => c.$2 != null).toList();
-
-    if (rows.isEmpty) {
+    if (worst.isEmpty) {
       return Text('No worst-frame data.', style: RadarTypography.caption);
     }
 
     return Column(
       children: [
-        for (final (label, micros) in rows)
+        for (final frame in worst)
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
-            child: _WorstFrameRow(
-              label: label,
-              totalMicros: micros!,
-              fmtMicros: fmtMicros,
-            ),
+            child: _WorstFrameRow(frame: frame, fmtMicros: fmtMicros),
           ),
       ],
     );
@@ -387,25 +349,25 @@ class _WorstFrames extends StatelessWidget {
 }
 
 class _WorstFrameRow extends StatelessWidget {
-  const _WorstFrameRow({
-    required this.label,
-    required this.totalMicros,
-    required this.fmtMicros,
-  });
+  const _WorstFrameRow({required this.frame, required this.fmtMicros});
 
-  final String label;
-  final int totalMicros;
+  final FrameSample frame;
   final String Function(int?) fmtMicros;
 
   @override
   Widget build(BuildContext context) {
-    final isJank = totalMicros > _kFrameBudgetMicros;
-    final isCritical = totalMicros > _kFrameCriticalMicros;
+    final isJank = frame.totalMicros > _kFrameBudgetMicros;
+    final isCritical = frame.totalMicros > _kFrameCriticalMicros;
     final color = isCritical
         ? RadarColors.critical
         : isJank
         ? RadarColors.warning
         : RadarColors.text100;
+
+    // Derives which phase dominated — this is computed from real data.
+    final boundTag = frame.buildMicros >= frame.rasterMicros
+        ? 'BUILD-BOUND'
+        : 'RASTER-BOUND';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -419,23 +381,29 @@ class _WorstFrameRow extends StatelessWidget {
         ),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: Text(
-              label,
-              style: RadarTypography.monoBody.copyWith(
-                color: RadarColors.text80,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  fmtMicros(frame.totalMicros),
+                  style: RadarTypography.monoNumber.copyWith(color: color),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'build ${fmtMicros(frame.buildMicros)} · '
+                  'raster ${fmtMicros(frame.rasterMicros)}',
+                  style: RadarTypography.monoLabel.copyWith(
+                    color: RadarColors.text40,
+                    fontSize: 9,
+                  ),
+                ),
+              ],
             ),
           ),
-          Text(
-            fmtMicros(totalMicros),
-            style: RadarTypography.monoNumber.copyWith(color: color),
-          ),
-          if (isJank) ...[
-            const SizedBox(width: 6),
-            RadarTag(label: isCritical ? 'JANK' : 'SLOW', color: color),
-          ],
+          RadarTag(label: boundTag, color: color),
         ],
       ),
     );
