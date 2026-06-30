@@ -14,6 +14,8 @@ library;
 
 export 'src/config/perf_radar_config.dart';
 export 'src/engine/stability_recorder.dart';
+export 'src/service_extension.dart'
+    show perfRadarSnapshotJson, registerPerfRadarExtension;
 export 'src/engine/stall_watchdog.dart';
 export 'src/facade/perf_radar.dart';
 export 'src/model/error_record.dart';

@@ -21,4 +21,22 @@ final class TraceSnapshot {
     required Map<TraceKey, SpanKeyStatsSnapshot> stats,
     required this.totalDropCount,
   }) : stats = UnmodifiableMapView(stats);
+
+  /// Serialises this snapshot to a JSON-encodable map.
+  ///
+  /// Shape:
+  /// ```json
+  /// {
+  ///   "totalDropCount": 0,
+  ///   "keys": [
+  ///     { /* SpanKeyStatsSnapshot.toJson() */ }
+  ///   ]
+  /// }
+  /// ```
+  ///
+  /// Pure function — no VM dependencies. Safe to call in unit tests.
+  Map<String, Object?> toJson() => {
+    'totalDropCount': totalDropCount,
+    'keys': stats.values.map((s) => s.toJson()).toList(),
+  };
 }

@@ -8,6 +8,7 @@ import '../engine/perf_engine.dart';
 import '../model/frame_stats.dart';
 import '../model/stability_snapshot.dart';
 import '../safe.dart';
+import '../service_extension.dart';
 import '../ui/perf_radar_overlay.dart';
 
 /// On-device performance tracer. Static facade; every method is a no-op when
@@ -39,6 +40,7 @@ abstract final class PerfRadar {
       final engine = PerfEngine(config: config);
       await engine.start();
       _engine = engine;
+      registerPerfRadarExtension();
     }, fallback: null);
   }
 

@@ -144,4 +144,48 @@ final class SpanKeyStatsSnapshot {
     required this.firstStartMicros,
     required this.lastStartMicros,
   });
+
+  /// Serialises this snapshot to a JSON-encodable map.
+  ///
+  /// Shape:
+  /// ```json
+  /// {
+  ///   "name": "db.query.rooms",
+  ///   "category": "db",
+  ///   "count": 42,
+  ///   "meanMicros": 1200,
+  ///   "maxMicros": 8000,
+  ///   "totalMicros": 50400,
+  ///   "p50": 1100,
+  ///   "p95": 4000,
+  ///   "p99": 7000,
+  ///   "avgInterCallIntervalMicros": 500,
+  ///   "callsPerSecond": 2.0,
+  ///   "errorCount": 1,
+  ///   "firstStartMicros": 1000000,
+  ///   "lastStartMicros": 22000000
+  /// }
+  /// ```
+  ///
+  /// Nullable computed fields ([avgInterCallIntervalMicros],
+  /// [callsPerSecond], percentiles) are serialised as JSON `null` when
+  /// fewer than two spans have been recorded or no data is available.
+  ///
+  /// Pure function — no VM dependencies. Safe to call in unit tests.
+  Map<String, Object?> toJson() => {
+    'name': key.name,
+    'category': key.category,
+    'count': count,
+    'meanMicros': meanMicros,
+    'maxMicros': maxMicros,
+    'totalMicros': totalMicros,
+    'p50': histogram.percentile(0.50),
+    'p95': histogram.percentile(0.95),
+    'p99': histogram.percentile(0.99),
+    'avgInterCallIntervalMicros': avgInterCallIntervalMicros,
+    'callsPerSecond': callsPerSecond,
+    'errorCount': errorCount,
+    'firstStartMicros': firstStartMicros,
+    'lastStartMicros': lastStartMicros,
+  };
 }

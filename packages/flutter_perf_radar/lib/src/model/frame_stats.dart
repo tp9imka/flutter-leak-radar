@@ -144,4 +144,53 @@ final class FrameStatsSnapshot {
   /// The most recent [FrameStats.maxRecentFrames] frame samples in
   /// chronological order. Empty when no frames have been recorded.
   final List<FrameSample> recentFrames;
+
+  /// Serialises this snapshot to a JSON-encodable map.
+  ///
+  /// Shape:
+  /// ```json
+  /// {
+  ///   "frameCount": 300,
+  ///   "jankCount": 4,
+  ///   "buildP50": 800,
+  ///   "buildP95": 3000,
+  ///   "buildP99": 6000,
+  ///   "rasterP50": 900,
+  ///   "rasterP95": 3200,
+  ///   "rasterP99": 6500,
+  ///   "totalP50": 1800,
+  ///   "totalP95": 6000,
+  ///   "totalP99": 12000,
+  ///   "recentFrames": [
+  ///     { "totalMicros": 16200, "buildMicros": 800, "rasterMicros": 900 }
+  ///   ]
+  /// }
+  /// ```
+  ///
+  /// Percentile fields are `null` when no frames have been recorded.
+  /// [recentFrames] preserves chronological order.
+  ///
+  /// Pure function — no VM dependencies. Safe to call in unit tests.
+  Map<String, Object?> toJson() => {
+    'frameCount': frameCount,
+    'jankCount': jankCount,
+    'buildP50': buildP50,
+    'buildP95': buildP95,
+    'buildP99': buildP99,
+    'rasterP50': rasterP50,
+    'rasterP95': rasterP95,
+    'rasterP99': rasterP99,
+    'totalP50': totalP50,
+    'totalP95': totalP95,
+    'totalP99': totalP99,
+    'recentFrames': recentFrames
+        .map(
+          (f) => {
+            'totalMicros': f.totalMicros,
+            'buildMicros': f.buildMicros,
+            'rasterMicros': f.rasterMicros,
+          },
+        )
+        .toList(),
+  };
 }
