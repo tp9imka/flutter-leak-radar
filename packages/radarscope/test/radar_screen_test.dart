@@ -1,7 +1,7 @@
 // test/radar_screen_test.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_radar/flutter_radar.dart';
+import 'package:radarscope/radarscope.dart';
 import 'package:radar_ui/radar_ui.dart';
 
 // Pump helper: advances time enough for tab/sheet animations to complete

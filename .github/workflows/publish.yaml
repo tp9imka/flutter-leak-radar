@@ -34,7 +34,7 @@ on:
       - 'flutter_leak_radar_lint-v*'
       - 'radar_trace-v*'
       - 'flutter_perf_radar-v*'
-      - 'flutter_radar-v*'
+      - 'radarscope-v*'
 
 jobs:
   leak_graph:
@@ -91,8 +91,8 @@ jobs:
           channel: stable
       - run: ./tool/publish.sh packages/flutter_perf_radar --force
 
-  flutter_radar:
-    if: startsWith(github.ref_name, 'flutter_radar-v')
+  radarscope:
+    if: startsWith(github.ref_name, 'radarscope-v')
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -101,4 +101,4 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - run: ./tool/publish.sh packages/flutter_radar --force
+      - run: ./tool/publish.sh packages/radarscope --force

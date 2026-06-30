@@ -12,7 +12,7 @@
 // Run the app:   flutter run
 // Run lints:     dart run custom_lint   (from the example/ directory)
 import 'package:flutter/material.dart';
-import 'package:flutter_radar/flutter_radar.dart';
+import 'package:radarscope/radarscope.dart';
 
 import 'leak_self_test.dart';
 import 'leaky_bloc_screen.dart';

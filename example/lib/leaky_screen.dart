@@ -11,7 +11,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_radar/flutter_radar.dart';
+import 'package:radarscope/radarscope.dart';
 
 class LeakyScreen extends StatefulWidget {
   const LeakyScreen({super.key});

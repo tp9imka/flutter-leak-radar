@@ -2,7 +2,7 @@
 //
 // Screen that creates a LeakyCubit — triggers pattern 7 at runtime.
 import 'package:flutter/material.dart';
-import 'package:flutter_radar/flutter_radar.dart';
+import 'package:radarscope/radarscope.dart';
 
 import 'leaky_cubit.dart';
 

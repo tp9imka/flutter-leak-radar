@@ -1,6 +1,6 @@
-# flutter_radar
+# radarscope
 
-[![pub.dev](https://img.shields.io/pub/v/flutter_radar.svg)](https://pub.dev/packages/flutter_radar)
+[![pub.dev](https://img.shields.io/pub/v/radarscope.svg)](https://pub.dev/packages/radarscope)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Umbrella package for the Radar observability suite. One import, one
@@ -15,7 +15,7 @@ duplicating any domain logic.
 
 ```yaml
 dependencies:
-  flutter_radar: ^0.1.0
+  radarscope: ^0.1.0
 ```
 
 This single dependency pulls in `flutter_leak_radar`, `flutter_perf_radar`,
@@ -26,7 +26,7 @@ and `radar_trace`.
 ## Quick start
 
 ```dart
-import 'package:flutter_radar/flutter_radar.dart';
+import 'package:radarscope/radarscope.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -114,7 +114,7 @@ await Radar.init(RadarConfig(
 
 ## Features
 
-- **One-import story** — `import 'package:flutter_radar/flutter_radar.dart'` re-exports all
+- **One-import story** — `import 'package:radarscope/radarscope.dart'` re-exports all
   public symbols from `flutter_leak_radar`, `flutter_perf_radar`, and the
   `radar_trace` types needed by `Radar.start()` consumers.
 - **Single `Radar.init` call** — initialises both engines in parallel via

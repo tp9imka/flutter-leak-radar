@@ -4,14 +4,14 @@
 /// [Radar] facade:
 ///
 /// ```dart
-/// import 'package:flutter_radar/flutter_radar.dart';
+/// import 'package:radarscope/radarscope.dart';
 ///
 /// await Radar.init(RadarConfig.standard());
 /// runApp(Radar.overlay(child: MyApp()));
 /// ```
 library;
 
-// Domain packages — full re-export so `import 'package:flutter_radar/flutter_radar.dart'`
+// Domain packages — full re-export so `import 'package:radarscope/radarscope.dart'`
 // suffices in place of both individual package imports.
 export 'package:flutter_leak_radar/flutter_leak_radar.dart';
 export 'package:flutter_perf_radar/flutter_perf_radar.dart';

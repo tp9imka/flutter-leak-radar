@@ -6,7 +6,7 @@
 // FlutterError.onError / PlatformDispatcher.onError, which PerfRadar hooks.
 // The Stability tab's error count climbs without crashing the app.
 import 'package:flutter/material.dart';
-import 'package:flutter_radar/flutter_radar.dart';
+import 'package:radarscope/radarscope.dart';
 
 /// Demonstrates error capture by the Radar stability recorder.
 ///

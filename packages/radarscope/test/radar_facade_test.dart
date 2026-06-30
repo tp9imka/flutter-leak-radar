@@ -1,6 +1,6 @@
 // test/radar_facade_test.dart
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_radar/flutter_radar.dart';
+import 'package:radarscope/radarscope.dart';
 
 void main() {
   group('Radar facade', () {

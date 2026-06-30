@@ -86,13 +86,13 @@ jobs:
         run: flutter test --platform chrome
         working-directory: packages/flutter_leak_radar_devtools
 
-      - name: Analyze flutter_radar
+      - name: Analyze radarscope
         run: flutter analyze
-        working-directory: packages/flutter_radar
+        working-directory: packages/radarscope
 
-      - name: Test flutter_radar
+      - name: Test radarscope
         run: flutter test
-        working-directory: packages/flutter_radar
+        working-directory: packages/radarscope
 
       - name: Analyze radar_ui
         run: flutter analyze
