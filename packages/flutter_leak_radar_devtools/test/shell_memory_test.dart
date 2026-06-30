@@ -9,11 +9,11 @@ import 'package:vm_service/vm_service.dart';
 import 'package:flutter_leak_radar_devtools/src/connection/connection_state_notifier.dart';
 import 'package:flutter_leak_radar_devtools/src/diff/diff_controller.dart';
 import 'package:flutter_leak_radar_devtools/src/memory/class_histogram_view.dart';
-import 'package:flutter_leak_radar_devtools/src/memory/memory_view.dart';
 import 'package:flutter_leak_radar_devtools/src/memory/retaining_paths_view.dart';
 import 'package:flutter_leak_radar_devtools/src/memory/snapshot_diff_view.dart';
 import 'package:flutter_leak_radar_devtools/src/shell/connection_bar.dart';
 import 'package:flutter_leak_radar_devtools/src/shell/left_rail.dart';
+import 'package:flutter_leak_radar_devtools/src/shell/radar_view.dart';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -219,7 +219,7 @@ void main() {
           SizedBox(
             width: 198,
             child: LeftRail(
-              currentView: MemoryView.snapshotDiff,
+              currentView: RadarView.snapshotDiff,
               onViewChanged: (_) {},
             ),
           ),
@@ -231,17 +231,17 @@ void main() {
       expect(find.text('Retaining paths'), findsOneWidget);
     });
 
-    testWidgets('Traces and Frames are rendered as disabled items', (
+    testWidgets('Traces and Frames are rendered as enabled nav items', (
       tester,
     ) async {
-      var tapped = false;
+      RadarView? tapped;
       await tester.pumpWidget(
         _wrap(
           SizedBox(
             width: 198,
             child: LeftRail(
-              currentView: MemoryView.snapshotDiff,
-              onViewChanged: (_) => tapped = true,
+              currentView: RadarView.snapshotDiff,
+              onViewChanged: (v) => tapped = v,
             ),
           ),
         ),
@@ -249,21 +249,23 @@ void main() {
 
       expect(find.text('Traces'), findsOneWidget);
       expect(find.text('Frames'), findsOneWidget);
+      expect(find.text('Errors'), findsOneWidget);
+      expect(find.text('Stalls'), findsOneWidget);
 
-      // Tapping a disabled item must not fire onViewChanged.
-      await tester.tap(find.text('Traces'), warnIfMissed: false);
+      // Tapping Traces navigates to the traces view.
+      await tester.tap(find.text('Traces'));
       await tester.pump();
-      expect(tapped, isFalse);
+      expect(tapped, RadarView.traces);
     });
 
     testWidgets('tapping a nav item fires onViewChanged', (tester) async {
-      MemoryView? changed;
+      RadarView? changed;
       await tester.pumpWidget(
         _wrap(
           SizedBox(
             width: 198,
             child: LeftRail(
-              currentView: MemoryView.snapshotDiff,
+              currentView: RadarView.snapshotDiff,
               onViewChanged: (v) => changed = v,
             ),
           ),
@@ -272,7 +274,7 @@ void main() {
 
       await tester.tap(find.text('Class histogram'));
       await tester.pump();
-      expect(changed, MemoryView.classHistogram);
+      expect(changed, RadarView.classHistogram);
     });
   });
 

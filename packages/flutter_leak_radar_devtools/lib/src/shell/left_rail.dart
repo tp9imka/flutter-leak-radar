@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:radar_ui/radar_ui.dart';
 
-import '../memory/memory_view.dart';
+import 'radar_view.dart';
 
-/// Fixed-width left navigation rail for the Leak Radar DevTools extension.
+/// Fixed-width left navigation rail for the Radar DevTools extension.
 ///
-/// Width is 198px. Shows three active Memory destinations, two disabled
-/// Performance placeholders, and two disabled Stability placeholders.
-/// A footer note clarifies the runtime environment restriction.
+/// Width is 198px. Shows three Memory destinations, two Performance
+/// destinations, and two Stability destinations. A footer note
+/// clarifies the runtime environment restriction.
 class LeftRail extends StatelessWidget {
   const LeftRail({
     super.key,
@@ -15,8 +15,8 @@ class LeftRail extends StatelessWidget {
     required this.onViewChanged,
   });
 
-  final MemoryView currentView;
-  final ValueChanged<MemoryView> onViewChanged;
+  final RadarView currentView;
+  final ValueChanged<RadarView> onViewChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -39,30 +39,50 @@ class LeftRail extends StatelessWidget {
             _SectionLabel('MEMORY'),
             _NavItem(
               label: 'Snapshot & diff',
-              view: MemoryView.snapshotDiff,
+              view: RadarView.snapshotDiff,
               currentView: currentView,
               onTap: onViewChanged,
             ),
             _NavItem(
               label: 'Class histogram',
-              view: MemoryView.classHistogram,
+              view: RadarView.classHistogram,
               currentView: currentView,
               onTap: onViewChanged,
             ),
             _NavItem(
               label: 'Retaining paths',
-              view: MemoryView.retainingPaths,
+              view: RadarView.retainingPaths,
               currentView: currentView,
               onTap: onViewChanged,
             ),
             const SizedBox(height: 8),
             _SectionLabel('PERFORMANCE'),
-            _DisabledNavItem(label: 'Traces'),
-            _DisabledNavItem(label: 'Frames'),
+            _NavItem(
+              label: 'Traces',
+              view: RadarView.traces,
+              currentView: currentView,
+              onTap: onViewChanged,
+            ),
+            _NavItem(
+              label: 'Frames',
+              view: RadarView.frames,
+              currentView: currentView,
+              onTap: onViewChanged,
+            ),
             const SizedBox(height: 8),
             _SectionLabel('STABILITY'),
-            _DisabledNavItem(label: 'Errors'),
-            _DisabledNavItem(label: 'Stalls'),
+            _NavItem(
+              label: 'Errors',
+              view: RadarView.errors,
+              currentView: currentView,
+              onTap: onViewChanged,
+            ),
+            _NavItem(
+              label: 'Stalls',
+              view: RadarView.stalls,
+              currentView: currentView,
+              onTap: onViewChanged,
+            ),
             const Spacer(),
             const _RailFooter(),
             const SizedBox(height: 12),
@@ -102,9 +122,9 @@ class _NavItem extends StatelessWidget {
   });
 
   final String label;
-  final MemoryView view;
-  final MemoryView currentView;
-  final ValueChanged<MemoryView> onTap;
+  final RadarView view;
+  final RadarView currentView;
+  final ValueChanged<RadarView> onTap;
 
   bool get _isActive => view == currentView;
 
@@ -140,38 +160,6 @@ class _NavItem extends StatelessWidget {
               const SizedBox(width: 8),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DisabledNavItem extends StatelessWidget {
-  const _DisabledNavItem({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: 'Available in the in-app Inspector — host-side wiring pending',
-      child: SizedBox(
-        height: 34,
-        child: Row(
-          children: [
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                label,
-                style: RadarTypography.monoBody.copyWith(
-                  fontSize: 12.5,
-                  color: RadarColors.text25,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
         ),
       ),
     );
