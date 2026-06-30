@@ -33,6 +33,7 @@ on:
       - 'flutter_leak_radar-v*'
       - 'flutter_leak_radar_lint-v*'
       - 'radar_trace-v*'
+      - 'radar_ui-v*'
       - 'flutter_perf_radar-v*'
       - 'radarscope-v*'
 
@@ -78,6 +79,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1
       - run: ./tool/publish.sh packages/radar_trace --force
+
+  radar_ui:
+    if: startsWith(github.ref_name, 'radar_ui-v')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: ./tool/publish.sh packages/radar_ui --force
 
   flutter_perf_radar:
     if: startsWith(github.ref_name, 'flutter_perf_radar-v')
