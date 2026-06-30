@@ -1,9 +1,8 @@
 name: radar_ui
 description: >-
-  Shared Flutter design-system package for the Flutter Radar suite.
-  Provides color tokens, typography, density constants, severity
-  mapping, and reusable primitive widgets (tags, sparklines, sort
-  headers, filter chips, metric tiles, live pulse dot).
+  Shared Flutter design system for the Radar observability suite: color and
+  severity tokens, typography, density, and dense dashboard widgets (tags,
+  sparklines, sort headers).
 version: 0.1.0
 repository: https://github.com/tp9imka/flutter-leak-radar
 issue_tracker: https://github.com/tp9imka/flutter-leak-radar/issues
