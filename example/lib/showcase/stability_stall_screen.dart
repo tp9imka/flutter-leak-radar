@@ -8,7 +8,7 @@
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
-import 'package:radar/radar.dart';
+import 'package:flutter_radar/flutter_radar.dart';
 
 /// Triggers a real main-isolate stall that the watchdog detects.
 ///

@@ -5,7 +5,7 @@
 // Each section corresponds to one dashboard area. Tapping a section
 // navigates to a focused demo screen that produces real data in that tab.
 import 'package:flutter/material.dart';
-import 'package:radar/radar.dart';
+import 'package:flutter_radar/flutter_radar.dart';
 
 import 'good_screen.dart';
 import 'perf_tracing_screen.dart';

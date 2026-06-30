@@ -15,8 +15,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  radar:
-    path: ../packages/radar
+  flutter_radar:
+    path: ../packages/flutter_radar
   bloc: ^9.2.1
 
 dev_dependencies:
@@ -30,8 +30,8 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.4
 
 dependency_overrides:
-  radar:
-    path: ../packages/radar
+  flutter_radar:
+    path: ../packages/flutter_radar
   flutter_leak_radar:
     path: ../packages/flutter_leak_radar
   flutter_perf_radar:

@@ -4,14 +4,14 @@
 /// [Radar] facade:
 ///
 /// ```dart
-/// import 'package:radar/radar.dart';
+/// import 'package:flutter_radar/flutter_radar.dart';
 ///
 /// await Radar.init(RadarConfig.standard());
 /// runApp(Radar.overlay(child: MyApp()));
 /// ```
 library;
 
-// Domain packages — full re-export so `import 'package:radar/radar.dart'`
+// Domain packages — full re-export so `import 'package:flutter_radar/flutter_radar.dart'`
 // suffices in place of both individual package imports.
 export 'package:flutter_leak_radar/flutter_leak_radar.dart';
 export 'package:flutter_perf_radar/flutter_perf_radar.dart';
@@ -22,5 +22,6 @@ export 'src/radar.dart';
 export 'src/radar_screen.dart';
 export 'src/radar_overlay.dart';
 
-// Re-export radar_trace types needed by Radar.start() consumers.
-export 'package:radar_trace/radar_trace.dart' show SpanHandle, TraceSnapshot;
+// Full radar_trace API re-exported so the umbrella import exposes the
+// complete tracer surface (Tracer, Span, histograms, snapshots).
+export 'package:radar_trace/radar_trace.dart';
