@@ -1,4 +1,4 @@
-name: flutter_radar
+name: radarscope
 description: >
   Umbrella package for Leak Radar + Perf Radar. One import, one overlay,
   one unified dashboard — composes flutter_leak_radar and flutter_perf_radar

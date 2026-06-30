@@ -9,7 +9,7 @@ import 'dart:developer' as developer;
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_radar/flutter_radar.dart';
+import 'package:radarscope/radarscope.dart';
 
 /// Runs 50 iterations each of a sync and async span, then shows results.
 class PerfTracingScreen extends StatefulWidget {

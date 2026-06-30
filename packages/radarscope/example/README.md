@@ -1,13 +1,13 @@
-# flutter_radar example
+# radarscope example
 
-Minimal wiring for the `flutter_radar` umbrella package — one import, one init call,
+Minimal wiring for the `radarscope` umbrella package — one import, one init call,
 unified overlay and inspector for both leak and perf domains.
 
 ## Setup in `main()`
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:flutter_radar/flutter_radar.dart';
+import 'package:radarscope/radarscope.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

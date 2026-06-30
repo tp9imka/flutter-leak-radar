@@ -7,7 +7,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_radar/flutter_radar.dart';
+import 'package:radarscope/radarscope.dart';
 
 /// Counter that ticks at 4 Hz inside a [TracedSubtree] labelled
 /// `demo.counter`.  Every tick forces a rebuild, incrementing the
