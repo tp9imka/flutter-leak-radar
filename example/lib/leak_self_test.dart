@@ -14,7 +14,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:radar/radar.dart';
+import 'package:flutter_radar/flutter_radar.dart';
 
 import 'leaky_screen.dart';
 

@@ -9,7 +9,7 @@ import 'dart:developer' as developer;
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:radar/radar.dart';
+import 'package:flutter_radar/flutter_radar.dart';
 
 /// Triggers real jank by computing an expensive sieve inside [build],
 /// then measures the resulting frame stats via [PerfRadar.frameStats].

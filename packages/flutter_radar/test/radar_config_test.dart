@@ -1,7 +1,7 @@
 // test/radar_config_test.dart
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:radar/radar.dart';
+import 'package:flutter_radar/flutter_radar.dart';
 
 void main() {
   group('RadarConfig', () {
