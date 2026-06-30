@@ -1,11 +1,7 @@
-// Placeholder — presentation widget tests require a DevTools frame environment
-// and will be added in a follow-up task.
+// Superseded by shell_memory_test.dart — kept as a stub so the test runner
+// has at least one file in the original location.
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('placeholder', () {
-    // No-op: widget tests for DevTools extensions require the full DevTools
-    // frame environment and are out of scope for Task 6.
-    expect(true, isTrue);
-  });
+  test('placeholder', () => expect(true, isTrue));
 }

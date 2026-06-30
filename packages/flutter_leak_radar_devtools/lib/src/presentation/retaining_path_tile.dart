@@ -11,18 +11,23 @@ class RetainingPathTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const mono = TextStyle(fontFamily: 'monospace', fontSize: 12);
-    return ExpansionTile(
-      title: Text(
-        title ?? 'Retaining path (${path.hops.length} hops)',
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
-      subtitle: Text(
-        'Root: ${path.rootKind.label}',
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.secondary,
-        ),
-      ),
+    // Rendered as an always-visible column rather than an ExpansionTile: the
+    // retaining path is the key diagnostic and should be readable without a
+    // tap, and this keeps the widget version-stable across Flutter releases.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(
+          title ?? 'Retaining path (${path.hops.length} hops)',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        Text(
+          'Root: ${path.rootKind.label}',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.secondary,
+          ),
+        ),
+        const SizedBox(height: 4),
         for (var i = 0; i < path.hops.length; i++)
           _HopRow(hop: path.hops[i], index: i, style: mono),
       ],
