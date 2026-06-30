@@ -494,13 +494,9 @@ void main() {
 
       // Cluster card class name is visible.
       expect(find.text('Leaked'), findsWidgets);
-      // The retaining-path tile builds its hop rows eagerly (maintainState),
-      // so the hop is present while collapsed — robust without a flaky
-      // tap-to-expand that doesn't reliably reveal children on CI's chrome.
-      expect(
-        find.textContaining('StreamController', skipOffstage: false),
-        findsOneWidget,
-      );
+      // The retaining path renders inline (always visible), so the hop is
+      // present without any tap-to-expand.
+      expect(find.textContaining('StreamController'), findsOneWidget);
     });
   });
 }
