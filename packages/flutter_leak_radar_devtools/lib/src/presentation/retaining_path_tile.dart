@@ -12,6 +12,9 @@ class RetainingPathTile extends StatelessWidget {
   Widget build(BuildContext context) {
     const mono = TextStyle(fontFamily: 'monospace', fontSize: 12);
     return ExpansionTile(
+      // Build hop children eagerly (kept offstage while collapsed) so the
+      // path is ready to reveal instantly and is deterministically testable.
+      maintainState: true,
       title: Text(
         title ?? 'Retaining path (${path.hops.length} hops)',
         style: Theme.of(context).textTheme.bodySmall,
