@@ -1,3 +1,10 @@
+## 0.2.0
+
+- `computeDiff` — diffs two class histograms into per-class instance/byte deltas
+  (growth and shrinkage), backing snapshot-to-snapshot comparison.
+- Standalone heap-growth and retaining-path analysis directly from an on-device
+  heap snapshot — no live VM-service connection required.
+
 ## 0.1.0
 
 Initial release.
