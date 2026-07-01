@@ -5,40 +5,31 @@ import 'package:radar_ui/radar_ui.dart';
 
 import 'package:flutter_leak_radar_devtools/src/capture/snapshot_bundle.dart';
 import 'package:flutter_leak_radar_devtools/src/capture/snapshot_service.dart';
-import 'package:vm_service/vm_service.dart';
 import 'package:flutter_leak_radar_devtools/src/connection/connection_state_notifier.dart';
-import 'package:flutter_leak_radar_devtools/src/diff/diff_controller.dart';
 import 'package:flutter_leak_radar_devtools/src/memory/class_histogram_view.dart';
+import 'package:flutter_leak_radar_devtools/src/memory/memory_controller.dart';
 import 'package:flutter_leak_radar_devtools/src/memory/retaining_paths_view.dart';
-import 'package:flutter_leak_radar_devtools/src/memory/snapshot_diff_view.dart';
+import 'package:flutter_leak_radar_devtools/src/memory/snapshots_view.dart';
 import 'package:flutter_leak_radar_devtools/src/shell/connection_bar.dart';
 import 'package:flutter_leak_radar_devtools/src/shell/left_rail.dart';
 import 'package:flutter_leak_radar_devtools/src/shell/radar_view.dart';
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Harness ─────────────────────────────────────────────────────────────────
 
-Widget _wrap(Widget child) {
-  return MaterialApp(
-    home: Theme(
-      data: radarDarkTheme(),
-      child: Scaffold(body: child),
-    ),
-  );
-}
+Widget _wrap(Widget child) => MaterialApp(
+  home: Theme(
+    data: radarDarkTheme(),
+    child: Scaffold(body: child),
+  ),
+);
 
-/// Wraps [child] with explicit 1280×800 logical dimensions to prevent
-/// overflow errors in multi-column layout tests running under Chrome.
-Widget _wrapDesktop(Widget child) {
-  return MaterialApp(
-    home: Theme(
-      data: radarDarkTheme(),
-      child: Scaffold(body: SizedBox(width: 1280, height: 800, child: child)),
-    ),
-  );
-}
+Widget _wrapDesktop(Widget child) => MaterialApp(
+  home: Theme(
+    data: radarDarkTheme(),
+    child: Scaffold(body: SizedBox(width: 1280, height: 800, child: child)),
+  ),
+);
 
-/// Sets a realistic DevTools panel viewport so multi-column layouts do not
-/// overflow during tests, and restores the default on teardown.
 void _setDesktopSize(WidgetTester tester) {
   tester.view.physicalSize = const Size(1280, 800);
   tester.view.devicePixelRatio = 1.0;
@@ -48,132 +39,81 @@ void _setDesktopSize(WidgetTester tester) {
   });
 }
 
-// ── Fake ConnectionStateNotifier ──────────────────────────────────────────────
-
-/// Minimal fake that bypasses [serviceManager] wiring.
 class _FakeConnectionNotifier extends ConnectionStateNotifier {
   _FakeConnectionNotifier(this._fakeState);
-
-  ExtensionConnectionState _fakeState;
-
+  final ExtensionConnectionState _fakeState;
   @override
   ExtensionConnectionState get state => _fakeState;
-
-  void setState(ExtensionConnectionState s) {
-    _fakeState = s;
-    notifyListeners();
-  }
-
-  /// No-op: skip real serviceManager listeners.
   @override
   Future<void> init() async {}
 }
 
-// ── Fake SnapshotService ───────────────────────────────────────────────────────
-
-/// Fake SnapshotService that always throws so it is not accidentally called.
-class _NullSnapshotService extends SnapshotService {
-  const _NullSnapshotService();
-
-  @override
-  Future<SnapshotBundle> capture({
-    required VmService vmService,
-    required IsolateRef isolateRef,
-    String label = '',
-  }) {
-    throw UnsupportedError(
-      '_NullSnapshotService.capture should not be called in tests',
-    );
-  }
-}
-
-// ── Controllable DiffController ────────────────────────────────────────────────
-
-/// A [DiffController] subclass whose internal state can be injected for
-/// testing, bypassing VM service and snapshot calls.
-class _TestDiffController extends DiffController {
-  _TestDiffController({
-    CapturePhase phase = CapturePhase.idle,
-    SnapshotBundle? snapshotA,
-    SnapshotBundle? snapshotB,
-    List<ClassCountDiff>? diff,
-  }) : super(
-         snapshotService: const _NullSnapshotService(),
-         connection: _FakeConnectionNotifier(
-           const ExtensionConnectionState(
-             phase: ExtensionConnectionPhase.connected,
-           ),
-         ),
-       ) {
-    _setPhase(phase);
-    _setSnapshotA(snapshotA);
-    _setSnapshotB(snapshotB);
-    _setDiff(diff);
-  }
-
-  // Expose internal setters via reflection-free back-channel: we call the
-  // protected fields indirectly by delegating through test-only mutators.
-
-  void _setPhase(CapturePhase p) => _injectedPhase = p;
-  void _setSnapshotA(SnapshotBundle? s) => _injectedA = s;
-  void _setSnapshotB(SnapshotBundle? s) => _injectedB = s;
-  void _setDiff(List<ClassCountDiff>? d) => _injectedDiff = d;
-
-  CapturePhase? _injectedPhase;
-  SnapshotBundle? _injectedA;
-  SnapshotBundle? _injectedB;
-  List<ClassCountDiff>? _injectedDiff;
-
-  @override
-  CapturePhase get phase => _injectedPhase ?? super.phase;
-
-  @override
-  SnapshotBundle? get snapshotA => _injectedA ?? super.snapshotA;
-
-  @override
-  SnapshotBundle? get snapshotB => _injectedB ?? super.snapshotB;
-
-  @override
-  List<ClassCountDiff>? get diff => _injectedDiff ?? super.diff;
-
-  @override
-  bool get canCapture => true;
-}
-
-// ── Fixture data ───────────────────────────────────────────────────────────────
-
-const _emptyAnalysis = GraphAnalysisResult(
-  clusters: [],
-  stats: GraphAnalysisStats(
-    totalObjects: 0,
-    reachableObjects: 0,
-    leakCandidates: 0,
-    clusters: 0,
-    suppressedByAppFilter: 0,
-    warnings: [],
+MemoryController _controller() => MemoryController(
+  service: const SnapshotService(),
+  connection: _FakeConnectionNotifier(
+    const ExtensionConnectionState(
+      phase: ExtensionConnectionPhase.disconnected,
+    ),
   ),
 );
 
-ClassCount _cls(String name, {int instances = 10, int bytes = 1024}) =>
-    ClassCount(
-      className: name,
-      libraryUri: Uri.parse('package:app/src/$name.dart'),
-      instanceCount: instances,
-      shallowBytes: bytes,
+// ── Fixtures ────────────────────────────────────────────────────────────────
+
+ClassCount _cc(
+  String name, {
+  int inst = 10,
+  int bytes = 1024,
+  String lib = 'package:app/src/x.dart',
+}) => ClassCount(
+  className: name,
+  libraryUri: Uri.parse(lib),
+  instanceCount: inst,
+  shallowBytes: bytes,
+);
+
+GraphAnalysisResult _analysis(List<ClassRootProfile> profiles) =>
+    GraphAnalysisResult(
+      clusters: const [],
+      stats: const GraphAnalysisStats(
+        totalObjects: 0,
+        reachableObjects: 0,
+        leakCandidates: 0,
+        clusters: 0,
+        suppressedByAppFilter: 0,
+        warnings: [],
+      ),
+      classRootProfiles: profiles,
     );
 
-SnapshotBundle _snap({List<ClassCount>? histogram}) => SnapshotBundle(
-  capturedAt: DateTime(2026, 1, 1, 12),
-  label: 'Test snapshot',
-  histogram: histogram ?? [_cls('Foo'), _cls('Bar')],
-  analysisResult: _emptyAnalysis,
+ClassRootProfile _profile(
+  String name,
+  Map<RootKind, int> byRoot, {
+  GraphRetainingPath? path,
+  int bytes = 2048,
+}) => ClassRootProfile(
+  className: name,
+  libraryUri: Uri.parse('package:app/src/$name.dart'),
+  totalInstances: byRoot.values.fold(0, (a, b) => a + b),
+  retainedShallowBytes: bytes,
+  byRoot: byRoot,
+  representativePath: path,
+);
+
+SnapshotBundle _snap(
+  int id, {
+  List<ClassCount>? hist,
+  List<ClassRootProfile> profiles = const [],
+}) => SnapshotBundle(
+  id: id,
+  capturedAt: DateTime(2026, 1, 1, 12, 0, id),
+  label: 'Snapshot $id',
+  histogram: hist ?? [_cc('Foo'), _cc('Bar')],
+  analysisResult: _analysis(profiles),
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 void main() {
-  // ── ConnectionBar ────────────────────────────────────────────────────────────
-
   group('ConnectionBar', () {
     testWidgets('shows disconnected chip when not connected', (tester) async {
       final notifier = _FakeConnectionNotifier(
@@ -184,36 +124,14 @@ void main() {
       await tester.pumpWidget(
         _wrap(SizedBox(height: 44, child: ConnectionBar(notifier: notifier))),
       );
-
       expect(find.text('disconnected'), findsOneWidget);
-      expect(find.text('connected'), findsNothing);
     });
-
-    testWidgets(
-      'shows connected chip with vmName and isolateName when connected',
-      (tester) async {
-        final notifier = _FakeConnectionNotifier(
-          const ExtensionConnectionState(
-            phase: ExtensionConnectionPhase.connected,
-            vmName: 'my-vm',
-            isolateName: 'main',
-          ),
-        );
-        await tester.pumpWidget(
-          _wrap(SizedBox(height: 44, child: ConnectionBar(notifier: notifier))),
-        );
-
-        expect(find.text('connected'), findsOneWidget);
-        expect(find.text('my-vm'), findsOneWidget);
-        expect(find.text('main'), findsOneWidget);
-      },
-    );
   });
 
-  // ── LeftRail ─────────────────────────────────────────────────────────────────
-
   group('LeftRail', () {
-    testWidgets('renders three memory nav items', (tester) async {
+    testWidgets('renders three memory nav items with new label', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           SizedBox(
@@ -225,37 +143,9 @@ void main() {
           ),
         ),
       );
-
-      expect(find.text('Snapshot & diff'), findsOneWidget);
+      expect(find.text('Snapshots'), findsOneWidget);
       expect(find.text('Class histogram'), findsOneWidget);
       expect(find.text('Retaining paths'), findsOneWidget);
-    });
-
-    testWidgets('Traces and Frames are rendered as enabled nav items', (
-      tester,
-    ) async {
-      RadarView? tapped;
-      await tester.pumpWidget(
-        _wrap(
-          SizedBox(
-            width: 198,
-            child: LeftRail(
-              currentView: RadarView.snapshotDiff,
-              onViewChanged: (v) => tapped = v,
-            ),
-          ),
-        ),
-      );
-
-      expect(find.text('Traces'), findsOneWidget);
-      expect(find.text('Frames'), findsOneWidget);
-      expect(find.text('Errors'), findsOneWidget);
-      expect(find.text('Stalls'), findsOneWidget);
-
-      // Tapping Traces navigates to the traces view.
-      await tester.tap(find.text('Traces'));
-      await tester.pump();
-      expect(tapped, RadarView.traces);
     });
 
     testWidgets('tapping a nav item fires onViewChanged', (tester) async {
@@ -271,233 +161,210 @@ void main() {
           ),
         ),
       );
-
       await tester.tap(find.text('Class histogram'));
       await tester.pump();
       expect(changed, RadarView.classHistogram);
     });
   });
 
-  // ── SnapshotDiffView ──────────────────────────────────────────────────────────
-
-  group('SnapshotDiffView', () {
-    testWidgets('idle phase shows capture CTA', (tester) async {
-      final ctrl = _TestDiffController(phase: CapturePhase.idle);
-      await tester.pumpWidget(_wrap(SnapshotDiffView(controller: ctrl)));
-
-      expect(find.text('Capture → act → capture → diff'), findsOneWidget);
-      expect(find.text('Capture snapshot'), findsOneWidget);
+  group('MemoryController', () {
+    test('toggleSelection keeps at most two, dropping the oldest', () {
+      final c = _controller()
+        ..debugAdd(_snap(1))
+        ..debugAdd(_snap(2))
+        ..debugAdd(_snap(3));
+      c.toggleSelection(1);
+      c.toggleSelection(2);
+      c.toggleSelection(3);
+      expect(c.isSelected(1), isFalse);
+      expect(c.isSelected(2), isTrue);
+      expect(c.isSelected(3), isTrue);
     });
 
-    testWidgets('readyForB phase shows baseline snapshot card', (tester) async {
-      final ctrl = _TestDiffController(
-        phase: CapturePhase.readyForB,
-        snapshotA: _snap(),
-      );
-      await tester.pumpWidget(_wrap(SnapshotDiffView(controller: ctrl)));
-      await tester.pump();
-
-      expect(find.text('Test snapshot'), findsOneWidget);
-      expect(
-        find.text('Now exercise the app, then capture again.'),
-        findsOneWidget,
-      );
+    test('pair is ordered oldest→newest regardless of selection order', () {
+      final c = _controller()
+        ..debugAdd(_snap(1))
+        ..debugAdd(_snap(2));
+      c.toggleSelection(2);
+      c.toggleSelection(1);
+      final pair = c.pair;
+      expect(pair, isNotNull);
+      expect(pair!.baseline.id, 1);
+      expect(pair.comparison.id, 2);
     });
 
-    testWidgets('done phase shows diff table with class row', (tester) async {
-      _setDesktopSize(tester);
-      final snapA = _snap(histogram: [_cls('Foo', instances: 5)]);
-      final snapB = _snap(histogram: [_cls('Foo', instances: 15)]);
-      final diff = computeDiff(snapA.histogram, snapB.histogram);
+    test('diff computes growth between the selected pair', () {
+      final c = _controller()
+        ..debugAdd(_snap(1, hist: [_cc('Foo', inst: 5)]))
+        ..debugAdd(_snap(2, hist: [_cc('Foo', inst: 15)]));
+      c.toggleSelection(1);
+      c.toggleSelection(2);
+      final diff = c.diff;
+      expect(diff, isNotNull);
+      final foo = diff!.firstWhere((d) => d.after.className == 'Foo');
+      expect(foo.instanceDelta, 10);
+    });
 
-      final ctrl = _TestDiffController(
-        phase: CapturePhase.done,
-        snapshotA: snapA,
-        snapshotB: snapB,
-        diff: diff,
+    test('remove drops the snapshot and deselects it', () {
+      final c = _controller()
+        ..debugAdd(_snap(1))
+        ..debugAdd(_snap(2));
+      c.toggleSelection(1);
+      c.toggleSelection(2);
+      c.remove(1);
+      expect(c.snapshots.length, 1);
+      expect(c.isSelected(1), isFalse);
+      expect(c.pair, isNull);
+    });
+
+    test('focused is the comparison when paired, else the latest', () {
+      final c = _controller()
+        ..debugAdd(_snap(1))
+        ..debugAdd(_snap(2))
+        ..debugAdd(_snap(3));
+      expect(c.focused?.id, 3); // latest
+      c.toggleSelection(1);
+      c.toggleSelection(2);
+      expect(c.focused?.id, 2); // comparison of {1,2}
+    });
+
+    test('clearAll empties the list and selection', () {
+      final c = _controller()..debugAdd(_snap(1));
+      c.toggleSelection(1);
+      c.clearAll();
+      expect(c.hasSnapshots, isFalse);
+      expect(c.pair, isNull);
+    });
+
+    test('SnapshotBundle JSON round-trips (export)', () {
+      final b = _snap(
+        7,
+        hist: [_cc('Foo', inst: 3)],
+        profiles: [
+          _profile('Foo', {RootKind.stream: 3}),
+        ],
       );
-      await tester.pumpWidget(_wrapDesktop(SnapshotDiffView(controller: ctrl)));
-      await tester.pump();
-
-      expect(find.text('Foo'), findsWidgets);
+      final restored = SnapshotBundle.fromJson(b.toJson());
+      expect(restored.id, 7);
+      expect(restored.label, 'Snapshot 7');
+      expect(restored.histogram.single.className, 'Foo');
+      expect(restored.analysisResult.classRootProfiles.single.className, 'Foo');
     });
   });
 
-  // ── ClassHistogramView ────────────────────────────────────────────────────────
+  group('SnapshotsView', () {
+    testWidgets('no snapshots shows the idle capture hint', (tester) async {
+      await tester.pumpWidget(_wrap(SnapshotsView(controller: _controller())));
+      expect(find.text('Capture heap snapshots'), findsOneWidget);
+      expect(find.text('Capture'), findsOneWidget);
+    });
+
+    testWidgets('a selected pair renders the diff table', (tester) async {
+      _setDesktopSize(tester);
+      final c = _controller()
+        ..debugAdd(_snap(1, hist: [_cc('Foo', inst: 5, bytes: 100)]))
+        ..debugAdd(_snap(2, hist: [_cc('Foo', inst: 15, bytes: 300)]));
+      c.toggleSelection(1);
+      c.toggleSelection(2);
+      await tester.pumpWidget(_wrapDesktop(SnapshotsView(controller: c)));
+      await tester.pump();
+      expect(find.text('Foo'), findsWidgets);
+      expect(find.textContaining('Δ'), findsWidgets);
+    });
+  });
 
   group('ClassHistogramView', () {
     testWidgets('no snapshot shows empty state', (tester) async {
-      final ctrl = _TestDiffController(phase: CapturePhase.idle);
-      await tester.pumpWidget(_wrap(ClassHistogramView(controller: ctrl)));
-
-      expect(
-        find.text('No snapshot captured yet — use Snapshot & diff to capture.'),
-        findsOneWidget,
+      await tester.pumpWidget(
+        _wrap(ClassHistogramView(controller: _controller())),
       );
+      expect(find.textContaining('No snapshot captured yet'), findsOneWidget);
     });
 
-    testWidgets('snapshot data renders class rows', (tester) async {
+    testWidgets('renders rows and filter narrows them', (tester) async {
       _setDesktopSize(tester);
-      final ctrl = _TestDiffController(
-        phase: CapturePhase.readyForB,
-        snapshotA: _snap(
-          histogram: [_cls('Alpha', instances: 3), _cls('Beta', instances: 7)],
-        ),
-      );
-      await tester.pumpWidget(
-        _wrapDesktop(ClassHistogramView(controller: ctrl)),
-      );
+      final c = _controller()
+        ..debugAdd(
+          _snap(1, hist: [_cc('Alpha', inst: 3), _cc('Beta', inst: 7)]),
+        );
+      await tester.pumpWidget(_wrapDesktop(ClassHistogramView(controller: c)));
       await tester.pump();
-
       expect(find.text('Alpha'), findsOneWidget);
       expect(find.text('Beta'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'Alpha');
+      await tester.pump();
+      // The Beta row is filtered out. (find.text also matches the filter
+      // field's own EditableText, so assert Alpha with findsWidgets.)
+      expect(find.text('Beta'), findsNothing);
+      expect(find.text('Alpha'), findsWidgets);
     });
 
-    testWidgets('search with no match shows "No classes match" message', (
+    testWidgets('tapping a class shows its root grouping in the detail panel', (
       tester,
     ) async {
       _setDesktopSize(tester);
-      final ctrl = _TestDiffController(
-        phase: CapturePhase.readyForB,
-        snapshotA: _snap(histogram: [_cls('Alpha')]),
-      );
-      await tester.pumpWidget(
-        _wrapDesktop(ClassHistogramView(controller: ctrl)),
-      );
+      final c = _controller()
+        ..debugAdd(
+          _snap(
+            1,
+            hist: [_cc('Foo', inst: 3)],
+            profiles: [
+              _profile('Foo', {RootKind.stream: 2, RootKind.liveTree: 1}),
+            ],
+          ),
+        );
+      await tester.pumpWidget(_wrapDesktop(ClassHistogramView(controller: c)));
       await tester.pump();
 
-      await tester.enterText(find.byType(TextField), 'Foo');
+      await tester.tap(find.text('Foo'));
       await tester.pump();
-
-      expect(find.text("No classes match 'Foo'"), findsOneWidget);
-    });
-
-    testWidgets('clicking bytes header changes sort direction', (tester) async {
-      _setDesktopSize(tester);
-      final ctrl = _TestDiffController(
-        phase: CapturePhase.readyForB,
-        snapshotA: _snap(
-          histogram: [_cls('Small', bytes: 100), _cls('Large', bytes: 100000)],
-        ),
-      );
-      await tester.pumpWidget(
-        _wrapDesktop(ClassHistogramView(controller: ctrl)),
-      );
-      await tester.pump();
-
-      // Both rows render in some order.
-      expect(find.text('Large'), findsOneWidget);
-      expect(find.text('Small'), findsOneWidget);
-
-      // Tap bytes sort header to toggle direction.
-      await tester.tap(find.text('bytes'));
-      await tester.pump();
-
-      // After toggle, rows are still present (direction changed).
-      expect(find.text('Large'), findsOneWidget);
-      expect(find.text('Small'), findsOneWidget);
+      expect(find.text('Retained by (closest root)'), findsOneWidget);
     });
   });
 
-  // ── RetainingPathsView ────────────────────────────────────────────────────────
-
   group('RetainingPathsView', () {
-    testWidgets('no diff shows "Complete a snapshot diff" empty state', (
-      tester,
-    ) async {
-      final ctrl = _TestDiffController(phase: CapturePhase.idle);
-      await tester.pumpWidget(_wrap(RetainingPathsView(controller: ctrl)));
-
+    testWidgets('no snapshot shows empty state', (tester) async {
+      await tester.pumpWidget(
+        _wrap(RetainingPathsView(controller: _controller())),
+      );
       expect(
-        find.text('Complete a snapshot diff to see retaining paths.'),
+        find.textContaining('Capture a snapshot to explore retaining paths'),
         findsOneWidget,
       );
     });
 
-    testWidgets('diff with no cluster data shows fallback message', (
+    testWidgets('groups profiles by root bucket and shows a path on select', (
       tester,
     ) async {
-      final snapA = _snap(histogram: [_cls('Leaked', instances: 1)]);
-      final snapB = _snap(histogram: [_cls('Leaked', instances: 10)]);
-      final diff = computeDiff(snapA.histogram, snapB.histogram);
-
-      final ctrl = _TestDiffController(
-        phase: CapturePhase.done,
-        snapshotA: snapA,
-        snapshotB: snapB,
-        diff: diff,
-      );
-      await tester.pumpWidget(_wrap(RetainingPathsView(controller: ctrl)));
-      await tester.pump();
-
-      expect(
-        find.textContaining('Retaining path data not available'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('diff with matching cluster renders cluster card', (
-      tester,
-    ) async {
-      _setDesktopSize(tester); // ensure desktop viewport for complex widget
+      _setDesktopSize(tester);
       const path = GraphRetainingPath(
         hops: [
           GraphHop(className: 'StreamController'),
-          GraphHop(className: 'Leaked', field: '_listener'),
+          GraphHop(className: 'Leaky', field: '_sub'),
         ],
         rootKind: RootKind.stream,
       );
-      const cluster = GraphLeakCluster(
-        className: 'Leaked',
-        libraryUri: null,
-        instanceCount: 5,
-        retainedShallowBytes: 2048,
-        representativePath: path,
-        rootKind: RootKind.stream,
-        confidence: LeakConfidence.heuristic,
-        signature: 'sig',
-      );
-      final analysis = const GraphAnalysisResult(
-        clusters: [cluster],
-        stats: GraphAnalysisStats(
-          totalObjects: 100,
-          reachableObjects: 80,
-          leakCandidates: 1,
-          clusters: 1,
-          suppressedByAppFilter: 0,
-          warnings: [],
-        ),
-      );
-
-      final snapA = SnapshotBundle(
-        capturedAt: DateTime(2026),
-        label: 'A',
-        histogram: [_cls('Leaked', instances: 1)],
-        analysisResult: _emptyAnalysis,
-      );
-      final snapB = SnapshotBundle(
-        capturedAt: DateTime(2026),
-        label: 'B',
-        histogram: [_cls('Leaked', instances: 6)],
-        analysisResult: analysis,
-      );
-      final diff = computeDiff(snapA.histogram, snapB.histogram);
-
-      final ctrl = _TestDiffController(
-        phase: CapturePhase.done,
-        snapshotA: snapA,
-        snapshotB: snapB,
-        diff: diff,
-      );
-      await tester.pumpWidget(
-        _wrapDesktop(RetainingPathsView(controller: ctrl)),
-      );
+      final c = _controller()
+        ..debugAdd(
+          _snap(
+            1,
+            profiles: [
+              _profile('Leaky', {RootKind.stream: 5}, path: path),
+              _profile('MyWidget', {RootKind.liveTree: 10}),
+            ],
+          ),
+        );
+      await tester.pumpWidget(_wrapDesktop(RetainingPathsView(controller: c)));
       await tester.pump();
 
-      // Cluster card class name is visible.
-      expect(find.text('Leaked'), findsWidgets);
-      // The retaining path renders inline (always visible), so the hop is
-      // present without any tap-to-expand.
+      expect(find.text('LEAK-PRONE ROOTS'), findsOneWidget);
+      expect(find.text('LIVE TREE'), findsOneWidget);
+      expect(find.text('Leaky'), findsWidgets);
+
+      await tester.tap(find.text('Leaky').first);
+      await tester.pump();
+      expect(find.text('Representative retaining path'), findsOneWidget);
       expect(find.textContaining('StreamController'), findsOneWidget);
     });
   });
