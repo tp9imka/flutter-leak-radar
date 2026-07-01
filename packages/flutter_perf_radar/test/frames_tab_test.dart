@@ -223,6 +223,30 @@ void main() {
     );
   });
 
+  group('FramesTab — reset button', () {
+    testWidgets('hidden when onReset is null', (tester) async {
+      await tester.pumpWidget(_wrap(FramesTab(stats: _buildSnapshot())));
+      expect(find.byIcon(Icons.restart_alt), findsNothing);
+    });
+
+    testWidgets('shown when onReset is provided', (tester) async {
+      await tester.pumpWidget(
+        _wrap(FramesTab(stats: _buildSnapshot(), onReset: () {})),
+      );
+      expect(find.byIcon(Icons.restart_alt), findsOneWidget);
+    });
+
+    testWidgets('tapping the reset button invokes onReset', (tester) async {
+      var tapped = 0;
+      await tester.pumpWidget(
+        _wrap(FramesTab(stats: _buildSnapshot(), onReset: () => tapped++)),
+      );
+      await tester.tap(find.byIcon(Icons.restart_alt));
+      await tester.pump();
+      expect(tapped, equals(1));
+    });
+  });
+
   group('StartupTab — measured state (no fabricated phase split)', () {
     testWidgets('shows TTF headline but NO fabricated phase rows', (
       tester,

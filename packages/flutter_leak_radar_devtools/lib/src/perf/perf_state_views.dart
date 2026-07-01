@@ -173,6 +173,48 @@ class PerfRefreshButton extends StatelessWidget {
   }
 }
 
+/// A "Reset counters" action button for the Frames toolbar.
+///
+/// Pairs with [PerfDataController.resetFrames] to zero out accumulated
+/// frame statistics on the connected app for a fresh measurement window.
+/// When [onReset] is null the button renders disabled — used when there
+/// is no live connection to reset.
+class PerfResetFramesButton extends StatelessWidget {
+  const PerfResetFramesButton({super.key, required this.onReset});
+
+  final VoidCallback? onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onReset != null;
+    return Tooltip(
+      message: 'Reset frame counters',
+      child: GestureDetector(
+        onTap: onReset,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: RadarColors.iconButtonBg,
+            borderRadius: RadarDensity.iconButtonRadius,
+            border: Border.all(
+              color: RadarColors.iconButtonBorder,
+              width: RadarDensity.hairline,
+            ),
+          ),
+          child: SizedBox(
+            width: RadarDensity.iconButtonSize,
+            height: RadarDensity.iconButtonSize,
+            child: Icon(
+              Icons.restart_alt,
+              size: 15,
+              color: enabled ? RadarColors.text60 : RadarColors.text25,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Empty state shown when no rows match the active search / filter.
 class PerfEmptyFilterView extends StatelessWidget {
   const PerfEmptyFilterView({super.key, required this.query});

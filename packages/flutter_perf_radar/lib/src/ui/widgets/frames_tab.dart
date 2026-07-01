@@ -22,10 +22,16 @@ const int _kWorstFrameCount = 5;
 /// Frames tab: jank tiles + frame-time bar timeline + percentiles + worst list.
 class FramesTab extends StatelessWidget {
   /// Creates a [FramesTab] for the given [stats].
-  const FramesTab({super.key, required this.stats});
+  const FramesTab({super.key, required this.stats, this.onReset});
 
   /// The frame timing snapshot to display.
   final FrameStatsSnapshot stats;
+
+  /// Called when the user taps the reset button.
+  ///
+  /// When null, no reset button is shown — this keeps [FramesTab] usable
+  /// standalone (e.g. in tests) without wiring a live [PerfRadar] engine.
+  final VoidCallback? onReset;
 
   String _pct(int? p) {
     if (p == null) return '—';
@@ -48,6 +54,15 @@ class FramesTab extends StatelessWidget {
         12 + MediaQuery.of(context).padding.bottom,
       ),
       children: [
+        // ── Header: reset button ───────────────────────────────────────────
+        if (onReset != null) ...[
+          Align(
+            alignment: Alignment.centerRight,
+            child: _ResetButton(onTap: onReset!),
+          ),
+          const SizedBox(height: 8),
+        ],
+
         // ── 3 stat tiles ──────────────────────────────────────────────────
         Row(
           children: [
@@ -143,6 +158,41 @@ class FramesTab extends StatelessWidget {
           _WorstFrames(stats: stats, fmtMicros: _pct),
         ],
       ],
+    );
+  }
+}
+
+// ── Reset button ──────────────────────────────────────────────────────────────
+
+/// Small icon button that resets the frame counters for a fresh
+/// measurement window. Styled to match the devtools-side reset action.
+class _ResetButton extends StatelessWidget {
+  const _ResetButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Reset frame counters',
+      child: GestureDetector(
+        onTap: onTap,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: RadarColors.iconButtonBg,
+            borderRadius: RadarDensity.iconButtonRadius,
+            border: Border.all(
+              color: RadarColors.iconButtonBorder,
+              width: RadarDensity.hairline,
+            ),
+          ),
+          child: const SizedBox(
+            width: RadarDensity.iconButtonSize,
+            height: RadarDensity.iconButtonSize,
+            child: Icon(Icons.restart_alt, size: 15, color: RadarColors.text60),
+          ),
+        ),
+      ),
     );
   }
 }

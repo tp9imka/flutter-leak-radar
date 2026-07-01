@@ -40,6 +40,7 @@ class PerfDataController extends ChangeNotifier {
 
   static const _log = 'leakRadarDevTools.perf';
   static const _extensionMethod = 'ext.perf_radar.snapshot';
+  static const _resetExtensionMethod = 'ext.perf_radar.resetFrames';
 
   final Future<Map<String, Object?>> Function(String method) _callExtension;
 
@@ -83,6 +84,34 @@ class PerfDataController extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  /// Resets the connected app's frame counters via
+  /// `ext.perf_radar.resetFrames`, then re-fetches so the view reflects
+  /// the fresh (zeroed) measurement window.
+  ///
+  /// Never throws — when the connected app is unavailable or the
+  /// extension isn't registered, this logs and returns without touching
+  /// [loadState], leaving the last-known snapshot displayed.
+  Future<void> resetFrames() async {
+    try {
+      await _callExtension(_resetExtensionMethod);
+    } on ExtensionNotAvailableException {
+      developer.log(
+        '$_resetExtensionMethod not available in connected app',
+        name: _log,
+      );
+      return;
+    } catch (e, s) {
+      developer.log(
+        'resetFrames failed: $e',
+        name: _log,
+        error: e,
+        stackTrace: s,
+      );
+      return;
+    }
+    await refresh();
   }
 
   /// Default implementation calls [serviceManager]'s callServiceExtensionOnMainIsolate.

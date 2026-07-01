@@ -62,6 +62,13 @@ class _PerfRadarViewState extends State<PerfRadarView> {
     });
   }
 
+  /// Resets frame counters and immediately re-fetches the (now zeroed)
+  /// snapshot so the UI reflects the fresh measurement window.
+  void _resetFrames() {
+    PerfRadar.resetFrameStats();
+    _refresh();
+  }
+
   @override
   void dispose() {
     _refreshTimer?.cancel();
@@ -74,6 +81,7 @@ class _PerfRadarViewState extends State<PerfRadarView> {
       snapshot: _snapshot,
       frameStats: _frameStats,
       stability: _stability,
+      onResetFrames: _resetFrames,
     );
   }
 }
@@ -85,11 +93,15 @@ class _PerfTabs extends StatefulWidget {
     required this.snapshot,
     required this.frameStats,
     required this.stability,
+    required this.onResetFrames,
   });
 
   final TraceSnapshot snapshot;
   final FrameStatsSnapshot frameStats;
   final StabilitySnapshot stability;
+
+  /// Called when the user taps the Frames tab's reset button.
+  final VoidCallback onResetFrames;
 
   @override
   State<_PerfTabs> createState() => _PerfTabsState();
@@ -116,7 +128,10 @@ class _PerfTabsState extends State<_PerfTabs> {
   Widget _tabBody() {
     return switch (_activeTab) {
       _PerfSubTab.traces => TracesTab(snapshot: widget.snapshot),
-      _PerfSubTab.frames => FramesTab(stats: widget.frameStats),
+      _PerfSubTab.frames => FramesTab(
+        stats: widget.frameStats,
+        onReset: widget.onResetFrames,
+      ),
       _PerfSubTab.rebuilds => RebuildsTab(snapshot: widget.snapshot),
       _PerfSubTab.startup => StartupTab(snapshot: widget.snapshot),
     };

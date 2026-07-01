@@ -76,6 +76,16 @@ class _FakePerfController extends PerfDataController {
 
   @override
   Future<void> refresh() async {}
+
+  /// Number of times [resetFrames] has been called — lets tests verify
+  /// the reset button is wired to the controller without touching the
+  /// real VM service extension machinery.
+  int resetFramesCallCount = 0;
+
+  @override
+  Future<void> resetFrames() async {
+    resetFramesCallCount++;
+  }
 }
 
 // ── Fixture builders ───────────────────────────────────────────────────────────
@@ -574,6 +584,35 @@ void main() {
       expect(find.text('RECENT FRAMES'), findsOneWidget);
       expect(find.text('WORST FRAMES (TOP 5)'), findsOneWidget);
     });
+
+    testWidgets('shows a reset-counters button in the toolbar', (tester) async {
+      _setDesktopSize(tester);
+      final ctrl = _FakePerfController(
+        initialState: PerfLoadState.loaded,
+        initialSnapshot: _snapshot(),
+      );
+      await tester.pumpWidget(_wrapDesktop(FramesView(controller: ctrl)));
+      await tester.pump();
+
+      expect(find.byIcon(Icons.restart_alt), findsOneWidget);
+    });
+
+    testWidgets('tapping reset invokes PerfDataController.resetFrames', (
+      tester,
+    ) async {
+      _setDesktopSize(tester);
+      final ctrl = _FakePerfController(
+        initialState: PerfLoadState.loaded,
+        initialSnapshot: _snapshot(),
+      );
+      await tester.pumpWidget(_wrapDesktop(FramesView(controller: ctrl)));
+      await tester.pump();
+
+      await tester.tap(find.byIcon(Icons.restart_alt));
+      await tester.pump();
+
+      expect(ctrl.resetFramesCallCount, equals(1));
+    });
   });
 
   // ── ErrorsView ────────────────────────────────────────────────────────────────
@@ -812,6 +851,55 @@ void main() {
       await ctrl.refresh();
       expect(ctrl.loadState, PerfLoadState.error);
       expect(ctrl.errorMessage, isNotNull);
+    });
+
+    // ── resetFrames ──────────────────────────────────────────────────────
+
+    test(
+      'resetFrames calls ext.perf_radar.resetFrames then refreshes',
+      () async {
+        final calledMethods = <String>[];
+        final snap = _snapshot(frames: _frames(frameCount: 0, jankCount: 0));
+        final ctrl = PerfDataController(
+          callExtension: (method) async {
+            calledMethods.add(method);
+            if (method == 'ext.perf_radar.resetFrames') return {'reset': true};
+            return _encodeSnapshot(snap);
+          },
+        );
+
+        await ctrl.resetFrames();
+
+        expect(
+          calledMethods,
+          equals(['ext.perf_radar.resetFrames', 'ext.perf_radar.snapshot']),
+        );
+        expect(ctrl.loadState, PerfLoadState.loaded);
+        expect(ctrl.snapshot!.frames.frameCount, equals(0));
+      },
+    );
+
+    test('resetFrames does not throw and leaves state untouched when '
+        'extension is unavailable', () async {
+      final ctrl = PerfDataController(
+        callExtension: (_) async =>
+            throw const ExtensionNotAvailableException(),
+      );
+
+      await ctrl.resetFrames();
+
+      expect(ctrl.loadState, PerfLoadState.idle);
+      expect(ctrl.snapshot, isNull);
+    });
+
+    test('resetFrames does not throw on a generic connection error', () async {
+      final ctrl = PerfDataController(
+        callExtension: (_) async => throw Exception('disconnected'),
+      );
+
+      await ctrl.resetFrames();
+
+      expect(ctrl.loadState, PerfLoadState.idle);
     });
   });
 }

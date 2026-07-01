@@ -141,6 +141,12 @@ final class PerfEngine {
   /// Immutable snapshot of frame timing statistics.
   FrameStatsSnapshot get frameStats => _frameStats.snapshot();
 
+  /// Resets the frame timing statistics to zero.
+  ///
+  /// Lets a caller start a fresh measurement window (e.g. before
+  /// profiling a specific user flow) without restarting the whole engine.
+  void resetFrameStats() => _frameStats.reset();
+
   /// Immutable snapshot of stability counters and recent events.
   StabilitySnapshot get stabilitySnapshot => _stability.snapshot();
 }

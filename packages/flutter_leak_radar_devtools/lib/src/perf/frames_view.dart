@@ -52,7 +52,10 @@ class FramesView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _FramesToolbar(onRefresh: controller.refresh),
+        _FramesToolbar(
+          onRefresh: controller.refresh,
+          onReset: controller.resetFrames,
+        ),
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -80,9 +83,13 @@ class FramesView extends StatelessWidget {
 // ── Toolbar ───────────────────────────────────────────────────────────────────
 
 class _FramesToolbar extends StatelessWidget {
-  const _FramesToolbar({required this.onRefresh});
+  const _FramesToolbar({required this.onRefresh, required this.onReset});
 
   final VoidCallback onRefresh;
+
+  /// Resets the connected app's frame counters. Null when there is no
+  /// live connection to reset.
+  final VoidCallback? onReset;
 
   @override
   Widget build(BuildContext context) {
@@ -107,6 +114,8 @@ class _FramesToolbar extends StatelessWidget {
               ),
             ),
             const Spacer(),
+            PerfResetFramesButton(onReset: onReset),
+            const SizedBox(width: 8),
             PerfRefreshButton(onRefresh: onRefresh),
           ],
         ),
