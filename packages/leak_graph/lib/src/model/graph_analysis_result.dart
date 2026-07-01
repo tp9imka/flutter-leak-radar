@@ -1,3 +1,4 @@
+import 'class_path_distribution.dart';
 import 'class_root_profile.dart';
 import 'graph_leak_cluster.dart';
 
@@ -75,10 +76,15 @@ final class GraphAnalysisResult {
   /// leak-prone-rooted ones in [clusters]. See [ClassRootProfile].
   final List<ClassRootProfile> classRootProfiles;
 
+  /// Per-class distribution of instances across distinct shortest retaining
+  /// paths, for a bounded set of classes. See [ClassPathDistribution].
+  final List<ClassPathDistribution> classPathDistributions;
+
   const GraphAnalysisResult({
     required this.clusters,
     required this.stats,
     this.classRootProfiles = const [],
+    this.classPathDistributions = const [],
   });
 
   factory GraphAnalysisResult.fromJson(Map<String, Object?> json) =>
@@ -96,6 +102,14 @@ final class GraphAnalysisResult {
                 for (final p in json['classRootProfiles']! as List)
                   ClassRootProfile.fromJson((p as Map).cast<String, Object?>()),
               ],
+        classPathDistributions: json['classPathDistributions'] == null
+            ? const []
+            : [
+                for (final d in json['classPathDistributions']! as List)
+                  ClassPathDistribution.fromJson(
+                    (d as Map).cast<String, Object?>(),
+                  ),
+              ],
       );
 
   @override
@@ -104,19 +118,24 @@ final class GraphAnalysisResult {
       other is GraphAnalysisResult &&
           stats == other.stats &&
           _listEquals(clusters, other.clusters) &&
-          _listEquals(classRootProfiles, other.classRootProfiles);
+          _listEquals(classRootProfiles, other.classRootProfiles) &&
+          _listEquals(classPathDistributions, other.classPathDistributions);
 
   @override
   int get hashCode => Object.hash(
     stats,
     Object.hashAll(clusters),
     Object.hashAll(classRootProfiles),
+    Object.hashAll(classPathDistributions),
   );
 
   Map<String, Object?> toJson() => {
     'clusters': [for (final c in clusters) c.toJson()],
     'stats': stats.toJson(),
     'classRootProfiles': [for (final p in classRootProfiles) p.toJson()],
+    'classPathDistributions': [
+      for (final d in classPathDistributions) d.toJson(),
+    ],
   };
 }
 

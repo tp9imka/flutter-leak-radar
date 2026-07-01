@@ -1,3 +1,15 @@
+## 0.2.2
+
+- `GraphAnalysisResult.classPathDistributions` — per-class distribution of a
+  class's instances across their distinct shortest retaining paths (grouped by
+  path signature), materialised for a bounded set of classes. Backs a
+  native-DevTools-style "N instances → X via path A, Y via path B…" breakdown.
+  Each `PathBucket` carries a representative path, instance count, and summed
+  shallow bytes; `ClassPathDistribution` reports `sampledInstances` vs
+  `totalInstances` so a capped (sampled) breakdown is never presented as
+  complete. New `buildClassPathDistributions` analyzer pass and `PathBucket` /
+  `ClassPathDistribution` models (JSON round-trip supported).
+
 ## 0.2.1
 
 - Docs + packaging only (no library code change from 0.2.0): rewritten README
