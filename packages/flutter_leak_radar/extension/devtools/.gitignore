@@ -1,0 +1,4 @@
+# The prebuilt DevTools extension web build ships with this package so
+# DevTools can load it (the repo root .gitignore ignores build/ dirs).
+# Regenerate with tool/build_devtools_extension.sh.
+!build/
