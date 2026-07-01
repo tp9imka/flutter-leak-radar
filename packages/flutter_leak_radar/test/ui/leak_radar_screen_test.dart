@@ -58,11 +58,19 @@ void main() {
         await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
         await tester.pumpAndSettle();
 
-        // Force GC is in the AppBar overflow menu (More tooltip).
+        // Force GC is now exposed in the LeakRadarView's bottom action bar
+        // (always visible) and still available in the AppBar overflow menu.
+        expect(
+          find.byKey(const Key('leak_force_gc_btn')),
+          findsOneWidget,
+          reason: 'Force GC button must be in the bottom action bar',
+        );
+
+        // The overflow menu still contains "Force GC & rescan".
         expect(find.byTooltip('More'), findsOneWidget);
         await tester.tap(find.byTooltip('More'));
         await tester.pumpAndSettle();
-        expect(find.textContaining('Force GC'), findsOneWidget);
+        expect(find.textContaining('Force GC'), findsWidgets);
         // Dismiss menu.
         await tester.tapAt(const Offset(10, 10));
         await tester.pumpAndSettle();

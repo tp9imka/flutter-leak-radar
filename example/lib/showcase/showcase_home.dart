@@ -144,9 +144,9 @@ class _InspectorButton extends StatelessWidget {
       key: const Key('open_radar_screen'),
       icon: const Icon(Icons.radar),
       tooltip: 'Open Radar Dashboard',
-      onPressed: () => Navigator.of(
-        context,
-      ).push(MaterialPageRoute<void>(builder: (_) => const RadarScreen())),
+      // openInspector pushes RadarScreen as a route so the close button
+      // falls back to pop() automatically — no onClose callback needed.
+      onPressed: () => Radar.openInspector(context),
     );
   }
 }

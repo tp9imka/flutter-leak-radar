@@ -13,6 +13,8 @@ import 'finding_detail_screen.dart';
 import 'leak_kind_label.dart';
 import 'theme/theme.dart';
 
+// ignore_for_file: use_build_context_synchronously
+
 /// Body-only view of the Leak Radar inspector.
 ///
 /// Renders the summary row, search field, sort row, kind-filter chips, and
@@ -50,6 +52,8 @@ class LeakRadarViewState extends State<LeakRadarView> {
   StreamSubscription<LeakReport>? _sub;
   final TextEditingController _searchCtrl = TextEditingController();
 
+  bool _scanning = false;
+
   /// The most recent [LeakReport] received from [LeakRadar], or null
   /// before any scan.
   LeakReport? get report => _report;
@@ -69,6 +73,29 @@ class LeakRadarViewState extends State<LeakRadarView> {
     _searchCtrl.dispose();
     super.dispose();
   }
+
+  // ── Actions ────────────────────────────────────────────────────────────────
+
+  Future<void> _scan() async {
+    if (_scanning) return;
+    setState(() => _scanning = true);
+    await LeakRadar.scan();
+    if (mounted) setState(() => _scanning = false);
+  }
+
+  Future<void> _forceGcAndScan() async {
+    if (_scanning) return;
+    setState(() => _scanning = true);
+    await LeakRadar.forceGcAndScan();
+    if (mounted) setState(() => _scanning = false);
+  }
+
+  void _clearAll() {
+    LeakRadar.clearLeaks();
+    setState(() => _dismissed.clear());
+  }
+
+  // ── Filtered list ──────────────────────────────────────────────────────────
 
   /// Filtered and sorted findings applying kind filter, search, and sort order,
   /// excluding view-dismissed entries.
@@ -168,12 +195,21 @@ class LeakRadarViewState extends State<LeakRadarView> {
               : filtered.isEmpty
               ? _SearchEmptyState(query: _searchQuery)
               : ListView.builder(
-                  padding: EdgeInsets.only(
-                    bottom: 8 + MediaQuery.of(context).padding.bottom,
-                  ),
+                  // Extra bottom padding so content clears the action bar
+                  // and the system navigation bar.
+                  padding: const EdgeInsets.only(bottom: 8),
                   itemCount: filtered.length,
                   itemBuilder: (_, i) => _FindingRow(finding: filtered[i]),
                 ),
+        ),
+        // Sticky bottom action bar — always visible so the user can
+        // Force GC, scan, or clear leaks without leaving the view.
+        _LeakActionBar(
+          scanning: _scanning,
+          hasFindings: findings.isNotEmpty,
+          onForceGc: _forceGcAndScan,
+          onScan: _scan,
+          onClearAll: _clearAll,
         ),
       ],
     );
@@ -622,6 +658,152 @@ class _FindingRow extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Sticky leak action bar ────────────────────────────────────────────────────
+
+/// Bottom action bar embedded directly in [LeakRadarView].
+///
+/// Provides Force GC + Scan now (primary actions) and Clear all (secondary)
+/// so these controls are available even when [LeakRadarView] is embedded in
+/// [RadarScreen] whose app bar only hosts Export and Close.
+class _LeakActionBar extends StatelessWidget {
+  const _LeakActionBar({
+    required this.scanning,
+    required this.hasFindings,
+    required this.onForceGc,
+    required this.onScan,
+    required this.onClearAll,
+  });
+
+  final bool scanning;
+  final bool hasFindings;
+  final VoidCallback onForceGc;
+  final VoidCallback onScan;
+  final VoidCallback onClearAll;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    return Container(
+      decoration: const BoxDecoration(
+        color: RadarColors.bgPanel,
+        border: Border(top: BorderSide(color: RadarColors.hairline08)),
+      ),
+      padding: EdgeInsets.fromLTRB(12, 8, 12, 8 + bottomInset),
+      child: Row(
+        children: [
+          // Force GC button
+          Expanded(
+            child: _ActionBtn(
+              key: const Key('leak_force_gc_btn'),
+              label: 'Force GC',
+              icon: Icons.cleaning_services_outlined,
+              busy: scanning,
+              onTap: onForceGc,
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Scan now button (primary, accent-coloured)
+          Expanded(
+            child: _ActionBtn(
+              key: const Key('leak_scan_now_btn'),
+              label: 'Scan now',
+              icon: Icons.refresh,
+              busy: scanning,
+              accent: true,
+              onTap: onScan,
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Clear all — compact icon-only to save space
+          Tooltip(
+            message: 'Clear all leaks',
+            child: GestureDetector(
+              key: const Key('leak_clear_all_btn'),
+              onTap: hasFindings && !scanning ? onClearAll : null,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: RadarColors.bgInput,
+                  borderRadius: RadarDensity.inputRadius,
+                  border: Border.all(color: RadarColors.hairline10),
+                ),
+                child: Icon(
+                  Icons.delete_sweep_outlined,
+                  size: 18,
+                  color: hasFindings && !scanning
+                      ? RadarColors.critical
+                      : RadarColors.text25,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionBtn extends StatelessWidget {
+  const _ActionBtn({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.busy,
+    required this.onTap,
+    this.accent = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool busy;
+  final VoidCallback onTap;
+  final bool accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = accent
+        ? (busy
+              ? RadarColors.accent.withValues(alpha: 0.5)
+              : RadarColors.accent)
+        : RadarColors.bgInput;
+    final fg = accent ? RadarColors.bgPhone : RadarColors.text80;
+
+    return GestureDetector(
+      onTap: busy ? null : onTap,
+      child: Container(
+        height: 36,
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: RadarDensity.inputRadius,
+          border: accent ? null : Border.all(color: RadarColors.hairline10),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (busy && accent)
+              SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 1.8, color: fg),
+              )
+            else
+              Icon(icon, size: 15, color: fg),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: RadarTypography.monoLabel.copyWith(
+                color: fg,
+                fontSize: 11.5,
+              ),
+            ),
+          ],
         ),
       ),
     );

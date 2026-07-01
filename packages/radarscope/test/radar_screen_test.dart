@@ -41,6 +41,39 @@ void main() {
       expect(find.text('Stability'), findsOneWidget);
     });
 
+    testWidgets('close pops the route when opened without onClose', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  key: const Key('open'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const RadarScreen(),
+                    ),
+                  ),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('open')));
+      await _pump(tester);
+      expect(find.byType(RadarScreen), findsOneWidget);
+
+      // No onClose is passed → the X must fall back to Navigator.pop.
+      await tester.tap(find.byKey(const Key('radar_close_btn')));
+      await _pump(tester);
+      await _pump(tester);
+      expect(find.byType(RadarScreen), findsNothing);
+    });
+
     testWidgets('Leaks tab content is visible by default', (tester) async {
       await tester.pumpWidget(buildScreen());
       await _pump(tester);

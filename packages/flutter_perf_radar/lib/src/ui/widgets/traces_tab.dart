@@ -46,12 +46,6 @@ class _TracesTabState extends State<TracesTab> {
   String _query = '';
   final TextEditingController _queryCtrl = TextEditingController();
 
-  @override
-  void dispose() {
-    _queryCtrl.dispose();
-    super.dispose();
-  }
-
   bool _isHot(SpanKeyStatsSnapshot s) {
     if (s.count < _kHotCountMin) return false;
     final interval = s.avgInterCallIntervalMicros;
@@ -111,9 +105,26 @@ class _TracesTabState extends State<TracesTab> {
     });
   }
 
+  // Shared horizontal scroll controller so the header and list rows
+  // scroll in sync.
+  final ScrollController _hScroll = ScrollController();
+
+  @override
+  void dispose() {
+    _queryCtrl.dispose();
+    _hScroll.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final rows = _filtered;
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    // Compute the op-column width from the actual available screen width.
+    // This avoids using LayoutBuilder inside a SingleChildScrollView (which
+    // provides infinite horizontal constraints and triggers an assertion).
+    final screenW = MediaQuery.of(context).size.width;
+    final opWidth = math.max(_kOpColWidth, screenW - _kNumColWidth * 5 - 24);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -124,10 +135,17 @@ class _TracesTabState extends State<TracesTab> {
           onQuery: (q) => setState(() => _query = q),
           onFilter: (f) => setState(() => _filter = f),
         ),
-        _ColumnHeader(
-          activeSortKey: _sortKey.name,
-          direction: _sortDir,
-          onSort: _onSort,
+        // Sticky column header — scrolls horizontally with the rows.
+        SingleChildScrollView(
+          controller: _hScroll,
+          scrollDirection: Axis.horizontal,
+          physics: const ClampingScrollPhysics(),
+          child: _ColumnHeader(
+            activeSortKey: _sortKey.name,
+            direction: _sortDir,
+            onSort: _onSort,
+            opWidth: opWidth,
+          ),
         ),
         const _HeaderDivider(),
         if (rows.isEmpty)
@@ -135,15 +153,18 @@ class _TracesTabState extends State<TracesTab> {
         else
           Expanded(
             child: ListView.builder(
-              padding: EdgeInsets.only(
-                top: 4,
-                bottom: 8 + MediaQuery.of(context).padding.bottom,
-              ),
+              padding: EdgeInsets.only(top: 4, bottom: 8 + bottomPad),
               itemCount: rows.length,
-              itemBuilder: (ctx, i) => _TraceRow(
-                stats: rows[i],
-                isHot: _isHot(rows[i]),
-                onTap: () => _openDetail(ctx, rows[i]),
+              itemBuilder: (ctx, i) => SingleChildScrollView(
+                controller: _hScroll,
+                scrollDirection: Axis.horizontal,
+                physics: const ClampingScrollPhysics(),
+                child: _TraceRow(
+                  stats: rows[i],
+                  isHot: _isHot(rows[i]),
+                  opWidth: opWidth,
+                  onTap: () => _openDetail(ctx, rows[i]),
+                ),
               ),
             ),
           ),
@@ -219,16 +240,28 @@ class _SearchAndChips extends StatelessWidget {
 
 // ── Column header row ─────────────────────────────────────────────────────────
 
+/// Minimum width for the op-name column.
+const double _kOpColWidth = 140.0;
+
+/// Width of each numeric metric column.
+const double _kNumColWidth = 70.0;
+
 class _ColumnHeader extends StatelessWidget {
   const _ColumnHeader({
     required this.activeSortKey,
     required this.direction,
     required this.onSort,
+    required this.opWidth,
   });
 
   final String activeSortKey;
   final RadarSortDirection direction;
   final void Function(String key, RadarSortDirection dir) onSort;
+
+  /// Pre-computed width for the op column (passed from the parent so we
+  /// avoid a LayoutBuilder inside a horizontally-scrolling view, which
+  /// receives infinite constraints and triggers an assertion).
+  final double opWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -240,8 +273,8 @@ class _ColumnHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(
-            flex: 5,
+          SizedBox(
+            width: opWidth,
             child: RadarSortHeader(
               label: 'op',
               sortKey: _TraceSort.op.name,
@@ -344,11 +377,15 @@ class _TraceRow extends StatelessWidget {
   const _TraceRow({
     required this.stats,
     required this.isHot,
+    required this.opWidth,
     required this.onTap,
   });
 
   final SpanKeyStatsSnapshot stats;
   final bool isHot;
+
+  /// Pre-computed op column width from the parent (matches [_ColumnHeader]).
+  final double opWidth;
   final VoidCallback onTap;
 
   String _fmtMicros(int micros) {
@@ -385,9 +422,9 @@ class _TraceRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // op column: name + tags
-              Expanded(
-                flex: 5,
+              // op column: name + tags — fixed width matching the header
+              SizedBox(
+                width: opWidth,
                 child: _OpCell(stats: stats, isHot: isHot),
               ),
               // count
@@ -714,17 +751,94 @@ class _MetricGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 3,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 6,
-      crossAxisSpacing: 6,
-      childAspectRatio: 2.4,
+    // Use a Wrap-based grid instead of GridView so tiles can grow to
+    // fit their content rather than clipping long values (e.g. "1.09s").
+    return Column(
       children: [
-        for (final t in tiles)
-          RadarMetricTile(label: t.label, value: t.value, color: t.color),
+        Row(
+          children: [
+            for (int i = 0; i < 3; i++) ...[
+              if (i > 0) const SizedBox(width: 6),
+              Expanded(
+                child: _MetricTile(
+                  label: tiles[i].label,
+                  value: tiles[i].value,
+                  color: tiles[i].color,
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            for (int i = 3; i < 6; i++) ...[
+              if (i > 3) const SizedBox(width: 6),
+              Expanded(
+                child: _MetricTile(
+                  label: tiles[i].label,
+                  value: tiles[i].value,
+                  color: tiles[i].color,
+                ),
+              ),
+            ],
+          ],
+        ),
       ],
+    );
+  }
+}
+
+/// A compact metric tile that keeps its value legible on narrow phones.
+///
+/// Uses [FittedBox] so long formatted values (e.g. "1.09s") scale down
+/// rather than being clipped.
+class _MetricTile extends StatelessWidget {
+  const _MetricTile({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 58),
+      decoration: BoxDecoration(
+        color: RadarColors.bgSurface,
+        borderRadius: RadarDensity.inputRadius,
+        border: Border.all(
+          color: RadarColors.hairline08,
+          width: RadarDensity.hairline,
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: RadarTypography.monoLabel,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: RadarTypography.metricValue.copyWith(color: color),
+              maxLines: 1,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -749,11 +863,16 @@ class _SectionLabel extends StatelessWidget {
 
 /// Bar chart visualization of the latency distribution histogram.
 ///
-/// Groups buckets into a small number of display bars for readability.
+/// Samples the CDF at [_kDisplayBars] evenly-spaced quantiles and derives
+/// per-band counts by differencing consecutive CDF rank values.  This
+/// produces a meaningful distribution shape even when the histogram has
+/// only a few populated buckets.
 class _LatencyHistogramChart extends StatelessWidget {
   const _LatencyHistogramChart({required this.snapshot});
 
   final LatencyHistogramSnapshot snapshot;
+
+  static const int _kDisplayBars = 16;
 
   @override
   Widget build(BuildContext context) {
@@ -761,6 +880,9 @@ class _LatencyHistogramChart extends StatelessWidget {
       return Text('No data.', style: RadarTypography.caption);
     }
     final bars = _buildBars();
+    if (bars.isEmpty) {
+      return Text('No data.', style: RadarTypography.caption);
+    }
     final maxVal = bars.fold(0, (m, b) => math.max(m, b.count));
 
     return SizedBox(
@@ -773,7 +895,7 @@ class _LatencyHistogramChart extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 1),
               child: Tooltip(
-                message: '${b.label}: ${b.count}',
+                message: '≤${b.label}: ${b.count}',
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -807,28 +929,36 @@ class _LatencyHistogramChart extends StatelessWidget {
   }
 
   List<_Bar> _buildBars() {
-    // Build 16 display bars using percentile breakpoints.
-    // LatencyHistogramSnapshot exposes percentile() but not raw bucket counts;
-    // we sample the CDF at 16 evenly-spaced quantiles and treat each band as
-    // holding ~1/16 of observations. Bars use upper-bound μs for the label.
-    const kDisplayBars = 16;
-
     if (snapshot.count == 0) return [];
 
+    // Derive actual counts per band by differencing consecutive CDF ranks.
+    // percentile(p) returns the upper-bound µs of the bucket that holds
+    // the p-th percentile. We convert p to a rank (observation index) and
+    // subtract to get the count in the band [pLow, pHigh).
+    //
+    // This correctly handles concentrated distributions (where many
+    // observations land in the same bucket) — unlike the uniform-count
+    // approach that gives every bar the same height.
+    final step = 1.0 / _kDisplayBars;
     final bars = <_Bar>[];
-    final step = 1.0 / kDisplayBars;
-    int? prev;
+    int prevRank = 0;
+    int? prevBound;
 
-    for (var i = 0; i < kDisplayBars; i++) {
+    for (var i = 0; i < _kDisplayBars; i++) {
       final pHigh = (i + 1) * step;
       final vHigh = snapshot.percentile(pHigh) ?? 0;
 
-      // Each percentile band contains exactly 1/kDisplayBars of counts.
-      final bandCount = (snapshot.count * step).ceil();
+      // Count in this band = difference in CDF ranks at pHigh vs pLow.
+      final rank = (snapshot.count * pHigh).round().clamp(0, snapshot.count);
+      final bandCount = rank - prevRank;
+      prevRank = rank;
 
-      // Skip duplicate bars where the percentile hasn't moved.
-      if (prev == vHigh && i > 0) continue;
-      prev = vHigh;
+      // Merge consecutive bands sharing the same upper bound into one bar.
+      if (prevBound == vHigh && bars.isNotEmpty) {
+        bars.last.count += bandCount;
+        continue;
+      }
+      prevBound = vHigh;
 
       bars.add(
         _Bar(
@@ -849,10 +979,10 @@ class _LatencyHistogramChart extends StatelessWidget {
 }
 
 class _Bar {
-  const _Bar({required this.label, required this.count, required this.isSlow});
+  _Bar({required this.label, required this.count, required this.isSlow});
 
   final String label;
-  final int count;
+  int count;
   final bool isSlow;
 }
 
@@ -965,6 +1095,7 @@ class _SpanBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final offsetFraction = (span.startMicros - minStart) / window;
     final widthFraction = span.durationMicros / window;
+    final isSlow = span.durationMicros > 16000;
 
     return SizedBox(
       height: 22,
@@ -973,13 +1104,22 @@ class _SpanBar extends StatelessWidget {
           final totalWidth = constraints.maxWidth;
           final left = (offsetFraction * totalWidth).clamp(0.0, totalWidth);
           final barWidth = (widthFraction * totalWidth).clamp(
-            4.0,
+            6.0,
             totalWidth - left,
           );
 
           return Stack(
             children: [
-              Container(color: RadarColors.bgSurface),
+              // Row track (dark, not full-surface gray)
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: RadarColors.bgSurface.withValues(alpha: 0.5),
+                    borderRadius: const BorderRadius.all(Radius.circular(3)),
+                  ),
+                ),
+              ),
+              // Proportional bar positioned by start time
               Positioned(
                 left: left,
                 width: barWidth,
@@ -987,20 +1127,30 @@ class _SpanBar extends StatelessWidget {
                 bottom: 2,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: span.durationMicros > 16000
+                    color: isSlow
                         ? RadarColors.warning.withValues(alpha: 0.7)
                         : RadarColors.accent.withValues(alpha: 0.5),
                     borderRadius: const BorderRadius.all(Radius.circular(3)),
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Text(
-                  span.name,
-                  style: RadarTypography.monoLabel,
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
+              // Label inside the bar (clipped to bar bounds when possible)
+              Positioned(
+                left: left + 4,
+                width: barWidth > 40 ? barWidth - 8 : barWidth,
+                top: 0,
+                bottom: 0,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    span.name,
+                    style: RadarTypography.monoLabel.copyWith(
+                      color: isSlow ? RadarColors.bgPhone : RadarColors.text80,
+                      fontSize: 9,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
               ),
             ],

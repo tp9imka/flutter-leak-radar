@@ -65,9 +65,7 @@ void main() {
     expect(find.text('STABILITY · STALLS'), findsOneWidget);
   });
 
-  testWidgets('inspector button is present and opens RadarScreen', (
-    tester,
-  ) async {
+  testWidgets('inspector button opens RadarScreen', (tester) async {
     await tester.pumpWidget(_buildTestApp());
     await tester.pump();
 
@@ -75,11 +73,15 @@ void main() {
     expect(inspectorBtn, findsOneWidget);
 
     await tester.tap(inspectorBtn);
-    await tester.pumpAndSettle();
+    await tester.pump(); // start the route transition
+    // Don't pumpAndSettle: the active tab's live-pulse dot never settles.
+    await tester.pump(const Duration(milliseconds: 400));
 
     // RadarScreen has a tab bar with Leaks and Performance tabs.
     expect(find.text('Leaks'), findsWidgets);
     expect(find.text('Performance'), findsWidgets);
+    // (Close-from-route is verified authoritatively in radarscope's
+    // radar_screen_test.dart — 'close pops the route when no onClose'.)
   });
 
   testWidgets('leaky screen tile navigates to leaky stub', (tester) async {
