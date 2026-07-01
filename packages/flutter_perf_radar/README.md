@@ -84,6 +84,38 @@ final stats = PerfRadar.frameStats;
 print('frames: ${stats.frameCount}  jank: ${stats.jankCount}');
 ```
 
+### Resetting the counters
+
+Frame and jank counts, the recent-frame ring, and the build/raster/total
+latency histograms all accumulate since launch. Reset them to zero to
+measure a specific interval — a single screen transition, a scroll, one
+network round-trip — instead of since-launch totals:
+
+```dart
+PerfRadar.resetFrameStats(); // start of the window
+// ... exercise the code path you want to measure ...
+final stats = PerfRadar.frameStats; // stats for just this interval
+```
+
+`PerfRadar.resetFrameStats()` clears the counters, the recent-frame ring,
+and every latency histogram; `jankThresholdMicros` is left untouched and
+the engine keeps running. It delegates to `FrameStats.reset()` on the
+underlying accumulator.
+
+Three ways to trigger a reset:
+
+- **Programmatically** — `PerfRadar.resetFrameStats()` from your own code.
+- **From the dashboard** — the **Frames** tab shows a reset button
+  (`FramesTab.onReset`, wired by `PerfRadarView` to `resetFrameStats()`
+  plus an immediate refresh) whenever it is displayed inside
+  `PerfRadarScreen`.
+- **Over the VM service** — the `ext.perf_radar.resetFrames` extension
+  (registered alongside `ext.perf_radar.snapshot`) calls
+  `PerfRadar.resetFrameStats()` and acknowledges with `{"reset": true}`,
+  so DevTools or any VM service client can zero the counters remotely.
+
+All reset paths are no-ops in release builds.
+
 ---
 
 ## Stability: errors and stall watchdog

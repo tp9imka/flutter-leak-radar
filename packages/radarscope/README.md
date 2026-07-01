@@ -37,8 +37,8 @@ void main() async {
 }
 ```
 
-That's it. Both the memory leak detector and the performance tracer are
-active in debug/profile builds and are complete no-ops in release.
+That's it. Both the memory leak detector and the performance/stability tracer
+are active in debug/profile builds and are complete no-ops in release.
 
 ### Wire the navigator observer
 
@@ -90,9 +90,11 @@ Navigator.of(context).push(
 );
 ```
 
-`RadarScreen` shows a **Leaks** tab (powered by `LeakRadarView`) and a
-**Performance** tab (powered by `PerfRadarView`) in a single dark-theme
-scaffold.
+`RadarScreen` shows three tabs — **Leaks** (powered by `LeakRadarView`),
+**Performance** (`PerfRadarView`, frame/jank timing), and **Stability**
+(`StabilityView`, error and main-thread-stall capture) — in a single
+dark-theme scaffold. Performance and Stability are both driven by the
+`flutter_perf_radar` runtime, so the three domains ride on just two engines.
 
 ### Custom configuration
 
@@ -120,9 +122,11 @@ await Radar.init(RadarConfig(
 - **Single `Radar.init` call** — initialises both engines in parallel via
   `Future.wait`.
 - **Unified overlay** — `Radar.overlay(child: ...)` renders one draggable badge
-  combining leak count and perf health. Badge colour reflects the worst signal:
-  green (clean), amber (jank/errors), red (critical leaks).
-- **`RadarScreen`** — two-tab unified dashboard. No extra wiring needed.
+  combining leak, performance, and stability signals. Badge colour reflects the
+  worst signal: green (clean), amber (warning leaks, jank, or stalls), red
+  (critical leaks or errors).
+- **`RadarScreen`** — three-tab (Leaks, Performance, Stability) unified
+  dashboard. No extra wiring needed.
 - **`RadarConfig.standard()`** — opinionated defaults for both domains;
   override either independently via named arguments.
 - **Zero-throw contract** — `Radar` delegates to each domain facade and never
@@ -137,7 +141,7 @@ await Radar.init(RadarConfig(
 | Package | Purpose |
 |---|---|
 | [`flutter_leak_radar`](https://pub.dev/packages/flutter_leak_radar) | On-device memory leak detector — heap growth, precise retention, overlay. |
-| [`flutter_perf_radar`](https://pub.dev/packages/flutter_perf_radar) | Frame timing, jank, stall detection, rebuild counting, overlay. |
+| [`flutter_perf_radar`](https://pub.dev/packages/flutter_perf_radar) | Performance and stability tracer — frame timing, jank, rebuild counting, plus error capture and main-thread stall detection. |
 | [`radar_trace`](https://pub.dev/packages/radar_trace) | Pure-Dart tracer engine — spans, histograms, Zone nesting. |
 | [`flutter_leak_radar_lint`](https://pub.dev/packages/flutter_leak_radar_lint) | Static analysis: undisposed controllers, uncancelled subscriptions. |
 

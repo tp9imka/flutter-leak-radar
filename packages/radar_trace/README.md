@@ -90,6 +90,35 @@ if (snap.totalDropCount > 0) {
 }
 ```
 
+Beyond the histogram, each `SpanKeyStatsSnapshot` exposes exact per-key call
+metrics (no bucket approximation):
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `meanMicros` | `int` | Exact average execution time (`sum ~/ count`). |
+| `maxMicros` | `int` | Exact slowest single execution time. |
+| `totalMicros` | `int` | Exact aggregate cost — `sum(durationMicros)` across all spans. |
+| `firstStartMicros` | `int` | Minimum `Span.startMicros` observed for this key (`0` when `count == 0`). |
+| `lastStartMicros` | `int` | Maximum `Span.startMicros` observed for this key (`0` when `count == 0`). |
+| `avgInterCallIntervalMicros` | `int?` | Average gap between successive calls; `null` when `count < 2`. |
+| `callsPerSecond` | `double?` | Observed call rate over the window; `null` when `count < 2` (or the window is zero). |
+
+```dart
+final stats = snap.stats.values.first; // SpanKeyStatsSnapshot
+
+print('mean=${stats.meanMicros}µs '
+      'max=${stats.maxMicros}µs '
+      'total=${stats.totalMicros}µs');
+print('window: ${stats.firstStartMicros}..${stats.lastStartMicros}µs');
+
+// Null until at least two calls have been recorded.
+final rate = stats.callsPerSecond;
+final gap = stats.avgInterCallIntervalMicros;
+if (rate != null && gap != null) {
+  print('${rate.toStringAsFixed(1)} calls/s, avg gap ${gap}µs');
+}
+```
+
 ### Latency histograms
 
 `LatencyHistogram` uses a log-linear bucket scheme (single-unit buckets for

@@ -12,6 +12,9 @@ topics:
   - heap-snapshot
   - vm-service
 
+executables:
+  leak_capture: capture
+
 environment:
   sdk: ">=3.10.0 <4.0.0"
 

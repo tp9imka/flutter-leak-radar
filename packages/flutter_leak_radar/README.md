@@ -226,6 +226,14 @@ configuration required.
   widgets. LeakRadar adds heap-growth analysis, a visual overlay, and is
   designed for integration testing and staging dogfooding rather than CI.
 
+### Bundled DevTools extension
+
+Installing `flutter_leak_radar` also makes a discoverable **"Leak Radar"**
+DevTools extension available: open Flutter DevTools while connected to your app
+and it appears as its own tab automatically — no separate install. It offers a
+capture-list of heap dumps, a per-class histogram, retaining paths grouped by
+closest root, and composable filters for exploring the object graph.
+
 ---
 
 ## Static analysis companion

@@ -13,6 +13,11 @@ Redesigned the in-app Leaks inspector on the shared `radar_ui` design system
 - Rebuilt leak-detail view: a growth-series chart and the retaining-path tree
   (source locations rendered only where the data provides them — no fabrication).
 - Scrollable lists respect the bottom safe-area inset.
+- Export/share now uses the portable static `Share.shareXFiles` API and the
+  `share_plus` constraint is widened to `>=10.0.0 <14.0.0`, so consumers pinned
+  to share_plus 10.x–13.x can use the package. [PR#88]
+- Refreshed the bundled DevTools extension build to match the
+  `flutter_leak_radar_devtools` Memory-companion redesign. [PR#87]
 
 ## 0.1.1
 
