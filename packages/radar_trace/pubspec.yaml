@@ -2,7 +2,7 @@ name: radar_trace
 description: >-
   Pure-Dart tracer framework with monotonic spans, log-linear latency
   histograms, Zone-based async nesting, and a lossless outlier ring.
-version: 0.1.0
+version: 0.1.1
 repository: https://github.com/tp9imka/flutter-leak-radar
 issue_tracker: https://github.com/tp9imka/flutter-leak-radar/issues
 homepage: https://tp9imka.github.io/flutter-leak-radar/

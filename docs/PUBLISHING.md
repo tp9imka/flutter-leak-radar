@@ -17,11 +17,17 @@ The ordered, dependency-safe sequence for publishing the suite to pub.dev.
 
 ## What ships this round
 
+> **Note:** Tier 0 was published once from a pre-publish-prep checkout, so
+> `radar_trace 0.1.0` and `leak_graph 0.2.0` are live but with stale docs
+> (their *code* is correct). pub.dev versions are immutable, so the docs fixes
+> ship as patch re-publishes below. `radar_ui 0.1.0` was byte-identical to
+> `main`, so it needs no re-publish.
+
 | Publish | Version | Note |
 |---|---|---|
-| radar_ui | 0.1.0 | first publish |
-| radar_trace | 0.1.0 | first publish |
-| leak_graph | 0.2.0 | upgrade from 0.1.0 (adds classRootProfiles, JSON, CLI) |
+| radar_ui | 0.1.0 | ✅ already live & byte-identical — **skip** |
+| radar_trace | 0.1.1 | re-publish (README docs; 0.1.0 already live) |
+| leak_graph | 0.2.1 | re-publish (README rewrite + `leak_capture` executable; 0.2.0 already live) |
 | flutter_leak_radar | 0.2.0 | upgrade from 0.1.1 |
 | flutter_perf_radar | 0.1.0 | first publish |
 | radarscope | 0.1.0 | first publish (umbrella) |
@@ -56,10 +62,10 @@ tool/publish.sh packages/<pkg>             # 2. publish
 
 ## Ordered checklist
 
-1. **radar_ui 0.1.0** — dry-run → publish → enable automated publishing → verify score.
-2. **radar_trace 0.1.0** — dry-run → publish → enable automated → verify. (README now documents the per-key `SpanKeyStatsSnapshot` metrics.)
-3. **leak_graph 0.2.0** — dry-run → publish (already live, so if automated publishing is enabled you can instead `git tag leak_graph-v0.2.0`) → verify. Ships `classRootProfiles`, model `toJson`/`fromJson`, and the `leak_capture` CLI.
-   - ⏳ Wait until `radar_ui`, `radar_trace`, `leak_graph` are visible on pub.dev.
+1. **radar_ui 0.1.0** — ✅ already published, byte-identical to `main`. **Skip.**
+2. **radar_trace 0.1.1** — dry-run → publish → enable automated → verify. Docs-only re-publish (0.1.0 is already live).
+3. **leak_graph 0.2.1** — dry-run → publish → verify. README rewrite + `leak_capture` executable; library code is unchanged from the already-live 0.2.0.
+   - ⏳ Wait until `radar_trace 0.1.1` and `leak_graph 0.2.1` are visible on pub.dev.
 4. **flutter_leak_radar 0.2.0** — dry-run (resolves now that `leak_graph 0.2.0` + `radar_ui 0.1.0` are live) → publish/tag → verify. Ships the refreshed bundled DevTools extension and `share_plus >=10.0.0 <14.0.0`.
 5. **flutter_perf_radar 0.1.0** — dry-run → publish → enable automated → verify.
    - ⏳ Wait until tier 1 is live.

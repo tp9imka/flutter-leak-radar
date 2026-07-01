@@ -1,3 +1,10 @@
+## 0.1.1
+
+- Docs only (no code change): document the per-key `SpanKeyStatsSnapshot`
+  metrics — `callsPerSecond`, `avgInterCallIntervalMicros`, `meanMicros`,
+  `maxMicros`, `totalMicros`, `firstStartMicros`, `lastStartMicros` — in the
+  README.
+
 ## 0.1.0
 
 - Initial release: Span model, LatencyHistogram, OutlierRing,
