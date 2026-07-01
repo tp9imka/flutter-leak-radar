@@ -33,18 +33,18 @@ void main() {
         ),
       );
 
-      // Find the DecoratedBox that paints the chip background.
-      final decorated = tester.widget<DecoratedBox>(
+      // The chip background is painted by the Material (which also provides the
+      // ink ripple surface).
+      final material = tester.widget<Material>(
         find
             .descendant(
               of: find.byType(RadarFilterChip),
-              matching: find.byType(DecoratedBox),
+              matching: find.byType(Material),
             )
             .first,
       );
-      final decoration = decorated.decoration as BoxDecoration;
       // Active chip fills with accentSubtle or accent-derived color.
-      expect(decoration.color, RadarColors.accentSubtle);
+      expect(material.color, RadarColors.accentSubtle);
     });
 
     testWidgets('inactive chip has bgInput background', (tester) async {
@@ -59,16 +59,15 @@ void main() {
           ),
         ),
       );
-      final decorated = tester.widget<DecoratedBox>(
+      final material = tester.widget<Material>(
         find
             .descendant(
               of: find.byType(RadarFilterChip),
-              matching: find.byType(DecoratedBox),
+              matching: find.byType(Material),
             )
             .first,
       );
-      final decoration = decorated.decoration as BoxDecoration;
-      expect(decoration.color, RadarColors.bgInput);
+      expect(material.color, RadarColors.bgInput);
     });
 
     testWidgets('onSelected fires when tapped', (tester) async {

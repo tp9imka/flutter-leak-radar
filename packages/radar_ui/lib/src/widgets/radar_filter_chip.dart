@@ -1,6 +1,6 @@
 // lib/src/widgets/radar_filter_chip.dart
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import '../tokens/colors.dart';
 import '../tokens/density.dart';
@@ -36,24 +36,31 @@ class RadarFilterChip extends StatelessWidget {
     final bgColor = selected ? RadarColors.accentSubtle : RadarColors.bgInput;
     final textColor = selected ? RadarColors.accent : RadarColors.text60;
 
-    return GestureDetector(
-      onTap: onSelected,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: RadarDensity.chipRadius,
-          border: Border.all(color: borderColor, width: RadarDensity.hairline),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: RadarDensity.chipHPad,
-            vertical: RadarDensity.chipVPad,
+    return Material(
+      color: bgColor,
+      borderRadius: RadarDensity.chipRadius,
+      child: InkWell(
+        borderRadius: RadarDensity.chipRadius,
+        onTap: onSelected,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: RadarDensity.chipRadius,
+            border: Border.all(
+              color: borderColor,
+              width: RadarDensity.hairline,
+            ),
           ),
-          child: Text(
-            label,
-            style: RadarTypography.monoLabel.copyWith(color: textColor),
-            maxLines: 1,
-            overflow: TextOverflow.clip,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: RadarDensity.chipHPad,
+              vertical: RadarDensity.chipVPad,
+            ),
+            child: Text(
+              label,
+              style: RadarTypography.monoLabel.copyWith(color: textColor),
+              maxLines: 1,
+              overflow: TextOverflow.clip,
+            ),
           ),
         ),
       ),
