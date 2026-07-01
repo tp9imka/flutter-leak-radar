@@ -23,6 +23,13 @@ final class ClassCount {
     required this.shallowBytes,
   });
 
+  factory ClassCount.fromJson(Map<String, Object?> json) => ClassCount(
+    className: json['className'] as String,
+    libraryUri: Uri.parse(json['libraryUri'] as String),
+    instanceCount: json['instanceCount'] as int,
+    shallowBytes: json['shallowBytes'] as int,
+  );
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -35,4 +42,11 @@ final class ClassCount {
   @override
   int get hashCode =>
       Object.hash(className, libraryUri, instanceCount, shallowBytes);
+
+  Map<String, Object?> toJson() => {
+    'className': className,
+    'libraryUri': libraryUri.toString(),
+    'instanceCount': instanceCount,
+    'shallowBytes': shallowBytes,
+  };
 }

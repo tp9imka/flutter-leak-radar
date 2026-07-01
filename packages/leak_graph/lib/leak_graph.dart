@@ -10,6 +10,7 @@ library;
 export 'src/model/root_kind.dart';
 export 'src/model/graph_retaining_path.dart';
 export 'src/model/graph_leak_cluster.dart';
+export 'src/model/class_root_profile.dart';
 export 'src/model/graph_analysis_result.dart';
 export 'src/graph/heap_graph_view.dart';
 export 'src/graph/vm_snapshot_adapter.dart';

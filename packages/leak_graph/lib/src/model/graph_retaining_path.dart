@@ -9,6 +9,12 @@ final class GraphHop {
 
   const GraphHop({required this.className, this.field, this.index});
 
+  factory GraphHop.fromJson(Map<String, Object?> json) => GraphHop(
+    className: json['className'] as String,
+    field: json['field'] as String?,
+    index: json['index'] as int?,
+  );
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -33,6 +39,15 @@ final class GraphRetainingPath {
   final RootKind rootKind;
 
   const GraphRetainingPath({required this.hops, required this.rootKind});
+
+  factory GraphRetainingPath.fromJson(Map<String, Object?> json) =>
+      GraphRetainingPath(
+        hops: [
+          for (final h in json['hops']! as List)
+            GraphHop.fromJson((h as Map).cast<String, Object?>()),
+        ],
+        rootKind: RootKind.values.byName(json['rootKind'] as String),
+      );
 
   @override
   bool operator ==(Object other) =>
