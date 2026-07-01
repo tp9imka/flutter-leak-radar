@@ -1,11 +1,12 @@
 // lib/src/radar.dart
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_leak_radar/flutter_leak_radar.dart';
 import 'package:flutter_perf_radar/flutter_perf_radar.dart';
 import 'package:radar_trace/radar_trace.dart';
 
 import 'radar_config.dart';
 import 'radar_overlay.dart';
+import 'radar_screen.dart';
 
 /// Unified on-device observability facade.
 ///
@@ -79,6 +80,21 @@ abstract final class Radar {
   ///
   /// Safe to add to [MaterialApp.navigatorObservers] unconditionally.
   static NavigatorObserver get navigatorObserver => LeakRadar.navigatorObserver;
+
+  /// Pushes [RadarScreen] as a full-screen route onto [context]'s navigator.
+  ///
+  /// Use this instead of constructing [RadarScreen] directly so that the
+  /// close button always works: the screen falls back to
+  /// `Navigator.maybeOf(context)?.pop()` when no explicit [onClose] is set.
+  ///
+  /// [initialTab] selects the starting tab (0 = Leaks, 1 = Perf, 2 = Stability).
+  static void openInspector(BuildContext context, {int initialTab = 0}) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => RadarScreen(initialTab: initialTab),
+      ),
+    );
+  }
 
   /// Wraps [child] in a [RadarOverlay].
   ///

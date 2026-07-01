@@ -101,6 +101,21 @@ class _RadarScreenState extends State<RadarScreen>
     return RadarSeverity.healthy;
   }
 
+  // ── Close ────────────────────────────────────────────────────────────────
+
+  /// Closes the inspector.
+  ///
+  /// Calls [widget.onClose] when provided; otherwise pops the route so
+  /// the button also works when [RadarScreen] is pushed as a plain route
+  /// (e.g. via [Radar.openInspector]) with no explicit close callback.
+  void _close() {
+    if (widget.onClose != null) {
+      widget.onClose!();
+    } else {
+      Navigator.maybeOf(context)?.pop();
+    }
+  }
+
   // ── Export ───────────────────────────────────────────────────────────────
 
   void _onExport() {
@@ -157,7 +172,7 @@ class _RadarScreenState extends State<RadarScreen>
             key: const Key('radar_close_btn'),
             icon: Icons.close,
             tooltip: 'Close',
-            onTap: widget.onClose,
+            onTap: _close,
           ),
           const SizedBox(width: 8),
         ],
@@ -181,6 +196,10 @@ class _RadarScreenState extends State<RadarScreen>
       ),
       body: TabBarView(
         controller: _tabs,
+        // Disable swipe so horizontal drags inside child views (e.g.
+        // the Traces table) are not intercepted by the top-level tabs.
+        // Tabs are tap-only via the _RadarTabBar.
+        physics: const NeverScrollableScrollPhysics(),
         children: const [LeakRadarView(), PerfRadarView(), StabilityView()],
       ),
     );
