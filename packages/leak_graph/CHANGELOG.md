@@ -1,3 +1,11 @@
+## 0.2.1
+
+- Docs + packaging only (no library code change from 0.2.0): rewritten README
+  (standalone-first framing; documents `classRootProfiles`, JSON round-trip,
+  and the CLI) and expose the `leak_capture` command via `executables:`. 0.2.0
+  shipped the same code but with a stale README and without the executable
+  entry.
+
 ## 0.2.0
 
 - `GraphAnalysisResult.classRootProfiles` — a `ClassRootProfile` for EVERY
