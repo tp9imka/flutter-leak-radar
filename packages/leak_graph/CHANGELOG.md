@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.0
 
 - `GraphAnalysisResult.classRootProfiles` — a `ClassRootProfile` for EVERY
   class reachable from the GC root (not just leak-prone-rooted clusters),
@@ -11,13 +11,17 @@
   `GraphLeakCluster`, `GraphAnalysisStats`, `GraphAnalysisResult`, and the new
   `ClassRootProfile` — a full analysis run can now round-trip through JSON
   for snapshot export.
-
-## 0.2.0
-
 - `computeDiff` — diffs two class histograms into per-class instance/byte deltas
   (growth and shrinkage), backing snapshot-to-snapshot comparison.
 - Standalone heap-growth and retaining-path analysis directly from an on-device
   heap snapshot — no live VM-service connection required.
+- Command-line heap dumper for capturing snapshots off a running app:
+  - `bin/capture.dart` (run via `dart run leak_graph:capture`) — connects to a
+    VM Service URI, streams a raw `dartheap` snapshot to a file, and can
+    optionally run the analysis in the same pass.
+  - `tool/heapdump.sh` — a standalone bash + adb + python3 dumper (no Dart
+    toolchain) that discovers the VM Service URL from logcat, forwards the
+    port, and streams the same `dartheap` file straight off an Android device.
 
 ## 0.1.0
 

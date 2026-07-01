@@ -20,7 +20,7 @@ companion** (capture → act → capture → diff heap analysis plus dense trace
 | [`flutter_leak_radar`](packages/flutter_leak_radar/) | Memory runtime — heap sampling, precise object tracking, retaining paths, the Leaks inspector |
 | [`flutter_perf_radar`](packages/flutter_perf_radar/) | Performance + Stability runtime — tracing, frame/jank timing, rebuild counts, startup, error/stall capture |
 | [`flutter_leak_radar_lint`](packages/flutter_leak_radar_lint/) | Static analysis — `custom_lint` rules that catch undisposed controllers, uncancelled subscriptions, and similar patterns at edit time |
-| [`flutter_leak_radar_devtools`](packages/flutter_leak_radar_devtools/) | DevTools extension — host-side capture→diff heap analysis, class histogram, retaining paths |
+| [`flutter_leak_radar_devtools`](packages/flutter_leak_radar_devtools/) | DevTools extension — host-side heap capture list (diff any two), class histogram, retaining paths grouped by closest root, composable filters |
 | [`radar_trace`](packages/radar_trace/) | Pure-Dart tracer core — spans, latency histograms, per-key stats (count / avg / p95 / total / inter-call interval) |
 | [`leak_graph`](packages/leak_graph/) | Pure-Dart heap-snapshot analysis — object graph, retaining paths, snapshot diffing (no live VM required) |
 | [`radar_ui`](packages/radar_ui/) | Shared design system — tokens, typography, and the dense dashboard widgets |

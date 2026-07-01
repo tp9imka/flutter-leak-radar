@@ -1,16 +1,3 @@
-## Unreleased
-
-- `FrameStats.reset()` / `PerfEngine.resetFrameStats()` /
-  `PerfRadar.resetFrameStats()` — zero out frame/jank counters, the
-  recent-frame ring, and all latency histograms so a fresh measurement
-  window can be started without restarting the engine.
-- `ext.perf_radar.resetFrames` — new VM service extension, registered
-  alongside `ext.perf_radar.snapshot`, that calls
-  `PerfRadar.resetFrameStats()` and acknowledges with `{"reset": true}`.
-- `FramesTab` — new optional `onReset` callback; when provided, shows a
-  small reset button in the Frames tab header. `PerfRadarView` wires this
-  to `PerfRadar.resetFrameStats()` followed by an immediate refresh.
-
 ## 0.1.0
 
 Initial release.
@@ -27,6 +14,16 @@ builds; full instrumentation in debug and profile.
 - `PerfRadar.frameStats` — `FrameStatsSnapshot` with total frame count and
   jank count (frames above `jankThresholdMicros`). Hooked via
   `SchedulerBinding.addTimingsCallback`.
+- `FrameStats.reset()` / `PerfEngine.resetFrameStats()` /
+  `PerfRadar.resetFrameStats()` — zero out frame/jank counters, the
+  recent-frame ring, and all latency histograms so a fresh measurement
+  window can be started without restarting the engine.
+- `ext.perf_radar.resetFrames` — VM service extension, registered
+  alongside `ext.perf_radar.snapshot`, that calls
+  `PerfRadar.resetFrameStats()` and acknowledges with `{"reset": true}`.
+- `FramesTab` — optional `onReset` callback; when provided, shows a
+  small reset button in the Frames tab header. `PerfRadarView` wires this
+  to `PerfRadar.resetFrameStats()` followed by an immediate refresh.
 - `PerfRadar.stabilitySnapshot` — `StabilitySnapshot` with error and stall
   counters plus rolling retention of recent `ErrorRecord` and `StallRecord`
   events.
