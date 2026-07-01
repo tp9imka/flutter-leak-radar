@@ -101,12 +101,11 @@ class _LeakRadarScreenState extends State<LeakRadarScreen> {
             label: 'Share',
             onPressed: () async {
               try {
-                await SharePlus.instance.share(
-                  ShareParams(
-                    files: [XFile(path)],
-                    text: 'Leak Radar heap snapshot',
-                  ),
-                );
+                // Portable across share_plus 10.x–13.x (see export_sheet.dart).
+                // ignore: deprecated_member_use
+                await Share.shareXFiles([
+                  XFile(path),
+                ], text: 'Leak Radar heap snapshot');
               } catch (_) {
                 // Never throw into host — swallow share errors silently.
               }

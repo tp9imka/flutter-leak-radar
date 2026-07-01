@@ -58,9 +58,11 @@ class _LeakExportSheetState extends State<LeakExportSheet> {
       final path = await LeakRadar.exportToFile(format: _leakFormat);
       if (!mounted) return;
       if (path != null) {
-        await SharePlus.instance.share(
-          ShareParams(files: [XFile(path)], text: 'Leak Radar report'),
-        );
+        // Static Share API keeps this portable across share_plus 10.x–13.x —
+        // consumers pinned to <11 (still on the legacy Share.* API) lack
+        // SharePlus.instance/ShareParams.
+        // ignore: deprecated_member_use
+        await Share.shareXFiles([XFile(path)], text: 'Leak Radar report');
       }
     } catch (_) {
       // Never throw into host.
