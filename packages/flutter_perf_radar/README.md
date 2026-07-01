@@ -207,6 +207,10 @@ compiled — no tree-shaking or build flavours required.
 ## Features
 
 - **Frame timing and jank detection** via `SchedulerBinding` timing callbacks.
+- **Duplicate call detection** — pass an optional `dedupKey` to
+  `trace`/`traceAsync`/`start`, surfaced as a "N dup" count in the trace detail.
+- **Stall correlation** — tapping a stall opens a detail screen correlating its
+  blocking window with the instrumented spans that overlapped it.
 - **Stall watchdog** — periodic heartbeat detects main-thread freezes above a
   configurable threshold.
 - **Error capture** — `FlutterError.onError` + `PlatformDispatcher.onError`

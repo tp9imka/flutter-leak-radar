@@ -2,6 +2,28 @@
 
 The ordered, dependency-safe sequence for publishing the suite to pub.dev.
 
+## Automated: `tool/publish-all.sh`
+
+For a routine round, `tool/publish-all.sh --dry-run` validates tier-0 packaging,
+then `tool/publish-all.sh` publishes the changed packages in tier order, waiting
+for pub.dev visibility between tiers. Edit the `TIER0` / `TIER1` arrays in the
+script to match what changed. The manual per-package steps below remain the
+source of truth for first-time publishes and automated-publishing setup.
+
+### Round: devtools persistence + overlay UX + tracer/perf improvements
+
+| Publish | Version | Tier | Note |
+|---|---|---|---|
+| radar_ui | 0.1.1 | 0 | ripple feedback on chips/sort headers |
+| radar_trace | 0.1.2 | 0 | `dedupKey` duplicate detection |
+| leak_graph | 0.2.2 | 0 | `classPathDistributions` |
+| flutter_leak_radar | 0.2.1 | 1 | overlay UX + refreshed bundled extension |
+| flutter_perf_radar | 0.1.1 | 1 | `dedupKey`, stall detail, timeline crash fix |
+
+**Skip (unchanged):** `radarscope` (its `^` constraints pick up the new tier-0/1
+versions automatically), `flutter_leak_radar_lint`, and
+`flutter_leak_radar_devtools` (`publish_to: none`).
+
 ## Preconditions
 
 - You are on `main`, tree clean, **after PR #89 (publish prep) is merged**.

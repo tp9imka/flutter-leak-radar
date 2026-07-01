@@ -91,6 +91,12 @@ final class Span {
   /// Typed, bounded, unmodifiable key/value attributes.
   final Map<String, Object?> attributes;
 
+  /// Optional caller-supplied signature used to detect duplicate invocations
+  /// of the same operation (e.g. the same arguments). Spans sharing a
+  /// [dedupKey] within a trace key are counted as duplicates. Null when the
+  /// caller did not provide one.
+  final String? dedupKey;
+
   /// Creates a [Span] with all required fields.
   ///
   /// [attributes] is defensively copied and wrapped in an
@@ -106,6 +112,7 @@ final class Span {
     required this.durationMicros,
     required this.status,
     required Map<String, Object?> attributes,
+    this.dedupKey,
   }) : attributes = UnmodifiableMapView(Map<String, Object?>.of(attributes));
 
   /// Returns a copy of this span with the given fields replaced.
@@ -123,6 +130,7 @@ final class Span {
     int? durationMicros,
     SpanStatus? status,
     Map<String, Object?>? attributes,
+    String? dedupKey,
   }) => Span(
     spanId: spanId ?? this.spanId,
     parentId: identical(parentId, _absentSpanId)
@@ -135,6 +143,7 @@ final class Span {
     durationMicros: durationMicros ?? this.durationMicros,
     status: status ?? this.status,
     attributes: attributes ?? this.attributes,
+    dedupKey: dedupKey ?? this.dedupKey,
   );
 
   @override
@@ -149,6 +158,7 @@ final class Span {
           startMicros == other.startMicros &&
           durationMicros == other.durationMicros &&
           status == other.status &&
+          dedupKey == other.dedupKey &&
           _mapEquals(attributes, other.attributes);
 
   @override
@@ -161,6 +171,7 @@ final class Span {
     startMicros,
     durationMicros,
     status,
+    dedupKey,
     Object.hashAll(
       (attributes.entries.toList()..sort((a, b) => a.key.compareTo(b.key))).map(
         (e) => Object.hash(e.key, e.value),

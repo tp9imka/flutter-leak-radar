@@ -16,6 +16,12 @@ class SpanKeyStats {
   final OutlierRing _outlierRing;
   int _errorCount = 0;
 
+  // Caller-supplied duplicate detection (see [Span.dedupKey]). Bounded so a
+  // high-cardinality key cannot grow the set without limit.
+  static const int _maxDedupSignatures = 1024;
+  final Set<String> _seenDedupKeys = {};
+  int _duplicateCount = 0;
+
   // Exact running accumulators for call-timing metrics.
   // Separate from the histogram because we need min/max of startMicros
   // (call arrival times), not of durationMicros (execution times).
@@ -35,11 +41,25 @@ class SpanKeyStats {
   /// Number of spans that completed with [SpanStatus.error].
   int get errorCount => _errorCount;
 
+  /// Number of spans whose [Span.dedupKey] was already seen for this key — i.e.
+  /// repeated invocations with the same caller-supplied signature.
+  int get duplicateCount => _duplicateCount;
+
   /// Records a finished span into the histogram and outlier ring.
   void record(Span span) {
     _histogram.record(span.durationMicros);
     _outlierRing.offer(span);
     if (span.status == SpanStatus.error) _errorCount++;
+
+    final dedup = span.dedupKey;
+    if (dedup != null) {
+      if (_seenDedupKeys.contains(dedup)) {
+        _duplicateCount++;
+      } else if (_seenDedupKeys.length < _maxDedupSignatures) {
+        _seenDedupKeys.add(dedup);
+      }
+      // Set full and signature unseen: neither counted nor stored (bounded).
+    }
 
     final start = span.startMicros;
     if (!_hasStart) {
@@ -57,6 +77,7 @@ class SpanKeyStats {
     key: key,
     count: count,
     errorCount: _errorCount,
+    duplicateCount: _duplicateCount,
     histogram: _histogram.snapshot(),
     outliers: List.unmodifiable(_outlierRing.spans),
     firstStartMicros: _hasStart ? _firstStartMicros : 0,
@@ -75,6 +96,11 @@ final class SpanKeyStatsSnapshot {
 
   /// Count of spans with [SpanStatus.error].
   final int errorCount;
+
+  /// Count of spans whose [Span.dedupKey] repeated a previously-seen signature
+  /// for this key — true duplicate invocations, distinct from the statistical
+  /// "hot" heuristic in the UI. Zero when no caller supplied a dedup key.
+  final int duplicateCount;
 
   /// Immutable latency histogram snapshot.
   final LatencyHistogramSnapshot histogram;
@@ -143,6 +169,7 @@ final class SpanKeyStatsSnapshot {
     required this.outliers,
     required this.firstStartMicros,
     required this.lastStartMicros,
+    this.duplicateCount = 0,
   });
 
   /// Serialises this snapshot to a JSON-encodable map.
@@ -185,6 +212,7 @@ final class SpanKeyStatsSnapshot {
     'avgInterCallIntervalMicros': avgInterCallIntervalMicros,
     'callsPerSecond': callsPerSecond,
     'errorCount': errorCount,
+    'duplicateCount': duplicateCount,
     'firstStartMicros': firstStartMicros,
     'lastStartMicros': lastStartMicros,
   };
