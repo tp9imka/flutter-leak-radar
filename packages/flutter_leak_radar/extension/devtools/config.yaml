@@ -1,5 +1,5 @@
 name: leak_radar
 issueTracker: https://github.com/tp9imka/flutter-leak-radar/issues
-version: 0.1.0
+version: 0.2.0
 materialIconCodePoint: "0xe51c"
 requiresConnection: true

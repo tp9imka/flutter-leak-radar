@@ -95,6 +95,21 @@ void main() {
       );
     });
 
+    test(
+      'resetFrameStats is a safe no-op when the engine is not running',
+      () async {
+        await PerfRadar.init(
+          const PerfRadarConfig(
+            enabled: false,
+            stallThresholdMicros: 250000,
+            maxStallsRetained: 50,
+            maxErrorsRetained: 100,
+          ),
+        );
+        expect(PerfRadar.resetFrameStats, returnsNormally);
+      },
+    );
+
     test('trace propagates exception from body', () async {
       await PerfRadar.init(
         const PerfRadarConfig(

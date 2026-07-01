@@ -42,9 +42,9 @@ final class FrameStats {
   /// Frames longer than this are counted as jank.
   final int jankThresholdMicros;
 
-  final LatencyHistogram _buildHist = LatencyHistogram();
-  final LatencyHistogram _rasterHist = LatencyHistogram();
-  final LatencyHistogram _totalHist = LatencyHistogram();
+  LatencyHistogram _buildHist = LatencyHistogram();
+  LatencyHistogram _rasterHist = LatencyHistogram();
+  LatencyHistogram _totalHist = LatencyHistogram();
 
   final List<FrameSample> _recent = [];
 
@@ -77,6 +77,22 @@ final class FrameStats {
       ),
     );
     if (_recent.length > maxRecentFrames) _recent.removeAt(0);
+  }
+
+  /// Resets all accumulated frame statistics to zero.
+  ///
+  /// Clears the frame/jank counters, the recent-frame ring, and every
+  /// latency histogram. [jankThresholdMicros] is left untouched. Lets
+  /// callers mark the start of a fresh measurement window without
+  /// restarting the whole engine — [snapshot] reports all-zero/empty
+  /// values immediately after this call.
+  void reset() {
+    _buildHist = LatencyHistogram();
+    _rasterHist = LatencyHistogram();
+    _totalHist = LatencyHistogram();
+    _recent.clear();
+    _frameCount = 0;
+    _jankCount = 0;
   }
 
   /// Returns an immutable snapshot of all current statistics.

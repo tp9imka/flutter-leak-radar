@@ -38,7 +38,7 @@ class LeftRail extends StatelessWidget {
             const SizedBox(height: 12),
             _SectionLabel('MEMORY'),
             _NavItem(
-              label: 'Snapshot & diff',
+              label: 'Snapshots',
               view: RadarView.snapshotDiff,
               currentView: currentView,
               onTap: onViewChanged,

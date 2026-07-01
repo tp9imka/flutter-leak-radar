@@ -97,6 +97,24 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('Frames tab shows a reset button wired to PerfRadar', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: PerfRadarView())),
+      );
+      await tester.tap(find.text('Frames'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.restart_alt), findsOneWidget);
+
+      // Tapping resets safely even with no engine running (facade no-op)
+      // and re-renders without throwing.
+      await tester.tap(find.byIcon(Icons.restart_alt));
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('TracesTab', () {

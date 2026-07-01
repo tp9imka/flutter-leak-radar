@@ -88,6 +88,20 @@ abstract final class PerfRadar {
     return const FrameStatsSnapshot(frameCount: 0, jankCount: 0);
   }
 
+  /// Resets all frame timing statistics to zero.
+  ///
+  /// Lets callers mark the start of a fresh measurement window — for
+  /// example, right before profiling a specific user flow. Safe no-op
+  /// when the engine isn't running. Never throws.
+  static void resetFrameStats() {
+    final engine = _engine;
+    if (engine == null) return;
+    runSafely(() {
+      engine.resetFrameStats();
+      return null;
+    }, fallback: null);
+  }
+
   /// Returns a snapshot of stability counters and recent events.
   static StabilitySnapshot get stabilitySnapshot {
     final engine = _engine;

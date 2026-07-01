@@ -1,3 +1,17 @@
+## Unreleased
+
+- `GraphAnalysisResult.classRootProfiles` — a `ClassRootProfile` for EVERY
+  class reachable from the GC root (not just leak-prone-rooted clusters),
+  grouping each class's instances by the `RootKind` of their closest
+  retaining root. Lets a UI separate live-UI-tree classes from leak-prone
+  ones instead of only ever seeing leak candidates. A bounded subset of
+  classes (the largest by instance count, plus any class with a leak-prone
+  instance) also gets a representative shortest retaining path.
+- `toJson` / `fromJson` on `ClassCount`, `GraphHop`, `GraphRetainingPath`,
+  `GraphLeakCluster`, `GraphAnalysisStats`, `GraphAnalysisResult`, and the new
+  `ClassRootProfile` — a full analysis run can now round-trip through JSON
+  for snapshot export.
+
 ## 0.2.0
 
 - `computeDiff` — diffs two class histograms into per-class instance/byte deltas

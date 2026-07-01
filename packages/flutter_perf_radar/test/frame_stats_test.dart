@@ -121,5 +121,84 @@ void main() {
         expect(snap.recentFrames, isEmpty);
       },
     );
+
+    // ── reset() ──────────────────────────────────────────────────────────
+
+    test('reset zeroes frameCount and jankCount', () {
+      final stats = FrameStats(jankThresholdMicros: 16667);
+      stats.record(buildMicros: 10000, rasterMicros: 10000, totalMicros: 20000);
+      stats.record(buildMicros: 5000, rasterMicros: 3000, totalMicros: 8000);
+      expect(stats.snapshot().frameCount, equals(2));
+
+      stats.reset();
+
+      final snap = stats.snapshot();
+      expect(snap.frameCount, equals(0));
+      expect(snap.jankCount, equals(0));
+    });
+
+    test('reset clears the recent-frame ring', () {
+      final stats = FrameStats(jankThresholdMicros: 16667);
+      stats.record(buildMicros: 1000, rasterMicros: 1000, totalMicros: 2000);
+      expect(stats.snapshot().recentFrames, isNotEmpty);
+
+      stats.reset();
+
+      expect(stats.snapshot().recentFrames, isEmpty);
+    });
+
+    test('reset clears all latency histogram percentiles to null', () {
+      final stats = FrameStats(jankThresholdMicros: 16667);
+      for (var i = 0; i < 50; i++) {
+        stats.record(buildMicros: 5000, rasterMicros: 3000, totalMicros: 8000);
+      }
+      final before = stats.snapshot();
+      expect(before.buildP50, isNotNull);
+      expect(before.rasterP50, isNotNull);
+      expect(before.totalP50, isNotNull);
+
+      stats.reset();
+
+      final after = stats.snapshot();
+      expect(after.buildP50, isNull);
+      expect(after.buildP95, isNull);
+      expect(after.buildP99, isNull);
+      expect(after.rasterP50, isNull);
+      expect(after.rasterP95, isNull);
+      expect(after.rasterP99, isNull);
+      expect(after.totalP50, isNull);
+      expect(after.totalP95, isNull);
+      expect(after.totalP99, isNull);
+    });
+
+    test('reset keeps jankThresholdMicros configuration intact', () {
+      final stats = FrameStats(jankThresholdMicros: 5000);
+      stats.record(buildMicros: 4000, rasterMicros: 4000, totalMicros: 8000);
+      stats.reset();
+
+      // A frame above the original threshold is still counted as jank.
+      stats.record(buildMicros: 4000, rasterMicros: 4000, totalMicros: 8000);
+      expect(stats.snapshot().jankCount, equals(1));
+      expect(stats.jankThresholdMicros, equals(5000));
+    });
+
+    test('recording after reset behaves like a fresh FrameStats', () {
+      final stats = FrameStats(jankThresholdMicros: 16667);
+      for (var i = 0; i < 10; i++) {
+        stats.record(
+          buildMicros: 10000,
+          rasterMicros: 10000,
+          totalMicros: 20000,
+        );
+      }
+      stats.reset();
+
+      stats.record(buildMicros: 1000, rasterMicros: 1000, totalMicros: 2000);
+      final snap = stats.snapshot();
+      expect(snap.frameCount, equals(1));
+      expect(snap.jankCount, equals(0));
+      expect(snap.recentFrames, hasLength(1));
+      expect(snap.recentFrames.first.totalMicros, equals(2000));
+    });
   });
 }

@@ -86,17 +86,24 @@ Map<String, Object?> perfRadarSnapshotJson() => {
   'stability': PerfRadar.stabilitySnapshot.toJson(),
 };
 
-/// Registers the `ext.perf_radar.snapshot` VM service extension.
+/// Registers the `ext.perf_radar.snapshot` and `ext.perf_radar.resetFrames`
+/// VM service extensions.
 ///
 /// Must be called from [PerfRadar.init] after the engine is running.
 /// Guarded by [kPerfEnabled] — never registers in release builds.
 /// Safe to call multiple times; subsequent calls after the first are
 /// no-ops (the [_registered] flag prevents double-registration).
 ///
-/// The extension responds to `ext.perf_radar.snapshot` with the JSON
-/// produced by [perfRadarSnapshotJson]. On error it returns a structured
-/// [ServiceExtensionResponse.error] and logs via [developer.log] — it
-/// never throws into the host app.
+/// - `ext.perf_radar.snapshot` responds with the JSON produced by
+///   [perfRadarSnapshotJson].
+/// - `ext.perf_radar.resetFrames` calls [PerfRadar.resetFrameStats] and
+///   responds with `{"reset": true}`, letting DevTools (or any VM
+///   service client) zero out frame counters for a fresh measurement
+///   window.
+///
+/// Both extensions return a structured [ServiceExtensionResponse.error]
+/// on failure and log via [developer.log] — they never throw into the
+/// host app.
 void registerPerfRadarExtension() {
   if (!kPerfEnabled) return;
   if (_registered) return;
@@ -119,6 +126,29 @@ void registerPerfRadarExtension() {
       return developer.ServiceExtensionResponse.error(
         developer.ServiceExtensionResponse.extensionError,
         'perf_radar snapshot failed: $e',
+      );
+    }
+  });
+
+  developer.registerExtension('ext.perf_radar.resetFrames', (
+    method,
+    params,
+  ) async {
+    try {
+      PerfRadar.resetFrameStats();
+      return developer.ServiceExtensionResponse.result(
+        jsonEncode({'reset': true}),
+      );
+    } catch (e, st) {
+      developer.log(
+        'ext.perf_radar.resetFrames error: $e',
+        name: 'flutter_perf_radar',
+        error: e,
+        stackTrace: st,
+      );
+      return developer.ServiceExtensionResponse.error(
+        developer.ServiceExtensionResponse.extensionError,
+        'perf_radar resetFrames failed: $e',
       );
     }
   });

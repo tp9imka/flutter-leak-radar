@@ -24,6 +24,22 @@ final class GraphLeakCluster {
     required this.signature,
   });
 
+  factory GraphLeakCluster.fromJson(Map<String, Object?> json) =>
+      GraphLeakCluster(
+        className: json['className'] as String,
+        libraryUri: json['libraryUri'] == null
+            ? null
+            : Uri.parse(json['libraryUri'] as String),
+        instanceCount: json['instanceCount'] as int,
+        retainedShallowBytes: json['retainedShallowBytes'] as int,
+        representativePath: GraphRetainingPath.fromJson(
+          (json['representativePath']! as Map).cast<String, Object?>(),
+        ),
+        rootKind: RootKind.values.byName(json['rootKind'] as String),
+        confidence: LeakConfidence.values.byName(json['confidence'] as String),
+        signature: json['signature'] as String,
+      );
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

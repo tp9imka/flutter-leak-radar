@@ -1,4 +1,5 @@
 import '../graph/heap_graph_view.dart';
+import '../model/class_root_profile.dart';
 import '../model/graph_analysis_result.dart';
 import '../model/graph_retaining_path.dart';
 import '../model/root_kind.dart';
@@ -293,6 +294,12 @@ final class GraphLeakAnalyzer {
       confidence: clusterConfidence,
     );
 
+    final classRootProfiles = buildClassRootProfiles(
+      graph,
+      paths,
+      liveAnchorClassNames: options.liveAnchorClassNames,
+    );
+
     return GraphAnalysisResult(
       clusters: clusters,
       stats: GraphAnalysisStats(
@@ -304,6 +311,146 @@ final class GraphLeakAnalyzer {
         suppressedByLiveTree: suppressedByLiveTree,
         warnings: warnings,
       ),
+      classRootProfiles: classRootProfiles,
     );
   }
+}
+
+/// Default cap on how many classes get a materialized
+/// [ClassRootProfile.representativePath].
+///
+/// [buildClassRootProfiles] aggregates EVERY reachable object in a single
+/// pass (cheap: O(reachableObjects)), but reconstructing a retaining path is
+/// an O(pathLength) walk-back per class, so it is only done for a bounded
+/// subset: the [kMaxClassRootProfilePaths] classes with the most instances,
+/// UNION every class that has at least one instance rooted by a leak-prone
+/// [RootKind] (see [RootKind.isLeakProne]). Leak-prone roots are rare in a
+/// typical heap — the existing leak-candidate pass above already
+/// reconstructs a path for every SUCH INSTANCE (not merely per class) — so
+/// unioning in "one path per leak-prone class" adds strictly less work than
+/// the clustering pass already does. This keeps large heaps with many
+/// thousands of distinct classes from blowing up while still surfacing a
+/// path for anything that could plausibly be a leak.
+const int kMaxClassRootProfilePaths = 250;
+
+/// Builds a [ClassRootProfile] for every class reachable from
+/// [graph.rootId], reusing the already-computed [paths] instead of running a
+/// second BFS.
+///
+/// Unlike the leak-candidate pass in [GraphLeakAnalyzer.analyze], this does
+/// NOT filter by [RootKind.isLeakProne] — every reachable class is included,
+/// so a caller can tell live-tree-retained classes apart from leak-prone
+/// ones instead of only ever seeing leak candidates.
+List<ClassRootProfile> buildClassRootProfiles(
+  HeapGraphView graph,
+  ShortestRetainingPaths paths, {
+  Set<String>? liveAnchorClassNames,
+}) {
+  final liveTree = LiveTreeReachability.compute(
+    graph,
+    anchorClassNames: liveAnchorClassNames,
+  );
+
+  final totalInstances = <String, int>{};
+  final shallowBytes = <String, int>{};
+  final libraryUris = <String, Uri?>{};
+  final byRoot = <String, Map<RootKind, int>>{};
+  final representativeNodeId = <String, int>{};
+  final hasLeakProneInstance = <String>{};
+
+  for (var id = 0; id < graph.nodeCount; id++) {
+    if (id == graph.rootId) continue;
+    if (!paths.isReachable(id)) continue;
+
+    HeapNode node;
+    try {
+      node = graph.node(id);
+    } catch (_) {
+      continue;
+    }
+
+    // A leak-prone root always wins; only a non-leak-prone root (e.g. a
+    // dangling/unclassified `other`) can be promoted to `liveTree` when the
+    // live UI tree can also reach it. Mirrors the precedence already used to
+    // decide `suppressedByLiveTree` above: the live tree never overrides a
+    // genuinely leak-prone retainer.
+    var rootKind = paths.rootKindOf(id);
+    if (!rootKind.isLeakProne &&
+        liveTree.hasAnchor &&
+        liveTree.isReachable(id)) {
+      rootKind = RootKind.liveTree;
+    }
+
+    final className = node.className;
+    totalInstances[className] = (totalInstances[className] ?? 0) + 1;
+    shallowBytes[className] = (shallowBytes[className] ?? 0) + node.shallowSize;
+    libraryUris.putIfAbsent(className, () => node.libraryUri);
+
+    final classByRoot = byRoot.putIfAbsent(className, () => {});
+    classByRoot[rootKind] = (classByRoot[rootKind] ?? 0) + 1;
+
+    if (rootKind.isLeakProne) {
+      // First leak-prone instance always becomes (or replaces) the
+      // representative: it is strictly more useful for leak-hunting than an
+      // arbitrary live-tree instance of the same class.
+      if (hasLeakProneInstance.add(className)) {
+        representativeNodeId[className] = id;
+      }
+    } else {
+      representativeNodeId.putIfAbsent(className, () => id);
+    }
+  }
+
+  final classNames = totalInstances.keys.toList()
+    ..sort((a, b) => totalInstances[b]!.compareTo(totalInstances[a]!));
+
+  final pathTargets = <String>{
+    ...classNames.take(kMaxClassRootProfilePaths),
+    ...hasLeakProneInstance,
+  };
+
+  final profiles = <ClassRootProfile>[
+    for (final className in classNames)
+      ClassRootProfile(
+        className: className,
+        libraryUri: libraryUris[className],
+        totalInstances: totalInstances[className]!,
+        retainedShallowBytes: shallowBytes[className]!,
+        byRoot: Map.unmodifiable(byRoot[className]!),
+        representativePath: pathTargets.contains(className)
+            ? _representativePath(
+                graph,
+                paths,
+                representativeNodeId[className]!,
+              )
+            : null,
+      ),
+  ];
+
+  profiles.sort((a, b) {
+    final byBytes = b.retainedShallowBytes.compareTo(a.retainedShallowBytes);
+    if (byBytes != 0) return byBytes;
+    return b.totalInstances.compareTo(a.totalInstances);
+  });
+
+  return profiles;
+}
+
+GraphRetainingPath _representativePath(
+  HeapGraphView graph,
+  ShortestRetainingPaths paths,
+  int nodeId,
+) {
+  final links = paths.pathTo(nodeId) ?? const <PathLink>[];
+  final classNames = links.map((l) {
+    try {
+      return graph.node(l.nodeId).className;
+    } catch (_) {
+      return '';
+    }
+  }).toList();
+  return GraphRetainingPath(
+    hops: buildHops(links, classNames),
+    rootKind: paths.rootKindOf(nodeId),
+  );
 }
