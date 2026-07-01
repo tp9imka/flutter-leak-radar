@@ -609,9 +609,7 @@ class _RadarExportSheetState extends State<_RadarExportSheet> {
             ? 'application/json'
             : 'text/markdown',
       );
-      await SharePlus.instance.share(
-        ShareParams(files: [file], text: 'Flutter Radar — $_scopeLabel'),
-      );
+      await Share.shareXFiles( [file], text: 'Flutter Radar — $_scopeLabel');
     } catch (_) {
       // Never throw into host.
     } finally {
