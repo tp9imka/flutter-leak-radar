@@ -57,24 +57,39 @@ abstract final class Radar {
   ///
   /// Measures [body] synchronously and records a span. Returns [body]'s
   /// result. A no-op when the perf engine is not running.
-  static T trace<T>(String name, T Function() body, {String? category}) =>
-      PerfRadar.trace(name, body, category: category);
+  ///
+  /// [dedupKey] is an optional caller-supplied signature (e.g. arguments) used
+  /// to count duplicate invocations of the same operation.
+  static T trace<T>(
+    String name,
+    T Function() body, {
+    String? category,
+    List<String>? dedupKey,
+  }) => PerfRadar.trace(name, body, category: category, dedupKey: dedupKey);
 
   /// Delegates to [PerfRadar.traceAsync].
   ///
   /// Measures [body] asynchronously and records a span. A no-op when the
   /// perf engine is not running.
+  ///
+  /// [dedupKey] is an optional caller-supplied signature (e.g. arguments) used
+  /// to count duplicate invocations of the same operation.
   static Future<T> traceAsync<T>(
     String name,
     Future<T> Function() body, {
     String? category,
-  }) => PerfRadar.traceAsync(name, body, category: category);
+    List<String>? dedupKey,
+  }) =>
+      PerfRadar.traceAsync(name, body, category: category, dedupKey: dedupKey);
 
   /// Delegates to [PerfRadar.start] and returns a [SpanHandle].
   ///
   /// Returns an inert handle when the perf engine is not running.
-  static SpanHandle start(String name, {String? category}) =>
-      PerfRadar.start(name, category: category);
+  static SpanHandle start(
+    String name, {
+    String? category,
+    List<String>? dedupKey,
+  }) => PerfRadar.start(name, category: category, dedupKey: dedupKey);
 
   /// Returns the [NavigatorObserver] from [LeakRadar].
   ///

@@ -33,6 +33,23 @@ void main() {
       expect(result, 'hello');
     });
 
+    test('trace / traceAsync / start accept a dedupKey and stay a no-op safe '
+        'passthrough', () async {
+      // The umbrella facade must forward dedupKey to PerfRadar (the actual
+      // duplicate counting is covered by radar_trace's Tracer tests; the perf
+      // engine does not record in the flutter_test VM). Here we guard that the
+      // delegation exists and preserves the zero-throw / body-result contract.
+      expect(Radar.trace('t', () => 42, dedupKey: const ['a']), 42);
+      expect(
+        await Radar.traceAsync('t', () async => 'hello', dedupKey: const ['a']),
+        'hello',
+      );
+      expect(
+        () => Radar.start('t', dedupKey: const ['a']).stop(),
+        returnsNormally,
+      );
+    });
+
     test('navigatorObserver is non-null at all times', () {
       expect(Radar.navigatorObserver, isNotNull);
     });
