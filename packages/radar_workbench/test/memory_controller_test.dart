@@ -381,4 +381,41 @@ void main() {
       expect(c.byId(2)?.label, 'b');
     });
   });
+
+  group('focusOn (desktop active-dump hook)', () {
+    test('focused honors an explicitly focused id over latest', () {
+      final c = MemoryController(
+        snapshotSource: FakeSnapshotSource(),
+        connection: FakeRadarConnection(),
+      );
+      final a = c.addBundle(_bundle('a'));
+      final b = c.addBundle(_bundle('b')); // b is latest
+      // addBundle auto-selects the first two ids for diffing (existing
+      // behavior); deselect both so `pair` is null here and `focused` falls
+      // through to `latest`, isolating focusOn's own fallback chain.
+      c.toggleSelection(a.id);
+      c.toggleSelection(b.id);
+      // Default: focused falls through to latest (b), not a.
+      expect(c.focused?.label, 'b');
+      c.focusOn(a.id);
+      expect(c.focusedId, a.id);
+      expect(c.focused?.label, 'a'); // now honors the explicit focus
+      c.focusOn(null);
+      expect(c.focused?.label, 'b'); // cleared → back to latest
+    });
+
+    test('focusOn(unknown id) falls through to pair/latest', () {
+      final c = MemoryController(
+        snapshotSource: FakeSnapshotSource(),
+        connection: FakeRadarConnection(),
+      );
+      final a = c.addBundle(_bundle('a'));
+      final b = c.addBundle(_bundle('b'));
+      // Deselect both so `pair` is null; isolates the fallback to `latest`.
+      c.toggleSelection(a.id);
+      c.toggleSelection(b.id);
+      c.focusOn(9999); // not present
+      expect(c.focused?.id, b.id); // _byId(9999) == null → latest
+    });
+  });
 }
