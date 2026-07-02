@@ -2,6 +2,7 @@
 /// interfaces the DevTools extension and the desktop app both build on.
 library;
 
+export 'src/capture/snapshot_analyzer.dart';
 export 'src/capture/snapshot_bundle.dart';
 export 'src/core/radar_connection.dart';
 export 'src/core/snapshot_source.dart';
