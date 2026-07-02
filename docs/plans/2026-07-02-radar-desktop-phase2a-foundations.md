@@ -432,7 +432,7 @@ cd /Users/aiva6306/Projects/+Sandbox/-Projects/flutter-leak-radar && dart format
 git add packages/radar_ui && git commit -m "feat(radar_ui): RadarTrendChart (line+area+markers); bump 0.2.0"
 ```
 
-> Note: `radar_workbench` and `flutter_leak_radar_devtools` depend on `radar_ui: ^0.1.1`. `^0.1.1` does NOT allow `0.2.0`, but in the pub **workspace** the local `radar_ui` is resolved by path regardless of the constraint, so `dart pub get` still succeeds locally. Do NOT change their constraints in this task (that's a publish-time concern handled by `tool/sync-constraints.sh`). If a later `dart pub get` in this plan emits a constraint *warning* about radar_ui, it is expected and non-fatal in the workspace.
+> **Constraint cascade (handled by the controller after this task):** `^0.1.1` does NOT admit `0.2.0` (a 0.x caret locks the minor), and on this Dart/Flutter version workspace `dart pub get` **HARD-FAILS** version solving — it is NOT a non-fatal warning. **Five** packages pin `radar_ui: ^0.1.1`: `radar_workbench`, `flutter_perf_radar`, `flutter_leak_radar`, `flutter_leak_radar_devtools`, `radarscope`. After this task the controller bumped all five to `radar_ui: ^0.2.0` (commit `871eeac`) so `dart pub get` resolves. The implementer of THIS task must NOT touch those five pubspecs — obtain RED/GREEN/analyze evidence with `--no-pub` against the already-resolved graph and report the cascade as a blocker (which is what happened).
 
 ---
 
@@ -789,7 +789,7 @@ dependencies:
   flutter:
     sdk: flutter
   radar_workbench: ^0.1.0
-  radar_ui: ^0.1.1
+  radar_ui: ^0.2.0
   leak_graph: ^0.2.2
   vm_service: ^15.0.0
   window_manager: ^0.5.1
