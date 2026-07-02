@@ -7,6 +7,18 @@
 > Read `AGENTS.md` (golden architecture rules) and the Radar Desktop spec
 > (`2026-07-02-radar-desktop-design.md`) before implementing — this extends both.
 
+> **📋 Review addendum (2026-07-03):** This spec was reviewed for architectural fit
+> and feasibility; see `2026-07-02-native-gpu-review.md` for the full analysis. Three
+> corrections from that review are folded in below as inline callouts: Lane D's
+> pointer-JOIN is infeasible ([Lane D](#lane-d--dartffi-origin-hook--pointer-join),
+> [Lane B](#lane-b--native-heap-heapprofd-profileable-no-root)), Lane C's
+> `Texture`-origin hook is unverified and likely widget-only
+> ([Lane C](#lane-c--on-device-gpuimage-origin-narrow), [§6 D1](#6-decisions-resolved-d1d2d3)),
+> and the count-based-ranking premise is partly stale
+> ([Existing Dart-lane fixes](#existing-dart-lane-fixes-in-scope)). Read the review
+> doc for full reasoning, feasibility ranking of all collection paths, and the
+> recommended spike order before starting implementation.
+
 ## Context — the Dart blind spot
 
 The suite's existing lane (`leak_graph` + the `.dartheap` VM snapshot) finds
@@ -185,8 +197,13 @@ heapprofd continuous-dump via `adb` → `.pftrace` → **bundled `trace_processo
 alloc−free accounting, **still-live bytes = leaked**. Outputs: leak suspects ranked by
 leaked bytes **and growth rate**, each with the still-live call stack resolved to at
 least the owning module; per-module totals; a diff across ≥2 captures; the growth
-curve. **Preserve per-allocation pointer addresses** during ingestion (do not discard
-them in aggregation) — Lane D's JOIN depends on it.
+curve. ~~**Preserve per-allocation pointer addresses** during ingestion (do not
+discard them in aggregation) — Lane D's JOIN depends on it.~~
+
+> **⚠ Review correction (2026-07-03):** This instruction is not actionable as
+> written — heapprofd never gives ingestion a per-allocation pointer to preserve in
+> the first place. See the Lane D correction below for why, and for the reframed
+> role of heapprofd in the `dart:ffi` class (module-level byte corroboration only).
 
 ### Lane C — On-device GPU/image origin (narrow)
 
@@ -207,6 +224,24 @@ Emitted as a JSON dump ingested like a `.dartheap`. It only catches **still-open
 resource lingers" sub-case is an **engine/driver bug, scoped out** (documented, not
 papered over with totals).
 
+> **⚠ Review correction (2026-07-03):** The `Texture` half of this ledger is
+> unverified and likely narrower than "origin source" implies. Wrapping
+> create/dispose is plausible for `ui.Image`/`ImageStream` — both are Dart-side
+> objects (also worth checking whether `FlutterMemoryAllocations` /
+> `kFlutterMemoryAllocationsEnabled` is live in profile builds, a cheaper path than a
+> bespoke wrapper). But `Texture` is an opaque `textureId` int whose native GPU
+> surface is registered **engine-side** via `TextureRegistry` by a plugin (camera,
+> video_player, …) — there is no plugin-agnostic Dart hook for native
+> external-texture create/destroy. Only the `Texture(textureId:)` **widget's**
+> build/dispose lifecycle is interceptable, a materially weaker signal than the
+> native resource's own lifecycle.
+>
+> **Action before relying on this:** a timeboxed spike proving the hook fires for
+> `Texture` in a profileable AOT build, or — if it doesn't — scope this down
+> honestly: *"Texture tracking = widget lifecycle only; native external-texture
+> lifecycle is out of reach without plugin cooperation,"* documented as a limitation
+> the same way [§10](#10-out-of-scope--documented-limitations) documents others.
+
 ### Lane D — `dart:ffi` origin (hook + pointer JOIN)
 
 The class the original pillars missed. A logging `Allocator` / `Arena` wrapper in
@@ -217,6 +252,25 @@ leaked native block. Sequenced as a **fast-follow** after Lane C's image slice �
 in scope for the end-state, because without it (and given Dart AOT opacity)
 `dart:ffi` leaks have no fix-enabling data. If it slips, `dart:ffi` is **documented as
 a known v1 limitation**, never silently gapped.
+
+> **⚠ Review correction (2026-07-03):** The pointer-JOIN described above is **not
+> feasible**. heapprofd Poisson-samples allocations by size and aggregates by
+> callstack — it discards individual malloc-returned pointer addresses in the
+> process, so a leaked block's address cannot be recovered from a `.pftrace`
+> (confirmed against Perfetto's own design). There is no pointer left to JOIN
+> against; strike "JOIN engine" and the "preserve pointers" instruction in Lane B
+> above.
+>
+> **Reframe:** the in-app `dart:ffi` allocator wrapper is fix-grade **on its own** —
+> it already carries `StackTrace.current` at the Dart call site, which is what makes
+> the leak actionable. Use heapprofd only to corroborate **total ffi bytes by native
+> module**, never to attach a Dart stack by pointer match. Lane D becomes "hook +
+> module-byte corroboration," not "hook + pointer JOIN."
+>
+> Also: heapprofd's default ~4 KB sampling interval under-samples the small structs
+> most `dart:ffi` code allocates. Pin `sample=1` (no sampling) on the instrumented
+> capture build, or explicitly document the resulting miss-rate if full sampling is
+> too expensive to run continuously.
 
 ### Symbolization (tiered)
 
@@ -254,6 +308,21 @@ a known v1 limitation**, never silently gapped.
 - **Dart lane:** flag `_Image` / `Codec` / `ImageCache` as leak-prone and surface
   external-size annotations prominently — near-zero cost, covers the common
   imageCache retaining-path + external-size half.
+
+> **⚠ Review correction (2026-07-03):** The premise "byte-only ranking misses the
+> count-growing WebRTC leak" is stale. `leak_graph`'s `clusterLeaks`
+> (`clustering.dart`) **already** sorts by `instanceCount` desc, bytes second, and
+> `computeDiff` (`histogram_diff.dart`) **already** sorts by `instanceDelta` desc —
+> count-based ranking already exists in shipping code.
+>
+> **Re-scoped fix:** what's genuinely absent is narrower — (1) a per-**cluster**
+> cross-snapshot growth-rate view keyed by leak signature, complementing the current
+> per-**class** histogram diff, and (2) flagging `Image`/`Codec`/`ImageCache` as
+> leak-prone roots (the bullet above — confirmed genuinely absent). Drop "add
+> count-based ranking" from the framing everywhere it's used as the cheap unblock
+> (including [Goals](#goals) and [§7 Sequencing](#7-sequencing-end-state-not-an-iteration-plan));
+> keep only the cluster-growth-rate view and the image-class flagging as the two
+> concrete items.
 
 ---
 
@@ -309,6 +378,12 @@ reliability realist → three biased synthesizers → arbiter). Consensus was st
   signal in the system** (runs in a VM we control; touches none of the flaky
   substrate). Excluding it yields a tool that detects GPU growth but never says why —
   a direct failure of the bar.
+
+  > **⚠ Review correction (2026-07-03):** "Most reliable signal in the system" holds
+  > for `ui.Image`/`ImageStream`/`imageCache` — not yet for `Texture`; see the Lane C
+  > correction above. Treat the `Texture` portion of D1 as provisional pending the
+  > spike; it may need to be re-decided as "widget lifecycle only."
+
 - **D2 — symbolization: TIERED, module-first.** Module attribution is free and
   reliable and already clears the bar for owned code; function-level native symbols
   fail exactly at the `libapp.so` AOT wall where the hard cases live, and the
