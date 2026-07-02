@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leak_graph/leak_graph.dart';
+import 'package:radar_desktop/src/screens/compare_screen.dart';
 import 'package:radar_desktop/src/screens/dumps_screen.dart';
 import 'package:radar_desktop/src/screens/histogram_screen.dart';
 import 'package:radar_desktop/src/screens/paths_screen.dart';
@@ -132,6 +133,21 @@ void main() {
     );
     // RetainingPathsView itself renders its own empty state, so it is
     // present; just assert no throw.
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('CompareScreen diffs the two selected dumps', (tester) async {
+    final wc = WorkspaceController();
+    final a = wc.addExisting(_bundle('A'), source: DumpSource.file);
+    final b = wc.addExisting(_bundle('B'), source: DumpSource.file);
+    wc.selectComparePair(a.id, b.id);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: radarDarkTheme(),
+        home: Scaffold(body: CompareScreen(workspace: wc)),
+      ),
+    );
+    expect(find.byType(DiffTable), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
