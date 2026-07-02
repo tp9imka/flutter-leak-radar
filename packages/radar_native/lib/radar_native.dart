@@ -4,6 +4,8 @@
 /// Exports are added incrementally as each model/analysis lands.
 library;
 
+export 'src/analysis/native_diff.dart';
+export 'src/model/native_allocation_diff.dart';
 export 'src/model/native_callsite.dart';
 export 'src/model/native_frame.dart';
 export 'src/model/native_heap_profile.dart';

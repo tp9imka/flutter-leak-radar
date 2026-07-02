@@ -29,11 +29,17 @@ final class NativeCallsite {
   /// Allocations here not yet freed.
   int get stillLiveCount => allocCount - freeCount;
 
-  /// Stable identity for cross-checkpoint diffing: `module>function` over the
-  /// (leaf-first) frames. Two checkpoints' callsites with the same signature
-  /// are "the same site".
+  /// Stable identity for cross-checkpoint diffing: the (leaf-first) frames,
+  /// each rendered as `module<US>function` (U+001F unit separator between
+  /// module and function) and the frames joined by `<NUL>` (U+0000).
+  /// Symbolized C++/Rust names routinely contain `>`, `::`, and `|` (e.g.
+  /// `std::vector<int>::push_back`), so a printable delimiter like the
+  /// original `>`/`|` scheme can let distinct stacks collide onto the same
+  /// signature; these control characters never appear in symbol names or
+  /// module paths, so they can't. Two checkpoints' callsites with the same
+  /// signature are "the same site".
   String get signature =>
-      frames.map((f) => '${f.module}>${f.function}').join('|');
+      frames.map((f) => '${f.module}\u001F${f.function}').join('\u0000');
 
   Map<String, Object?> toJson() => {
     'frames': [for (final f in frames) f.toJson()],
