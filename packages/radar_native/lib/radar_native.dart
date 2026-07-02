@@ -6,3 +6,4 @@ library;
 
 export 'src/model/native_callsite.dart';
 export 'src/model/native_frame.dart';
+export 'src/model/native_heap_profile.dart';
