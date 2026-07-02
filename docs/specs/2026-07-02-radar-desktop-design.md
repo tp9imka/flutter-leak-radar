@@ -360,7 +360,7 @@ as specified in `docs/flutter_radar_desktop`):
 ```
 ws:// URI ──vmServiceConnectUri──▶ VmServiceUriConnection (RadarConnection)
   ├─ capture: HeapSnapshotGraph.getSnapshot ▶ analyzer.fromGraph ▶ SnapshotBundle
-  ├─ Force GC: vmService.getAllocationProfile(isolateId, gc:true)
+  ├─ Force GC: vmService.getAllocationProfile(isolateId, reset:true)
   └─ perf/stability: PerfDataController.callExtension('ext.perf_radar.snapshot')
                      ▶ PerfSnapshotDto ▶ (traces / frames / errors / stalls views)
 ```
