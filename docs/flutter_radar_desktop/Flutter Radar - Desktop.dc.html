@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#0b0e10; -webkit-font-smoothing:antialiased; }
+  ::selection { background:rgba(47,227,155,0.28); color:#eafff5; }
+  .rdr ::-webkit-scrollbar { width:9px; height:9px; }
+  .rdr ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.13); border-radius:5px; }
+  .rdr ::-webkit-scrollbar-track { background:transparent; }
+  .nums { font-variant-numeric:tabular-nums; }
+  @keyframes rdr-live { 0%,100%{opacity:.4;} 50%{opacity:1;} }
+  @keyframes rdr-spin { to { transform:rotate(360deg); } }
+  @keyframes rdr-indet { 0%{transform:translateX(-100%);} 100%{transform:translateX(320%);} }
+  @media (prefers-reduced-motion: reduce){ *{ animation:none !important; } }
+</style>
+</helmet>
+
+<div class="rdr" style="min-height:100vh; background:radial-gradient(1100px 700px at 82% -8%, rgba(47,227,155,0.05), transparent 60%), #0b0e10; color:#e7eef0; font-family:'Hanken Grotesk',system-ui,sans-serif; padding:clamp(14px,2.4vw,30px) clamp(12px,2.4vw,30px) 46px; box-sizing:border-box;">
+
+  <!-- harness header -->
+  <div style="max-width:1400px; margin:0 auto 14px; display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; justify-content:space-between;">
+    <div>
+      <div style="display:flex; align-items:center; gap:9px; margin-bottom:6px;">
+        <svg width="18" height="18" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="7" stroke="rgba(47,227,155,0.55)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#2fe39b;">Desktop client · macOS · dump-first · interactive</span>
+      </div>
+      <h1 style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(20px,2.4vw,28px); letter-spacing:-0.02em; margin:0; line-height:1.05;">Radar Desktop — heap &amp; memory analysis</h1>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+      <button type="button" onClick="{{ toggleConn }}" style="{{ connToggleStyle }}">{{ connToggleLabel }}</button>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5f7178;">toggle to preview offline ↔ connected</span>
+    </div>
+  </div>
+
+  <!-- macOS window -->
+  <div style="max-width:1400px; margin:0 auto; background:#0c1012; border:1px solid rgba(255,255,255,0.12); border-radius:12px; overflow:hidden; box-shadow:0 50px 110px -40px rgba(0,0,0,0.85);">
+
+    <!-- title bar -->
+    <div style="display:flex; align-items:center; gap:12px; height:40px; padding:0 14px; background:linear-gradient(180deg,#151b1f,#10151800); background-color:#12181b; border-bottom:1px solid rgba(255,255,255,0.08);">
+      <div style="display:flex; gap:8px;">
+        <span style="width:12px; height:12px; border-radius:50%; background:#ff5f57;"></span>
+        <span style="width:12px; height:12px; border-radius:50%; background:#febc2e;"></span>
+        <span style="width:12px; height:12px; border-radius:50%; background:#28c840;"></span>
+      </div>
+      <div style="flex:1; text-align:center; display:flex; align-items:center; justify-content:center; gap:8px;">
+        <svg width="13" height="13" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11" stroke="rgba(47,227,155,0.5)" stroke-width="1.5"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+        <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13px; color:#cdd6da;">{{ workspaceName }}</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5f7178;">— Radar Desktop</span>
+      </div>
+      <div style="width:52px;"></div>
+    </div>
+
+    <!-- toolbar -->
+    <div style="display:flex; align-items:center; gap:10px; padding:8px 14px; background:#0d1315; border-bottom:1px solid rgba(255,255,255,0.07);">
+      <button type="button" onClick="{{ doImport }}" style="display:inline-flex; align-items:center; gap:7px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; color:#0a0d0e; background:#2fe39b; border:0; padding:7px 13px; border-radius:8px; cursor:pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M7 8l5-5 5 5"/><path d="M4 21h16"/></svg>Import dump</button>
+      <sc-if value="{{ connected }}" hint-placeholder-val="{{ false }}">
+        <button type="button" onClick="{{ liveCapture }}" style="display:inline-flex; align-items:center; gap:7px; font-family:'JetBrains Mono',monospace; font-size:12px; color:#5ad1e6; background:rgba(90,209,230,0.08); border:1px solid rgba(90,209,230,0.28); padding:7px 12px; border-radius:8px; cursor:pointer;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/></svg>Capture heap</button>
+        <button type="button" onClick="{{ forceGc }}" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#a7b6bc; background:transparent; border:1px solid rgba(255,255,255,0.12); padding:7px 12px; border-radius:8px; cursor:pointer;">Force GC</button>
+      </sc-if>
+      <div style="margin-left:auto; display:flex; align-items:center; gap:10px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178;">{{ dumpCountLabel }}</span>
+        <button type="button" onClick="{{ toggleConn }}" style="display:inline-flex; align-items:center; gap:7px; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:11px; color:{{ connColor }}; background:{{ connBg }}; border:1px solid {{ connBorder }}; padding:6px 11px; border-radius:8px;"><span style="width:7px; height:7px; border-radius:50%; background:{{ connColor }}; animation:{{ connAnim }};"></span>{{ connChipLabel }}</button>
+      </div>
+    </div>
+
+    <!-- body: rail + main -->
+    <div style="display:flex; min-height:640px;">
+      <!-- left rail -->
+      <div style="flex:0 0 210px; background:#0a0e0f; border-right:1px solid rgba(255,255,255,0.07); padding:13px 10px; display:flex; flex-direction:column; gap:3px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.1em; color:#3d4a4f; padding:6px 10px 5px;">MEMORY</div>
+        <button type="button" onClick="{{ vDumps }}" style="{{ navDumps }}"><span style="width:15px; display:inline-flex;">▤</span>Dumps <span class="nums" style="margin-left:auto; opacity:.6;">{{ dumpCount }}</span></button>
+        <button type="button" onClick="{{ vHist }}" style="{{ navHist }}"><span style="width:15px; display:inline-flex;">▥</span>Class histogram</button>
+        <button type="button" onClick="{{ vPaths }}" style="{{ navPaths }}"><span style="width:15px; display:inline-flex;">⋔</span>Retaining paths</button>
+        <button type="button" onClick="{{ vCompare }}" style="{{ navCompare }}"><span style="width:15px; display:inline-flex;">⇄</span>Compare</button>
+        <button type="button" onClick="{{ vTrends }}" style="{{ navTrends }}"><span style="width:15px; display:inline-flex;">◠</span>Trends</button>
+
+        <div style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.1em; color:#3d4a4f; padding:15px 10px 5px; display:flex; align-items:center; gap:6px;">PERFORMANCE <sc-if value="{{ notConnected }}" hint-placeholder-val="{{ true }}"><span style="font-size:9px; color:#2a3338;">🔒</span></sc-if></div>
+        <button type="button" onClick="{{ vTraces }}" style="{{ navTraces }}" disabled="{{ notConnected }}"><span style="width:15px; display:inline-flex;">≣</span>Traces</button>
+        <button type="button" onClick="{{ vFrames }}" style="{{ navFrames }}" disabled="{{ notConnected }}"><span style="width:15px; display:inline-flex;">▁</span>Frames</button>
+
+        <div style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.1em; color:#3d4a4f; padding:15px 10px 5px; display:flex; align-items:center; gap:6px;">STABILITY <sc-if value="{{ notConnected }}" hint-placeholder-val="{{ true }}"><span style="font-size:9px; color:#2a3338;">🔒</span></sc-if></div>
+        <button type="button" onClick="{{ vErrors }}" style="{{ navErrors }}" disabled="{{ notConnected }}"><span style="width:15px; display:inline-flex;">⚠</span>Errors</button>
+        <button type="button" onClick="{{ vStalls }}" style="{{ navStalls }}" disabled="{{ notConnected }}"><span style="width:15px; display:inline-flex;">▮</span>Stalls</button>
+
+        <sc-if value="{{ notConnected }}" hint-placeholder-val="{{ true }}">
+        <div style="margin-top:auto; background:rgba(90,209,230,0.05); border:1px solid rgba(90,209,230,0.16); border-radius:10px; padding:11px 12px;">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#5ad1e6; margin-bottom:5px;">OFFLINE</div>
+          <div style="font-size:11.5px; color:#8fa0a6; line-height:1.5;">Connect a VM service to capture live heaps and unlock Performance &amp; Stability.</div>
+        </div>
+        </sc-if>
+      </div>
+
+      <!-- main pane -->
+      <div style="flex:1; min-width:0; display:flex; flex-direction:column;">
+        <!-- ===================== DUMPS WORKSPACE ===================== -->
+        <sc-if value="{{ isDumps }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex; flex-direction:column; height:100%;">
+          <div style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.07);">
+            <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px;">Workspace</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178;">multi-select for diff &amp; trends</span>
+            <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178;">{{ dumpCountLabel }}</span>
+          </div>
+          <div style="flex:1; overflow:auto; min-height:0; padding:14px 16px;">
+            <!-- column header -->
+            <div style="display:grid; grid-template-columns:24px 2.4fr 0.8fr 1fr 0.8fr 0.9fr; gap:10px; padding:6px 12px; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#5f7178;">
+              <span></span><span>dump</span><span>source</span><span>captured</span><span style="text-align:right;">classes</span><span style="text-align:right;">retained</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <sc-for list="{{ dumps }}" as="d" hint-placeholder-count="5">
+                <div style="display:grid; grid-template-columns:24px 2.4fr 0.8fr 1fr 0.8fr 0.9fr; gap:10px; align-items:center; padding:11px 12px; border-radius:11px; background:{{ d.rowBg }}; border:1px solid {{ d.rowBorder }};">
+                  <button type="button" onClick="{{ d.toggle }}" aria-label="Select dump" style="width:18px; height:18px; border-radius:5px; cursor:pointer; border:1.5px solid {{ d.checkBorder }}; background:{{ d.checkBg }}; color:#0a0d0e; font-size:12px; display:flex; align-items:center; justify-content:center;">{{ d.checkMark }}</button>
+                  <button type="button" onClick="{{ d.openDump }}" style="text-align:left; cursor:pointer; background:transparent; border:0; min-width:0; display:flex; align-items:center; gap:9px;">
+                    <span style="width:26px; height:26px; border-radius:7px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:{{ d.iconBg }}; color:{{ d.iconColor }}; font-size:12px;">{{ d.icon }}</span>
+                    <span style="min-width:0;"><span style="display:block; font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#e7eef0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ d.name }}</span><span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#5f7178;">{{ d.sizeLabel }}</span></span>
+                  </button>
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:{{ d.sourceColor }};">{{ d.source }}</span>
+                  <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a7b6bc;">{{ d.ts }}</span>
+                  <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a7b6bc; text-align:right;">{{ d.classesLabel }}</span>
+                  <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11.5px; font-weight:600; color:#e7eef0; text-align:right;">{{ d.bytesLabel }}</span>
+                </div>
+              </sc-for>
+            </div>
+
+            <!-- drop zone -->
+            <div style="margin-top:14px; border:1.5px dashed rgba(255,255,255,0.14); border-radius:12px; padding:22px; text-align:center;">
+              <div style="font-size:22px; color:#3d4a4f; margin-bottom:6px;">⤓</div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#8fa0a6;">Drop <span style="color:#cdd6da;">.dartheap</span> files here, or <button type="button" onClick="{{ doImport }}" style="background:transparent; border:0; color:#2fe39b; font-family:inherit; font-size:12px; cursor:pointer; padding:0; text-decoration:underline;">browse</button></div>
+            </div>
+
+            <!-- recent -->
+            <div style="margin-top:18px;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.1em; color:#3d4a4f; margin-bottom:9px;">RECENT</div>
+              <div style="display:flex; flex-wrap:wrap; gap:7px;">
+                <sc-for list="{{ recent }}" as="r" hint-placeholder-count="3">
+                  <button type="button" onClick="{{ doImport }}" style="display:inline-flex; align-items:center; gap:7px; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:11px; color:#a7b6bc; background:#0e1316; border:1px solid rgba(255,255,255,0.08); padding:6px 11px; border-radius:8px;"><span style="color:#5f7178;">↻</span>{{ r }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+        <!-- ===================== CLASS HISTOGRAM ===================== -->
+        <sc-if value="{{ isHist }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; height:100%;">
+          <div style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.07);">
+            <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px;">Class histogram</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5ad1e6;">{{ selDumpName }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178;">{{ histCount }}</span>
+            <div style="margin-left:auto; display:flex; align-items:center; gap:6px; background:#11171a; border:1px solid rgba(255,255,255,0.09); border-radius:8px; padding:5px 10px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5f7178" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+              <input value="{{ histQuery }}" onInput="{{ onHistSearch }}" placeholder="filter class / library" style="background:transparent; border:0; outline:none; color:#e7eef0; font-family:'JetBrains Mono',monospace; font-size:11.5px; width:170px;"/>
+            </div>
+          </div>
+          <div style="padding:9px 16px 6px; display:flex; gap:6px;">
+            <sc-for list="{{ histFilters }}" as="f" hint-placeholder-count="4"><button type="button" onClick="{{ f.set }}" style="{{ f.style }}">{{ f.label }}</button></sc-for>
+            <span style="margin-left:auto; display:flex; align-items:center; gap:12px; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#5f7178;"><span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:8px; height:8px; border-radius:2px; background:#ff5d6c;"></span>leak-prone</span><span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:8px; height:8px; border-radius:2px; background:rgba(90,209,230,0.6);"></span>live-tree</span><span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:8px; height:8px; border-radius:2px; background:rgba(47,227,155,0.5);"></span>other</span></span>
+          </div>
+          <div style="display:grid; grid-template-columns:2.2fr 1fr 1.1fr 1.5fr; gap:10px; padding:8px 16px; background:#0b0f11; border-top:1px solid rgba(255,255,255,0.06); border-bottom:1px solid rgba(255,255,255,0.08);">
+            <sc-for list="{{ histCols }}" as="c" hint-placeholder-count="4"><button type="button" onClick="{{ c.set }}" style="{{ c.style }}">{{ c.label }}</button></sc-for>
+          </div>
+          <div style="flex:1; overflow:auto; min-height:0;">
+            <sc-for list="{{ histRows }}" as="r" hint-placeholder-count="12">
+              <button type="button" onClick="{{ r.open }}" style="width:100%; text-align:left; cursor:pointer; display:grid; grid-template-columns:2.2fr 1fr 1.1fr 1.5fr; gap:10px; align-items:center; padding:8px 16px; background:transparent; border:0; border-bottom:1px solid rgba(255,255,255,0.04);">
+                <span style="display:flex; align-items:center; gap:8px; min-width:0;"><span style="width:7px; height:7px; border-radius:2px; flex:0 0 auto; background:{{ r.rootColor }};"></span><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#e7eef0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ r.cls }}</span><span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#5f7178; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ r.lib }}</span></span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#a7b6bc; text-align:right;">{{ r.inst }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#e7eef0; text-align:right;">{{ r.bytes }}</span>
+                <span style="display:flex; align-items:center; gap:8px;"><span style="flex:1; height:5px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;"><span style="display:block; height:100%; width:{{ r.barW }}; background:{{ r.barBg }};"></span></span><span style="color:#3d4a4f; font-size:13px;">›</span></span>
+              </button>
+            </sc-for>
+            <sc-if value="{{ histEmpty }}" hint-placeholder-val="{{ false }}"><div style="padding:40px; text-align:center; color:#5f7178; font-family:'JetBrains Mono',monospace; font-size:12px;">No classes match “{{ histQuery }}”.</div></sc-if>
+          </div>
+        </div>
+        </sc-if>
+        <!-- ===================== RETAINING PATHS (master–detail) ===================== -->
+        <sc-if value="{{ isPaths }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; height:100%; min-height:0;">
+          <!-- master: classes grouped by root kind -->
+          <div style="flex:0 0 260px; border-right:1px solid rgba(255,255,255,0.07); display:flex; flex-direction:column; min-height:0;">
+            <div style="padding:12px 14px; border-bottom:1px solid rgba(255,255,255,0.06);"><span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px;">Retaining paths</span><div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#5f7178; margin-top:2px;">{{ selDumpNameP }} · by dominant root</div></div>
+            <div style="flex:1; overflow:auto; min-height:0; padding:8px;">
+              <sc-for list="{{ groups }}" as="g" hint-placeholder-count="3">
+                <div style="margin-bottom:12px;">
+                  <div style="display:flex; align-items:center; gap:7px; padding:5px 8px;"><span style="width:8px; height:8px; border-radius:2px; background:{{ g.color }};"></span><span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.04em; color:#8fa0a6;">{{ g.label }}</span><span class="nums" style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10px; color:#5f7178;">{{ g.count }}</span></div>
+                  <sc-for list="{{ g.items }}" as="c" hint-placeholder-count="2">
+                    <button type="button" onClick="{{ c.open }}" style="width:100%; text-align:left; cursor:pointer; display:flex; align-items:center; gap:9px; padding:8px 9px; border-radius:9px; background:{{ c.sel ? 'rgba(47,227,155,0.08)' : 'transparent' }}; border:1px solid {{ c.sel ? 'rgba(47,227,155,0.25)' : 'transparent' }};">
+                      <span style="width:6px; height:6px; border-radius:50%; flex:0 0 auto; background:{{ c.dot }};"></span>
+                      <span style="min-width:0; flex:1;"><span style="display:block; font-family:'JetBrains Mono',monospace; font-size:12px; color:#e7eef0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ c.cls }}</span><span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#5f7178;">{{ c.lib }}</span></span>
+                      <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a7b6bc;">{{ c.inst }}</span>
+                    </button>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- detail: per-path instance distribution -->
+          <div style="flex:1; min-width:0; overflow:auto;">
+            <sc-if value="{{ hasPathDist }}" hint-placeholder-val="{{ true }}">
+            <div style="padding:16px;">
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;"><span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:600; color:#e7eef0;">{{ pathDist.cls }}</span><span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5f7178;">{{ pathDist.lib }}</span></div>
+              <div class="nums" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#8fa0a6; margin-bottom:16px;">{{ pathDist.total }} live instances · {{ pathDist.bytes }} shallow</div>
+
+              <!-- root-kind breakdown -->
+              <div style="display:flex; gap:8px; margin-bottom:18px;">
+                <div style="flex:1; background:#0e1316; border:1px solid rgba(255,93,108,0.2); border-radius:11px; padding:11px 13px;"><div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#ff5d6c;">via leak-prone roots</div><div class="nums" style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:22px; color:#ff5d6c;">{{ pathDist.rootLeak }}</div></div>
+                <div style="flex:1; background:#0e1316; border:1px solid rgba(90,209,230,0.2); border-radius:11px; padding:11px 13px;"><div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#5ad1e6;">via live tree</div><div class="nums" style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:22px; color:#5ad1e6;">{{ pathDist.rootLive }}</div></div>
+                <div style="flex:1; background:#0e1316; border:1px solid rgba(255,255,255,0.1); border-radius:11px; padding:11px 13px;"><div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#8fa0a6;">other</div><div class="nums" style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:22px; color:#c4d0d4;">{{ pathDist.rootOther }}</div></div>
+              </div>
+
+              <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.08em; color:#5f7178; margin-bottom:10px;">INSTANCE DISTRIBUTION · BY SHORTEST RETAINING PATH</div>
+              <div style="display:flex; flex-direction:column; gap:7px;">
+                <sc-for list="{{ pathDist.paths }}" as="p" hint-placeholder-count="3">
+                  <div style="background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:11px; overflow:hidden;">
+                    <button type="button" onClick="{{ p.toggle }}" style="width:100%; text-align:left; cursor:pointer; background:transparent; border:0; padding:11px 13px; display:flex; align-items:center; gap:11px;">
+                      <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:600; color:{{ p.color }}; width:38px;">{{ p.count }}</span>
+                      <span style="flex:1; min-width:0;"><span style="display:block; font-family:'JetBrains Mono',monospace; font-size:12px; color:#e7eef0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ p.label }}</span><span style="display:block; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; margin-top:6px; overflow:hidden;"><span style="display:block; height:100%; width:{{ p.barW }}; background:{{ p.color }};"></span></span></span>
+                      <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178;">{{ p.pct }}</span>
+                      <span style="color:#5f7178; font-size:12px; width:12px;">{{ p.caret }}</span>
+                    </button>
+                    <sc-if value="{{ p.expanded }}" hint-placeholder-val="{{ true }}">
+                    <div style="padding:2px 13px 13px 51px; font-family:'JetBrains Mono',monospace; font-size:11px; line-height:1.95; color:#8fa0a6;">
+                      <sc-for list="{{ p.hopRows }}" as="h" hint-placeholder-count="4"><div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span style="color:#4a5a60;">{{ h.prefix }}</span>{{ h.text }}</div></sc-for>
+                    </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            </sc-if>
+            <sc-if value="{{ noPathDist }}" hint-placeholder-val="{{ false }}">
+            <div style="height:100%; display:flex; align-items:center; justify-content:center; text-align:center; padding:30px;"><div><div style="font-size:24px; color:#3d4a4f; margin-bottom:8px;">⋔</div><div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#5f7178; line-height:1.6;">Select a class to see how its<br>instances split across retaining paths.</div></div></div>
+            </sc-if>
+          </div>
+        </div>
+        </sc-if>
+        <!-- ===================== COMPARE (diff two dumps) ===================== -->
+        <sc-if value="{{ isCompare }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; height:100%;">
+          <div style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.07); flex-wrap:wrap;">
+            <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px;">Compare</span>
+            <div style="display:flex; align-items:center; gap:7px; margin-left:6px;">
+              <select onChange="{{ setDiffA }}" value="{{ diffA }}" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#e7eef0; background:#11171a; border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:6px 9px;"><sc-for list="{{ dumpOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.id }}">{{ o.name }}</option></sc-for></select>
+              <span style="color:#5f7178; font-family:'JetBrains Mono',monospace; font-size:12px;">→</span>
+              <select onChange="{{ setDiffB }}" value="{{ diffB }}" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#e7eef0; background:#11171a; border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:6px 9px;"><sc-for list="{{ dumpOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.id }}">{{ o.name }}</option></sc-for></select>
+            </div>
+            <span class="nums" style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:12px; color:#ff5d6c; font-weight:600;">total Δ {{ diffTotalD }}</span>
+          </div>
+          <div style="display:grid; grid-template-columns:2.4fr 1.1fr 1.1fr; gap:10px; padding:8px 16px; background:#0b0f11; border-bottom:1px solid rgba(255,255,255,0.08);">
+            <sc-for list="{{ diffCols }}" as="c" hint-placeholder-count="3"><button type="button" onClick="{{ c.set }}" style="{{ c.style }}">{{ c.label }}</button></sc-for>
+          </div>
+          <div style="flex:1; overflow:auto; min-height:0;">
+            <sc-for list="{{ diffRows }}" as="r" hint-placeholder-count="12">
+              <div style="display:grid; grid-template-columns:2.4fr 1.1fr 1.1fr; gap:10px; align-items:center; padding:8px 16px; border-bottom:1px solid rgba(255,255,255,0.04);">
+                <span style="display:flex; align-items:center; gap:8px; min-width:0;"><span style="width:7px; height:7px; border-radius:2px; flex:0 0 auto; background:{{ r.dot }};"></span><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#e7eef0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ r.cls }}</span><span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#5f7178;">{{ r.lib }}</span></span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11.5px; font-weight:600; color:{{ r.color }}; text-align:right;">{{ r.dInst }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11.5px; font-weight:600; color:{{ r.color }}; text-align:right;">{{ r.dBytes }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+        <!-- ===================== TRENDS (soak-test highlight) ===================== -->
+        <sc-if value="{{ isTrends }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; height:100%;">
+          <div style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.07);">
+            <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px;">Trends</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178;">{{ trendCount }} dumps selected · instances over time</span>
+          </div>
+          <div style="flex:1; overflow:auto; min-height:0; padding:16px;">
+            <sc-if value="{{ trendEnough }}" hint-placeholder-val="{{ true }}">
+            <div>
+              <!-- class picker -->
+              <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;">
+                <sc-for list="{{ trendClassOpts }}" as="c" hint-placeholder-count="6"><button type="button" onClick="{{ c.set }}" style="{{ c.style }}">{{ c.cls }}</button></sc-for>
+              </div>
+              <!-- headline -->
+              <div style="display:flex; align-items:flex-end; gap:24px; margin-bottom:16px; flex-wrap:wrap;">
+                <div><div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5f7178;">{{ trendClass }} · first → last</div><div class="nums" style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:30px; line-height:1;">{{ trendFirst }} <span style="color:#5f7178; font-size:20px;">→</span> {{ trendLast }}</div></div>
+                <div style="padding-bottom:4px;"><span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:600; color:{{ trendDeltaColor }};">{{ trendDelta }} instances</span></div>
+              </div>
+              <!-- line chart -->
+              <div style="background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:13px; padding:18px 16px 14px;">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" width="100%" height="200" style="display:block; overflow:visible;" aria-label="Instance count trend">
+                  <line x1="0" y1="25" x2="100" y2="25" stroke="rgba(255,255,255,0.05)" stroke-width="0.3"/>
+                  <line x1="0" y1="50" x2="100" y2="50" stroke="rgba(255,255,255,0.05)" stroke-width="0.3"/>
+                  <line x1="0" y1="75" x2="100" y2="75" stroke="rgba(255,255,255,0.05)" stroke-width="0.3"/>
+                  <path d="{{ trendArea }}" fill="rgba(245,181,74,0.1)"/>
+                  <path d="{{ trendPath }}" fill="none" stroke="#f5b54a" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+                  <sc-for list="{{ trendPoints }}" as="p" hint-placeholder-count="4"><circle cx="{{ p.x }}" cy="{{ p.y }}" r="1.1" fill="#f5b54a" vector-effect="non-scaling-stroke"/></sc-for>
+                </svg>
+                <div style="display:flex; justify-content:space-between; margin-top:10px;">
+                  <sc-for list="{{ trendPoints }}" as="p" hint-placeholder-count="4"><div style="text-align:center;"><div class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#e7eef0;">{{ p.inst }}</div><div class="nums" style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#5f7178;">{{ p.ts }}</div></div></sc-for>
+                </div>
+              </div>
+              <p style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5f7178; margin:12px 2px 0; line-height:1.6;">A class climbing steadily across soak-test captures — never returning to baseline — is the classic slow leak. Pick dumps in the workspace to build this series.</p>
+            </div>
+            </sc-if>
+            <sc-if value="{{ trendFew }}" hint-placeholder-val="{{ false }}">
+            <div style="height:100%; display:flex; align-items:center; justify-content:center; text-align:center; padding:30px;"><div><div style="font-size:24px; color:#3d4a4f; margin-bottom:8px;">◠</div><div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#5f7178; line-height:1.6;">Select at least two dumps in the<br>workspace to plot a trend.</div></div></div>
+            </sc-if>
+          </div>
+        </div>
+        </sc-if>
+        <!-- ===================== PERFORMANCE · TRACES (connected) ===================== -->
+        <sc-if value="{{ isTraces }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; height:100%;">
+          <div style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.07);"><span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px;">Traces</span><span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#5ad1e6; background:rgba(90,209,230,0.1); border:1px solid rgba(90,209,230,0.25); padding:3px 8px; border-radius:6px;">live · isolate#1</span><span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5f7178;">HOT = duplicate-suspect</span></div>
+          <div style="display:grid; grid-template-columns:2.2fr 0.7fr 0.7fr 0.7fr 0.7fr 0.9fr 0.8fr 0.5fr; gap:8px; padding:8px 16px; background:#0b0f11; border-bottom:1px solid rgba(255,255,255,0.08);">
+            <sc-for list="{{ perfCols }}" as="c" hint-placeholder-count="8"><button type="button" onClick="{{ c.set }}" style="{{ c.style }}">{{ c.label }}</button></sc-for>
+          </div>
+          <div style="flex:1; overflow:auto; min-height:0;">
+            <sc-for list="{{ traces }}" as="t" hint-placeholder-count="6">
+              <div style="display:grid; grid-template-columns:2.2fr 0.7fr 0.7fr 0.7fr 0.7fr 0.9fr 0.8fr 0.5fr; gap:8px; align-items:center; padding:8px 16px; border-bottom:1px solid rgba(255,255,255,0.04);">
+                <span style="display:flex; align-items:center; gap:6px; min-width:0;"><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#e7eef0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ t.name }}</span><span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#5f7178;">{{ t.cat }}</span><sc-if value="{{ t.hot }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace; font-size:8px; font-weight:600; color:#f5b54a; background:rgba(245,181,74,0.14); padding:1px 4px; border-radius:3px;">HOT</span></sc-if></span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a7b6bc; text-align:right;">{{ t.count }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#e7eef0; font-weight:600; text-align:right;">{{ t.avg }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a7b6bc; text-align:right;">{{ t.p95 }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8fa0a6; text-align:right;">{{ t.p99 }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#5ad1e6; text-align:right;">{{ t.total }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8fa0a6; text-align:right;">{{ t.interval }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:{{ t.errColor }}; text-align:right;">{{ t.errors }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ===================== PERFORMANCE · FRAMES (connected) ===================== -->
+        <sc-if value="{{ isFrames }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:16px; height:100%; overflow:auto;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;"><span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px;">Frames</span><span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#ff5d6c;">14 jank · 4.2%</span><span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#5ad1e6; background:rgba(90,209,230,0.1); border:1px solid rgba(90,209,230,0.25); padding:3px 8px; border-radius:6px;">live</span></div>
+          <div style="background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:13px; padding:15px; margin-bottom:14px;">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#cdd6da; margin-bottom:11px;">Frame time · recent (16ms budget)</div>
+            <div style="display:flex; align-items:flex-end; gap:3px; height:90px;"><sc-for list="{{ frameBars }}" as="b" hint-placeholder-count="40"><div style="flex:1; height:{{ b.h }}; background:{{ b.bg }}; border-radius:2px; min-height:3px;"></div></sc-for></div>
+          </div>
+          <div style="display:flex; gap:10px; font-family:'JetBrains Mono',monospace;">
+            <div style="flex:1; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:11px; padding:12px 14px;"><div style="font-size:10px; color:#5f7178;">build p50/95/99</div><div class="nums" style="font-size:14px; color:#e7eef0; margin-top:5px;">3.2 / 8.1 / 16.4ms</div></div>
+            <div style="flex:1; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:11px; padding:12px 14px;"><div style="font-size:10px; color:#5f7178;">raster p50/95/99</div><div class="nums" style="font-size:14px; color:#e7eef0; margin-top:5px;">2.1 / 6.4 / 12.8ms</div></div>
+          </div>
+        </div>
+        </sc-if>
+        <!-- ===================== STABILITY · ERRORS (connected) ===================== -->
+        <sc-if value="{{ isErrors }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; height:100%;">
+          <div style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.07);"><span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px;">Uncaught errors</span><span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#ff5d6c;">3 distinct · 37 total</span><span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#5ad1e6; background:rgba(90,209,230,0.1); border:1px solid rgba(90,209,230,0.25); padding:3px 8px; border-radius:6px;">live</span></div>
+          <div style="display:grid; grid-template-columns:3fr 1fr 0.9fr 0.6fr; gap:10px; padding:8px 16px; background:#0b0f11; border-bottom:1px solid rgba(255,255,255,0.08); font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#5f7178;"><span>message</span><span>type</span><span style="text-align:right;">last seen</span><span style="text-align:right;">count</span></div>
+          <div style="flex:1; overflow:auto; min-height:0;">
+            <sc-for list="{{ errors }}" as="e" hint-placeholder-count="3">
+              <div style="display:grid; grid-template-columns:3fr 1fr 0.9fr 0.6fr; gap:10px; align-items:center; padding:10px 16px; border-bottom:1px solid rgba(255,255,255,0.04);">
+                <span style="font-size:12.5px; color:#e7eef0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ e.msg }}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#f5b54a;">{{ e.type }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5f7178; text-align:right;">{{ e.time }}</span>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; color:#ff5d6c; text-align:right;">×{{ e.repeats }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ===================== STABILITY · STALLS (connected) ===================== -->
+        <sc-if value="{{ isStalls }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:16px; height:100%; overflow:auto;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;"><span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px;">Main-thread stalls</span><span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#f5b54a;">4 over 250ms</span><span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#5f7178;">span-correlated</span></div>
+          <div style="display:flex; flex-direction:column; gap:7px;">
+            <sc-for list="{{ stalls }}" as="x" hint-placeholder-count="4">
+              <div style="display:grid; grid-template-columns:90px 1fr auto; gap:14px; align-items:center; background:#0e1316; border:1px solid rgba(255,255,255,0.07); border-radius:11px; padding:11px 15px;">
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:600; color:{{ x.color }};">{{ x.dur }}</span>
+                <div><div style="font-size:12.5px; color:#cdd6da; margin-bottom:4px;">{{ x.cause }}</div><div style="font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#5f7178;">correlated span: <span style="color:#5ad1e6;">{{ x.span }}</span></div><div style="height:5px; background:rgba(255,255,255,0.05); border-radius:3px; margin-top:6px; overflow:hidden;"><div style="height:100%; width:{{ x.w }}; background:{{ x.color }}; border-radius:3px;"></div></div></div>
+                <span class="nums" style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#5f7178;">{{ x.time }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+
+  <!-- toast -->
+  <sc-if value="{{ toastOpen }}" hint-placeholder-val="{{ false }}">
+  <div class="nums" style="position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:80; font-family:'JetBrains Mono',monospace; font-size:12px; color:#0a0d0e; background:#2fe39b; padding:9px 16px; border-radius:10px; box-shadow:0 16px 40px -10px rgba(0,0,0,0.6);">{{ toastMsg }}</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    view:'dumps', connected:false,
+    selDump:'soak-24h',
+    checked:['soak-00h','soak-12h','soak-24h'],
+    histSort:'bytes', histDir:'desc', histQuery:'', histFilter:'all',
+    selClass:'ChatRoomController', expandedPath:0,
+    diffA:'soak-00h', diffB:'soak-24h', diffSort:'dBytes', diffDir:'desc',
+    trendClass:'ChatRoomController',
+    perfSort:'total', perfDir:'desc',
+    analyzing:false, analyzeName:'',
+    toast:'',
+  };
+
+  DUMPS = [
+    { id:'soak-00h', name:'soak_run_00h.dartheap', source:'file', ts:'Jun 24 · 09:00', sizeMB:182, classes:1420, bytes:38_200_000, mult:1.00 },
+    { id:'soak-04h', name:'soak_run_04h.dartheap', source:'file', ts:'Jun 24 · 13:00', sizeMB:214, classes:1441, bytes:44_600_000, mult:1.34 },
+    { id:'soak-12h', name:'soak_run_12h.dartheap', source:'file', ts:'Jun 24 · 21:00', sizeMB:268, classes:1460, bytes:58_900_000, mult:2.10 },
+    { id:'soak-24h', name:'soak_run_24h.dartheap', source:'file', ts:'Jun 25 · 09:00', sizeMB:331, classes:1478, bytes:74_800_000, mult:3.20 },
+    { id:'live-cap', name:'capture · isolate#1', source:'capture', ts:'Jun 25 · 14:32', sizeMB:346, classes:1482, bytes:78_100_000, mult:3.40 },
+  ];
+  RECENT = ['soak_run_18h.dartheap','regress_v2.dartheap','baseline_release.dartheap'];
+
+  // base classes @ soak-00h. growth = leak classes scale with dump.mult; stable classes stay flat.
+  CLASSES = [
+    { cls:'ChatRoomController', lib:'app/chat', root:'leak', cat:'app', inst0:15, bytes0:640_000, grow:true },
+    { cls:'_MessageModel', lib:'app/chat', root:'live', cat:'app', inst0:1800, bytes0:1_600_000, grow:true },
+    { cls:'HeartbeatTimer', lib:'app/net', root:'leak', cat:'app', inst0:2, bytes0:36_000, grow:true },
+    { cls:'_PresenceSubscription', lib:'app/net', root:'leak', cat:'app', inst0:3, bytes0:180_000, grow:true },
+    { cls:'ImageCache._CachedImage', lib:'flutter/painting', root:'other', cat:'flutter', inst0:160, bytes0:1_100_000, grow:true },
+    { cls:'Uint8List', lib:'dart:typed_data', root:'other', cat:'core', inst0:900, bytes0:3_400_000, grow:true },
+    { cls:'String', lib:'dart:core', root:'other', cat:'core', inst0:44200, bytes0:4_100_000, grow:false },
+    { cls:'_OneByteString', lib:'dart:core', root:'other', cat:'core', inst0:31200, bytes0:1_900_000, grow:false },
+    { cls:'List', lib:'dart:core', root:'live', cat:'core', inst0:8800, bytes0:1_450_000, grow:false },
+    { cls:'Map', lib:'dart:core', root:'live', cat:'collection', inst0:4100, bytes0:980_000, grow:false },
+    { cls:'DashboardBloc', lib:'app/dashboard', root:'leak', cat:'app', inst0:1, bytes0:48_000, grow:true },
+    { cls:'Widget', lib:'flutter/widgets', root:'live', cat:'flutter', inst0:6200, bytes0:610_000, grow:false },
+    { cls:'_GrowableList', lib:'dart:core', root:'live', cat:'collection', inst0:5200, bytes0:1_240_000, grow:false },
+    { cls:'RenderObject', lib:'flutter/rendering', root:'live', cat:'flutter', inst0:2400, bytes0:820_000, grow:false },
+  ];
+
+  // per-path instance distribution for the leaky class
+  PATHDIST = {
+    'ChatRoomController': { total:48, paths:[
+      { label:'via _ChatService._activeRooms', count:24, root:'leak', hops:['GC root · static','_ChatService._activeRooms  chat_service.dart:41','_GrowableList [24]','ChatRoomController  ← retained'] },
+      { label:'via _NavigatorState._history', count:20, root:'live', hops:['GC root · Element tree','_NavigatorState._history  navigator.dart','Route._subtreeKey','ChatRoomController'] },
+      { label:'via _RadarTrackedSet', count:4, root:'other', hops:['GC root · debug','_RadarTrackedSet._live','ChatRoomController  ← tracked'] },
+    ] },
+    'HeartbeatTimer': { total:7, paths:[
+      { label:'via _NetService._timers', count:7, root:'leak', hops:['GC root · static','_NetService._timers  net_service.dart:22','_GrowableList [7]','HeartbeatTimer  ← never cancelled'] },
+    ] },
+    '_PresenceSubscription': { total:9, paths:[
+      { label:'via PresenceService._subs', count:6, root:'leak', hops:['GC root · static','PresenceService._subs','_BroadcastSubscription','_PresenceSubscription'] },
+      { label:'via _FeedState', count:3, root:'live', hops:['GC root · Element tree','_FeedState._sub','_PresenceSubscription'] },
+    ] },
+  };
+
+  TRACES = [
+    { name:'api.fetchMessages', cat:'network', count:410, avg:182, p95:410, p99:720, total:74620, interval:220, errors:6, hot:false },
+    { name:'db.query(messages)', cat:'db', count:880, avg:12, p95:34, p99:58, total:10560, interval:120, errors:0, hot:true },
+    { name:'bloc.mapEvent', cat:'state', count:1500, avg:2.1, p95:5.2, p99:9.1, total:3150, interval:64, errors:0, hot:true },
+    { name:'scroll.layout', cat:'render', count:5400, avg:0.6, p95:1.4, p99:2.8, total:3240, interval:11, errors:0, hot:true },
+    { name:'json.decode', cat:'cpu', count:2200, avg:0.8, p95:2.1, p99:4.0, total:1760, interval:40, errors:0, hot:true },
+    { name:'image.decode', cat:'cpu', count:320, avg:28, p95:74, p99:140, total:8960, interval:330, errors:0, hot:false },
+  ];
+  ERRORS = [
+    { msg:'Null check operator used on a null value', type:'_TypeError', time:'14:31:08', repeats:23 },
+    { msg:'Bad state: Cannot add to a closed StreamController', type:'StateError', time:'14:22:41', repeats:6 },
+    { msg:'SocketException: Connection refused (port 443)', type:'SocketException', time:'14:19:02', repeats:8 },
+  ];
+  STALLS = [
+    { dur:1240, time:'14:30:11', cause:'jsonDecode on main isolate (2.1 MB)', span:'api.fetchMessages' },
+    { dur:980, time:'14:27:39', cause:'Synchronous file write', span:'cache.write' },
+    { dur:720, time:'14:21:55', cause:'Image decode on UI thread', span:'image.decode' },
+    { dur:540, time:'14:18:20', cause:'Large list rebuild', span:'scroll.layout' },
+  ];
+
+  _bytes(v){ const a=Math.abs(v), s=v<0?'-':''; if(a>=1e6) return s+(a/1e6).toFixed(1)+' MB'; if(a>=1e3) return s+Math.round(a/1e3)+' KB'; return v+' B'; }
+  _bytesD(v){ const s=v>0?'+':v<0?'−':''; const a=Math.abs(v); if(a>=1e6) return s+(a/1e6).toFixed(1)+' MB'; if(a>=1e3) return s+Math.round(a/1e3)+' KB'; return s+a+' B'; }
+  _ms(v){ return v>=1000?(v/1000).toFixed(1)+'s':(v<10?v.toFixed(1):Math.round(v))+'ms'; }
+  _n(v){ return v.toLocaleString(); }
+  _toast(m){ clearTimeout(this._t); this.setState({toast:m}); this._t=setTimeout(()=>this.setState({toast:''}),1900); }
+
+  _instOf(c,mult){ return c.grow ? Math.round(c.inst0*mult) : c.inst0; }
+  _bytesOf(c,mult){ return c.grow ? Math.round(c.bytes0*mult) : c.bytes0; }
+
+  _classesFor(dumpId){
+    const d=this.DUMPS.find(x=>x.id===dumpId)||this.DUMPS[0];
+    return this.CLASSES.map(c=>({ ...c, inst:this._instOf(c,d.mult), bytes:this._bytesOf(c,d.mult) }));
+  }
+
+  renderVals(){
+    const s=this.state;
+    const nav=(on,locked)=>`text-align:left;display:flex;align-items:center;gap:9px;font-family:'Hanken Grotesk',sans-serif;font-size:13px;padding:7px 10px;border-radius:8px;border:0;cursor:${locked?'not-allowed':'pointer'};${on?'background:rgba(47,227,155,0.1);color:#2fe39b;font-weight:600;':locked?'background:transparent;color:#3d4a4f;':'background:transparent;color:#a7b6bc;'}`;
+    const colBtn=(active,dir,align)=>`font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.02em;cursor:pointer;background:transparent;border:0;padding:0;text-align:${align};${active?'color:#2fe39b;font-weight:600;':'color:#5f7178;'}`;
+    const chip=(on,c)=>`font-family:'JetBrains Mono',monospace;font-size:10.5px;white-space:nowrap;padding:4px 9px;border-radius:7px;cursor:pointer;border:1px solid ${on?'transparent':'rgba(255,255,255,0.08)'};${on?`background:${c||'#2fe39b'};color:#0a0d0e;font-weight:600;`:'background:rgba(255,255,255,0.04);color:#c4d0d4;'}`;
+    const conn=s.connected;
+    const dump=this.DUMPS.find(x=>x.id===s.selDump)||this.DUMPS[0];
+
+    // dumps view
+    const dumps=this.DUMPS.map(d=>{ const isCapture=d.source==='capture', checked=s.checked.includes(d.id), sel=d.id===s.selDump;
+      return { ...d, sizeLabel:d.sizeMB+' MB', bytesLabel:this._bytes(d.bytes), classesLabel:this._n(d.classes),
+      isCapture, checked, sel,
+      rowBg: sel?'rgba(47,227,155,0.06)':'#0e1316', rowBorder: sel?'rgba(47,227,155,0.3)':'rgba(255,255,255,0.07)',
+      checkBorder: checked?'#2fe39b':'rgba(255,255,255,0.2)', checkBg: checked?'#2fe39b':'transparent', checkMark: checked?'✓':' ',
+      iconBg: isCapture?'rgba(90,209,230,0.12)':'rgba(47,227,155,0.1)', iconColor: isCapture?'#5ad1e6':'#2fe39b', icon: isCapture?'◉':'▤',
+      sourceColor: isCapture?'#5ad1e6':'#8fa0a6',
+      toggle:()=>this.setState(p=>({checked:p.checked.includes(d.id)?p.checked.filter(x=>x!==d.id):[...p.checked,d.id]})),
+      openDump:()=>this.setState({selDump:d.id, view:'hist'}) }; });
+
+    // histogram
+    let cls=this._classesFor(s.selDump);
+    if(s.histFilter==='leak') cls=cls.filter(c=>c.root==='leak');
+    else if(s.histFilter==='app') cls=cls.filter(c=>c.cat==='app');
+    else if(s.histFilter==='collection') cls=cls.filter(c=>c.cat==='collection'||c.cat==='core');
+    if(s.histQuery.trim()){ const q=s.histQuery.toLowerCase(); cls=cls.filter(c=>(c.cls+' '+c.lib).toLowerCase().includes(q)); }
+    const hk=s.histSort, hdir=s.histDir==='desc'?-1:1;
+    cls.sort((a,b)=> hk==='cls'?a.cls.localeCompare(b.cls)*(hdir*-1) : (a[hk]-b[hk])*hdir);
+    const maxBytes=Math.max(...this._classesFor(s.selDump).map(c=>c.bytes));
+    const rootColor=(r)=> r==='leak'?'#ff5d6c':r==='live'?'#5ad1e6':'#8fa0a6';
+    const histRows=cls.map(c=>({ cls:c.cls, lib:c.lib, inst:this._n(c.inst), bytes:this._bytes(c.bytes),
+      root:c.root, rootColor:rootColor(c.root), barW:Math.round(c.bytes/maxBytes*100)+'%',
+      barBg:c.root==='leak'?'#ff5d6c':c.root==='live'?'rgba(90,209,230,0.5)':'rgba(47,227,155,0.35)',
+      sel:c.cls===s.selClass, open:()=>this.setState({selClass:c.cls, view:'paths', expandedPath:0}) }));
+    const hcols=[['cls','class','left'],['inst','instances','right'],['bytes','shallow bytes','right'],['bytes','share','left']];
+    const histCols=hcols.map(([k,l,al],i)=>({label:l+(s.histSort===k&&i!==3?(s.histDir==='desc'?' ↓':' ↑'):''),style:colBtn(s.histSort===k,s.histDir,al),set:()=>this.setState(p=>({histSort:k,histDir:p.histSort===k&&p.histDir==='desc'?'asc':'desc'}))}));
+    const histFilters=[['all','all'],['leak','leak-prone'],['app','app'],['collection','collections']].map(([k,l])=>({label:l,style:chip(s.histFilter===k, k==='leak'?'#ff5d6c':'#2fe39b'),set:()=>this.setState({histFilter:k})}));
+
+    // paths / class detail
+    const pathClasses=this._classesFor(s.selDump).filter(c=>this.PATHDIST[c.cls]);
+    const groups=[
+      {key:'leak', label:'Leak-prone roots', color:'#ff5d6c', items:pathClasses.filter(c=>c.root==='leak')},
+      {key:'live', label:'Live-tree roots', color:'#5ad1e6', items:pathClasses.filter(c=>c.root==='live')},
+      {key:'other', label:'Other roots', color:'#8fa0a6', items:pathClasses.filter(c=>c.root==='other')},
+    ].filter(g=>g.items.length).map(g=>({ label:g.label, color:g.color, count:g.items.length,
+      items:g.items.map(c=>({ cls:c.cls, lib:c.lib, inst:this._n(c.inst), sel:c.cls===s.selClass,
+        dot:rootColor(c.root), open:()=>this.setState({selClass:c.cls, expandedPath:0}) })) }));
+    const pdRaw=this.PATHDIST[s.selClass];
+    const selClsData=this._classesFor(s.selDump).find(c=>c.cls===s.selClass);
+    let pathDist=null;
+    if(pdRaw){
+      pathDist={ total:pdRaw.total, cls:s.selClass, lib:selClsData?selClsData.lib:'', bytes:selClsData?this._bytes(selClsData.bytes):'',
+        rootLeak:pdRaw.paths.filter(p=>p.root==='leak').reduce((a,b)=>a+b.count,0),
+        rootLive:pdRaw.paths.filter(p=>p.root==='live').reduce((a,b)=>a+b.count,0),
+        rootOther:pdRaw.paths.filter(p=>p.root==='other').reduce((a,b)=>a+b.count,0),
+        paths:pdRaw.paths.map((p,i)=>({ label:p.label, count:p.count, pct:Math.round(p.count/pdRaw.total*100)+'%',
+          barW:Math.round(p.count/pdRaw.total*100)+'%', color:rootColor(p.root), expanded:i===s.expandedPath,
+          caret:i===s.expandedPath?'▾':'▸',
+          hopRows:p.hops.map((h,hi)=>({ prefix: hi===0?'':'  '.repeat(hi-1)+'└─ ', text:h })),
+          toggle:()=>this.setState(pp=>({expandedPath:pp.expandedPath===i?-1:i})) })) };
+    }
+
+    // compare
+    const dA=this.DUMPS.find(x=>x.id===s.diffA)||this.DUMPS[0];
+    const dB=this.DUMPS.find(x=>x.id===s.diffB)||this.DUMPS[3];
+    const diff=this.CLASSES.map(c=>{ const ia=this._instOf(c,dA.mult), ib=this._instOf(c,dB.mult), ba=this._bytesOf(c,dA.mult), bb=this._bytesOf(c,dB.mult);
+      return { cls:c.cls, lib:c.lib, dInst:ib-ia, dBytes:bb-ba, root:c.root }; });
+    const dk=s.diffSort, ddir=s.diffDir==='desc'?-1:1;
+    diff.sort((a,b)=> dk==='cls'?a.cls.localeCompare(b.cls)*(ddir*-1):(a[dk]-b[dk])*ddir);
+    const diffRows=diff.map(d=>({ cls:d.cls, lib:d.lib, dInst:(d.dInst>0?'+':'')+this._n(d.dInst), dBytes:this._bytesD(d.dBytes),
+      color:d.dBytes>0?'#ff5d6c':d.dBytes<0?'#2fe39b':'#5f7178', dot:rootColor(d.root) }));
+    const dcols=[['cls','class','left'],['dInst','Δ instances','right'],['dBytes','Δ bytes','right']];
+    const diffCols=dcols.map(([k,l,al])=>({label:l+(s.diffSort===k?(s.diffDir==='desc'?' ↓':' ↑'):''),style:colBtn(s.diffSort===k,s.diffDir,al),set:()=>this.setState(p=>({diffSort:k,diffDir:p.diffSort===k&&p.diffDir==='desc'?'asc':'desc'}))}));
+    const dumpOpts=this.DUMPS.map(d=>({id:d.id,name:d.name}));
+
+    // trends
+    const trendDumps=this.DUMPS.filter(d=>s.checked.includes(d.id));
+    const trendCls=this.CLASSES.find(c=>c.cls===s.trendClass)||this.CLASSES[0];
+    const series=trendDumps.map(d=>({ ts:d.ts.split('·')[1]||d.ts, inst:this._instOf(trendCls,d.mult), bytes:this._bytesOf(trendCls,d.mult) }));
+    const sMaxInst=Math.max(...series.map(p=>p.inst),1);
+    const trendPoints=series.map((p,i)=>({ x: series.length>1? (i/(series.length-1)*100):50, y: 100-(p.inst/sMaxInst*84)-8, inst:this._n(p.inst), ts:p.ts, bytes:this._bytes(p.bytes) }));
+    const trendPath = trendPoints.map((p,i)=>(i===0?'M':'L')+p.x.toFixed(1)+' '+p.y.toFixed(1)).join(' ');
+    const trendArea = trendPoints.length? 'M'+trendPoints[0].x.toFixed(1)+' 100 '+trendPoints.map(p=>'L'+p.x.toFixed(1)+' '+p.y.toFixed(1)).join(' ')+' L'+trendPoints[trendPoints.length-1].x.toFixed(1)+' 100 Z':'';
+    const trendFirst=series.length?series[0].inst:0, trendLast=series.length?series[series.length-1].inst:0;
+    const trendDelta=trendLast-trendFirst;
+    const trendClassOpts=this.CLASSES.filter(c=>c.grow).map(c=>({cls:c.cls, sel:c.cls===s.trendClass, set:()=>this.setState({trendClass:c.cls}),
+      style:chip(c.cls===s.trendClass,'#f5b54a')}));
+
+    // perf/stability
+    const tk=s.perfSort, tdir=s.perfDir==='desc'?-1:1;
+    let traces=[...this.TRACES]; traces.sort((a,b)=> tk==='name'?a.name.localeCompare(b.name)*(tdir*-1):(a[tk]-b[tk])*tdir);
+    const tracesMapped=traces.map(t=>({ name:t.name, cat:t.cat, hot:t.hot, count:this._n(t.count), avg:this._ms(t.avg), p95:this._ms(t.p95), p99:this._ms(t.p99), total:this._ms(t.total), interval:this._ms(t.interval), errors:t.errors||'·', errColor:t.errors>0?'#ff5d6c':'#3d4a4f' }));
+    const pcols=[['name','operation','left'],['count','count','right'],['avg','avg','right'],['p95','p95','right'],['p99','p99','right'],['total','total','right'],['interval','intvl','right'],['errors','err','right']];
+    const perfCols=pcols.map(([k,l,al])=>({label:l+(s.perfSort===k?(s.perfDir==='desc'?' ↓':' ↑'):''),style:colBtn(s.perfSort===k,s.perfDir,al),set:()=>this.setState(p=>({perfSort:k,perfDir:p.perfSort===k&&p.perfDir==='desc'?'asc':'desc'}))}));
+    const stMax=Math.max(...this.STALLS.map(x=>x.dur));
+    const stalls=this.STALLS.map(x=>({ dur:this._ms(x.dur), time:x.time, cause:x.cause, span:x.span, w:Math.round(x.dur/stMax*100)+'%', color:x.dur>1000?'#ff5d6c':x.dur>600?'#f5b54a':'rgba(245,181,74,0.6)' }));
+    const fr=[6,7,5,8,6,9,7,18,6,5,7,6,8,24,7,6,5,9,6,7,31,8,6,5,7,6,9,6,7,5,8,17,6,7,5,6,9,6,7,6]; const frMx=Math.max(...fr);
+    const frameBars=fr.map(v=>({h:Math.max(8,Math.round(v/frMx*100))+'%', bg:v>16?'#ff5d6c':v>10?'#f5b54a':'rgba(47,227,155,0.45)'}));
+
+    return {
+      // chrome
+      connected:conn, notConnected:!conn,
+      workspaceName:'chat-app soak', dumpCount:this.DUMPS.length,
+      dumpCountLabel:`${this.DUMPS.length} dumps · ${this.state.checked.length} selected`,
+      toggleConn:()=>this.setState(p=>({connected:!p.connected, view:(!p.connected?p.view:( ['traces','frames','errors','stalls'].includes(p.view)?'dumps':p.view))})),
+      connToggleLabel: conn?'● Connected — click to go offline':'○ Offline — click to connect',
+      connToggleStyle:`font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:600;padding:7px 13px;border-radius:9px;cursor:pointer;border:1px solid ${conn?'rgba(47,227,155,0.4)':'rgba(255,255,255,0.14)'};background:${conn?'rgba(47,227,155,0.1)':'rgba(255,255,255,0.04)'};color:${conn?'#2fe39b':'#a7b6bc'};`,
+      connChipLabel: conn?'Connected · isolate#1':'Offline',
+      connColor: conn?'#2fe39b':'#5f7178', connBg: conn?'rgba(47,227,155,0.1)':'rgba(255,255,255,0.05)', connBorder: conn?'rgba(47,227,155,0.3)':'rgba(255,255,255,0.1)', connAnim: conn?'rdr-live 2s ease-in-out infinite':'none',
+      doImport:()=>this._toast('Import dump — file picker'),
+      liveCapture:()=>this._toast('Captured heap → added to workspace'), forceGc:()=>this._toast('GC forced on isolate#1'),
+      // nav
+      vDumps:()=>this.setState({view:'dumps'}), vHist:()=>this.setState({view:'hist'}), vPaths:()=>this.setState({view:'paths'}), vCompare:()=>this.setState({view:'compare'}), vTrends:()=>this.setState({view:'trends'}),
+      vTraces:()=>{ if(conn) this.setState({view:'traces'}); }, vFrames:()=>{ if(conn) this.setState({view:'frames'}); }, vErrors:()=>{ if(conn) this.setState({view:'errors'}); }, vStalls:()=>{ if(conn) this.setState({view:'stalls'}); },
+      navDumps:nav(s.view==='dumps'), navHist:nav(s.view==='hist'), navPaths:nav(s.view==='paths'), navCompare:nav(s.view==='compare'), navTrends:nav(s.view==='trends'),
+      navTraces:nav(s.view==='traces',!conn), navFrames:nav(s.view==='frames',!conn), navErrors:nav(s.view==='errors',!conn), navStalls:nav(s.view==='stalls',!conn),
+      isDumps:s.view==='dumps', isHist:s.view==='hist', isPaths:s.view==='paths', isCompare:s.view==='compare', isTrends:s.view==='trends',
+      isTraces:s.view==='traces', isFrames:s.view==='frames', isErrors:s.view==='errors', isStalls:s.view==='stalls',
+      // dumps
+      dumps, recent:this.RECENT, workspaceEmpty:false,
+      // hist
+      selDumpName:dump.name, histRows, histCols, histFilters, histEmpty:histRows.length===0,
+      histQuery:s.histQuery, onHistSearch:(e)=>this.setState({histQuery:e.target.value}),
+      histCount:`${this._classesFor(s.selDump).length} classes · ${dump.bytesLabel||this._bytes(dump.bytes)}`,
+      // paths
+      groups, pathDist, hasPathDist:!!pathDist, noPathDist:!pathDist, selClass:s.selClass, selDumpNameP:dump.name,
+      // compare
+      diffRows, diffCols, dumpOpts, diffA:s.diffA, diffB:s.diffB,
+      setDiffA:(e)=>this.setState({diffA:e.target.value}), setDiffB:(e)=>this.setState({diffB:e.target.value}),
+      diffHeader:`${dA.name}  →  ${dB.name}`, diffTotalD:this._bytesD(dB.bytes-dA.bytes),
+      // trends
+      trendClassOpts, trendPath, trendArea, trendPoints, trendClass:s.trendClass,
+      trendFirst:this._n(trendFirst), trendLast:this._n(trendLast), trendDelta:(trendDelta>0?'+':'')+this._n(trendDelta),
+      trendDeltaColor:trendDelta>0?'#ff5d6c':'#2fe39b', trendCount:trendDumps.length, trendEnough:trendDumps.length>=2, trendFew:trendDumps.length<2,
+      // perf/stab
+      traces:tracesMapped, perfCols, stalls, frameBars,
+      errors:this.ERRORS,
+      // toast
+      toastOpen:!!s.toast, toastMsg:s.toast,
+    };
+  }
+  componentWillUnmount(){ clearTimeout(this._t); }
+}
+</script>
+</body>
+</html>
