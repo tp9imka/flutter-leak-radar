@@ -417,5 +417,55 @@ void main() {
       c.focusOn(9999); // not present
       expect(c.focused?.id, b.id); // _byId(9999) == null → latest
     });
+
+    test('remove(id) reconciles a focused id pointing at the removed '
+        'snapshot', () {
+      final c = MemoryController(
+        snapshotSource: FakeSnapshotSource(),
+        connection: FakeRadarConnection(),
+      );
+      final a = c.addBundle(_bundle('a'));
+      final b = c.addBundle(_bundle('b')); // b is latest
+      // Deselect both so `pair` is null and `focused` falls through to
+      // `latest` once the explicit focus is gone.
+      c.toggleSelection(a.id);
+      c.toggleSelection(b.id);
+      c.focusOn(a.id);
+      c.remove(a.id);
+      expect(c.focusedId, isNull);
+      expect(c.focused?.id, b.id); // falls back to latest, not a stale id
+    });
+
+    test('clearAll() clears a previously focused id', () {
+      final c = MemoryController(
+        snapshotSource: FakeSnapshotSource(),
+        connection: FakeRadarConnection(),
+      );
+      final a = c.addBundle(_bundle('a'));
+      c.focusOn(a.id);
+      c.clearAll();
+      expect(c.focusedId, isNull);
+    });
+
+    test('rehydrate() clears the focused id so it cannot collide with a '
+        'same-numbered snapshot in the restored session', () {
+      final c = MemoryController(
+        snapshotSource: FakeSnapshotSource(),
+        connection: FakeRadarConnection(),
+      );
+      final a = c.addBundle(_bundle('a')); // assigned id 1
+      c.focusOn(a.id);
+      c.rehydrate(
+        PersistedSession(
+          bundles: [_snap(1), _snap(2)], // unrelated new id-1 snapshot
+          selectedIds: const [2],
+          view: RadarView.snapshotDiff,
+        ),
+      );
+      expect(c.focusedId, isNull);
+      // Without the fix, `focused` would resolve to the new session's id-1
+      // snapshot purely by numeric coincidence with the old focus.
+      expect(c.focused?.id, 2); // latest of the restored session
+    });
   });
 }

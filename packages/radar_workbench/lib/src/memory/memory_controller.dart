@@ -203,6 +203,7 @@ class MemoryController extends ChangeNotifier {
   void remove(int id) {
     _snapshots.removeWhere((s) => s.id == id);
     _selected.remove(id);
+    if (_focusedId == id) _focusedId = null;
     notifyListeners();
   }
 
@@ -210,6 +211,7 @@ class MemoryController extends ChangeNotifier {
     _snapshots.clear();
     _selected.clear();
     _error = null;
+    _focusedId = null;
     restoredFromDisk = false;
     notifyListeners();
   }
@@ -227,6 +229,7 @@ class MemoryController extends ChangeNotifier {
       ..clear()
       ..addAll(session.selectedIds.where(ids.contains).take(2));
     _nextId = (ids.isEmpty ? 0 : ids.reduce((a, b) => a > b ? a : b)) + 1;
+    _focusedId = null;
     restoredFromDisk = true;
     notifyListeners();
   }

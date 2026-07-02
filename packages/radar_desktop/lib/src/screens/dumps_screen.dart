@@ -24,25 +24,35 @@ class DumpsScreen extends StatelessWidget {
     XTypeGroup(label: 'Heap snapshot', extensions: ['dartheap', 'data']),
   ];
 
-  Future<void> _browse() async {
+  Future<void> _browse(BuildContext context) async {
     final file = await openFile(acceptedTypeGroups: _types);
     if (file == null) return;
-    final bytes = await File(file.path).readAsBytes();
-    await workspace.importBytes(
-      bytes,
-      label: _labelFor(file.path),
-      recentPath: file.path,
-    );
-  }
-
-  Future<void> _onDrop(DropDoneDetails details) async {
-    for (final f in details.files) {
-      final bytes = await File(f.path).readAsBytes();
+    try {
+      final bytes = await File(file.path).readAsBytes();
       await workspace.importBytes(
         bytes,
-        label: _labelFor(f.path),
-        recentPath: f.path,
+        label: _labelFor(file.path),
+        recentPath: file.path,
       );
+    } catch (e) {
+      if (!context.mounted) return;
+      _showError(context, 'Import failed: $e');
+    }
+  }
+
+  Future<void> _onDrop(BuildContext context, DropDoneDetails details) async {
+    for (final f in details.files) {
+      try {
+        final bytes = await File(f.path).readAsBytes();
+        await workspace.importBytes(
+          bytes,
+          label: _labelFor(f.path),
+          recentPath: f.path,
+        );
+      } catch (e) {
+        if (!context.mounted) return;
+        _showError(context, 'Import failed: $e');
+      }
     }
   }
 
@@ -57,11 +67,11 @@ class DumpsScreen extends StatelessWidget {
       listenable: workspace,
       builder: (context, _) {
         return DropTarget(
-          onDragDone: _onDrop,
+          onDragDone: (details) => _onDrop(context, details),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _Header(workspace: workspace, onBrowse: _browse),
+              _Header(workspace: workspace, onBrowse: () => _browse(context)),
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 0, 20, 6),
                 child: _DropHint(),
@@ -82,7 +92,7 @@ class DumpsScreen extends StatelessWidget {
                 ),
               Expanded(
                 child: workspace.dumps.isEmpty
-                    ? _DropZone(onBrowse: _browse)
+                    ? _DropZone(onBrowse: () => _browse(context))
                     : _DumpTable(workspace: workspace, onOpen: onOpenHistogram),
               ),
               if (workspace.recentPaths.isNotEmpty)
@@ -240,7 +250,7 @@ class _DumpTable extends StatelessWidget {
               IconButton(
                 tooltip: 'Export report',
                 icon: const Icon(Icons.download_outlined, size: 16),
-                onPressed: () => workspace.exportDump(d.id),
+                onPressed: () => _exportDump(context, workspace, d.id),
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 14),
@@ -318,6 +328,33 @@ class _RecentRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Exports [id]'s bundle, surfacing an IO failure (permission, full disk,
+/// deleted file) as a [SnackBar] instead of letting it become an unhandled
+/// rejection.
+Future<void> _exportDump(
+  BuildContext context,
+  WorkspaceController workspace,
+  int id,
+) async {
+  try {
+    await workspace.exportDump(id);
+  } catch (e) {
+    if (!context.mounted) return;
+    _showError(context, 'Export failed: $e');
+  }
+}
+
+/// Shows a failure [message] via the nearest [ScaffoldMessenger]. No-ops if
+/// [context] is no longer mounted (guards the async gap between the failing
+/// IO call and this callback) or if no messenger is present (e.g. a widget
+/// test that pumps the screen without one).
+void _showError(BuildContext context, String message) {
+  if (!context.mounted) return;
+  ScaffoldMessenger.maybeOf(
+    context,
+  )?.showSnackBar(SnackBar(content: Text(message)));
 }
 
 String _fmtBytes(int b) {

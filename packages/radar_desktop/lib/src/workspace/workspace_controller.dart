@@ -24,10 +24,6 @@ class WorkspaceController extends ChangeNotifier {
       snapshotSource: const OfflineSnapshotSource(),
       connection: _connection,
     );
-    // Auto-persist on every memory change. The shell calls `restore()` before
-    // any user mutation, so this never overwrites a good save with an empty
-    // one; the `isEmpty` guard in `_persist` is extra insurance.
-    memory.addListener(() => unawaited(_persist()));
   }
 
   final SnapshotAnalyzer _analyzer;
@@ -51,8 +47,14 @@ class WorkspaceController extends ChangeNotifier {
   List<String> get recentPaths => List.unmodifiable(_recent);
   int? get activeDumpId => memory.focusedId;
 
-  /// Dumps in capture order (matches `memory.snapshots`).
-  List<DumpMeta> get dumps => [for (final s in memory.snapshots) _meta[s.id]!];
+  /// Dumps in capture order (matches `memory.snapshots`). Tolerant of a
+  /// snapshot whose metadata hasn't been written yet: [addExisting] calls
+  /// `memory.addBundle` (which notifies listeners) before `_meta[id]` is set,
+  /// so a listener reading [dumps] in that window must not null-assert.
+  List<DumpMeta> get dumps => [
+    for (final s in memory.snapshots)
+      if (_meta[s.id] case final m?) m,
+  ];
 
   /// Adds an already-analyzed bundle (the connection-free core of import).
   /// Assigns metadata, appends to [memory], focuses it, and returns the stored
@@ -72,6 +74,7 @@ class WorkspaceController extends ChangeNotifier {
     );
     memory.focusOn(stored.id);
     notifyListeners();
+    unawaited(_persist());
     return stored;
   }
 
@@ -129,6 +132,7 @@ class WorkspaceController extends ChangeNotifier {
     _meta.remove(id);
     _trend.remove(id);
     notifyListeners();
+    unawaited(_persist());
   }
 
   void clearAll() {
@@ -136,6 +140,7 @@ class WorkspaceController extends ChangeNotifier {
     _meta.clear();
     _trend.clear();
     notifyListeners();
+    unawaited(_persist());
   }
 
   /// Serializes the current workspace (bundles + the memory view) for
@@ -164,6 +169,7 @@ class WorkspaceController extends ChangeNotifier {
       );
     }
     notifyListeners();
+    unawaited(_persist());
   }
 
   /// Exports [id]'s bundle as a shareable report via the desktop exporter.
@@ -178,9 +184,12 @@ class WorkspaceController extends ChangeNotifier {
     if (session != null && session.bundles.isNotEmpty) rehydrate(session);
   }
 
-  /// Persists the current session (called after mutations via the [memory]
-  /// listener). Skips empty sessions so a fresh, not-yet-restored controller
-  /// never clobbers a previously saved one.
+  /// Persists the current session. Called explicitly after the mutations
+  /// that change the bundle *set* ([addExisting], [removeDump], [clearAll],
+  /// [rehydrate]) — not after pure view-state changes like [openDump] or
+  /// [selectComparePair] — so a multi-MB session isn't re-serialized on every
+  /// memory notification. Skips empty sessions so a fresh, not-yet-restored
+  /// controller never clobbers a previously saved one.
   Future<void> _persist() async {
     if (memory.snapshots.isEmpty) return;
     await _store.persist(toSession());
