@@ -3,3 +3,6 @@
 /// Models + analysis for the native memory lane, a peer to `leak_graph`.
 /// Exports are added incrementally as each model/analysis lands.
 library;
+
+export 'src/model/native_callsite.dart';
+export 'src/model/native_frame.dart';
