@@ -5,6 +5,7 @@ import 'package:radar_desktop/src/screens/compare_screen.dart';
 import 'package:radar_desktop/src/screens/dumps_screen.dart';
 import 'package:radar_desktop/src/screens/histogram_screen.dart';
 import 'package:radar_desktop/src/screens/paths_screen.dart';
+import 'package:radar_desktop/src/screens/trends_screen.dart';
 import 'package:radar_desktop/src/workspace/workspace_controller.dart';
 import 'package:radar_ui/radar_ui.dart';
 import 'package:radar_workbench/radar_workbench.dart';
@@ -149,5 +150,73 @@ void main() {
     );
     expect(find.byType(DiffTable), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('CompareScreen prompts when fewer than two dumps', (
+    tester,
+  ) async {
+    final wc = WorkspaceController();
+    wc.addExisting(_bundle('only'), source: DumpSource.file);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: radarDarkTheme(),
+        home: Scaffold(body: CompareScreen(workspace: wc)),
+      ),
+    );
+    expect(find.textContaining('at least two'), findsOneWidget);
+  });
+
+  testWidgets('TrendsScreen prompts for >=2 selected dumps, then plots', (
+    tester,
+  ) async {
+    // Build two dumps with a growing class.
+    SnapshotBundle bWith(DateTime at, int leaky) => SnapshotBundle(
+      capturedAt: at,
+      label: at.toIso8601String(),
+      histogram: [
+        ClassCount(
+          className: 'Leaky',
+          libraryUri: Uri.parse('package:app/a.dart'),
+          instanceCount: leaky,
+          shallowBytes: leaky * 8,
+        ),
+      ],
+      analysisResult: const GraphAnalysisResult(
+        clusters: [],
+        stats: GraphAnalysisStats(
+          totalObjects: 0,
+          reachableObjects: 0,
+          leakCandidates: 0,
+          clusters: 0,
+          suppressedByAppFilter: 0,
+          warnings: [],
+        ),
+      ),
+    );
+    final wc = WorkspaceController();
+    final a = wc.addExisting(
+      bWith(DateTime(2026, 1, 1, 9), 10),
+      source: DumpSource.file,
+    );
+    final b = wc.addExisting(
+      bWith(DateTime(2026, 1, 1, 13), 40),
+      source: DumpSource.file,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: radarDarkTheme(),
+        home: Scaffold(body: TrendsScreen(workspace: wc)),
+      ),
+    );
+    // Fewer than 2 selected → prompt.
+    expect(find.textContaining('at least two'), findsOneWidget);
+
+    wc.toggleTrendSelection(a.id);
+    wc.toggleTrendSelection(b.id);
+    await tester.pumpAndSettle();
+    // Now the growing-class chip + chart render.
+    expect(find.text('Leaky'), findsWidgets);
+    expect(find.byType(RadarTrendChart), findsOneWidget);
   });
 }
