@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radar_desktop/src/app/desktop_view.dart';
+import 'package:radar_desktop/src/screens/dumps_screen.dart';
+import 'package:radar_desktop/src/screens/trends_screen.dart';
 import 'package:radar_desktop/src/shell/desktop_rail.dart';
 import 'package:radar_desktop/src/shell/desktop_shell.dart';
 import 'package:radar_ui/radar_ui.dart';
@@ -56,12 +58,14 @@ void main() {
     expect(tapped, isNull);
   });
 
-  testWidgets('shell renders the placeholder for the selected view', (
-    tester,
-  ) async {
+  testWidgets('shell routes memory views to real screens; '
+      'opening a dump goes to histogram', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: DesktopShell()));
-    expect(find.byType(DesktopRail), findsOneWidget);
-    // Default view is dumps; its placeholder names it.
-    expect(find.textContaining('Dumps'), findsWidgets);
+    // Default view = dumps → DumpsScreen present.
+    expect(find.byType(DumpsScreen), findsOneWidget);
+    // Navigate to Trends via the rail.
+    await tester.tap(find.text('Trends'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TrendsScreen), findsOneWidget);
   });
 }

@@ -118,10 +118,14 @@ class _Header extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          Text(
-            '$n dumps · $sel selected',
-            style: RadarTypography.monoLabel.copyWith(
-              color: RadarColors.text25,
+          Flexible(
+            child: Text(
+              '$n dumps · $sel selected',
+              style: RadarTypography.monoLabel.copyWith(
+                color: RadarColors.text25,
+              ),
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
             ),
           ),
           const SizedBox(width: 12),
