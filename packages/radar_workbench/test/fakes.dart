@@ -5,8 +5,8 @@ import 'package:vm_service/vm_service.dart';
 /// A [RadarConnection] whose state is driven directly by the test.
 class FakeRadarConnection extends ChangeNotifier implements RadarConnection {
   FakeRadarConnection({
-    ConnectionState state = const ConnectionState(
-      phase: ConnectionPhase.disconnected,
+    RadarConnectionState state = const RadarConnectionState(
+      phase: RadarConnectionPhase.disconnected,
     ),
     VmService? vmService,
     IsolateRef? isolateRef,
@@ -14,12 +14,12 @@ class FakeRadarConnection extends ChangeNotifier implements RadarConnection {
        _vmService = vmService,
        _isolateRef = isolateRef;
 
-  ConnectionState _state;
+  RadarConnectionState _state;
   VmService? _vmService;
   IsolateRef? _isolateRef;
 
   @override
-  ConnectionState get state => _state;
+  RadarConnectionState get state => _state;
   @override
   VmService? get vmService => _vmService;
   @override
@@ -27,7 +27,7 @@ class FakeRadarConnection extends ChangeNotifier implements RadarConnection {
 
   /// Test hook: mutate the connection and notify listeners.
   void set({
-    ConnectionState? state,
+    RadarConnectionState? state,
     VmService? vmService,
     IsolateRef? isolateRef,
   }) {

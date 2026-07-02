@@ -8,10 +8,12 @@ void main() {
     final conn = FakeRadarConnection();
     var notified = 0;
     conn.addListener(() => notified++);
-    expect(conn.state.phase, ConnectionPhase.disconnected);
-    conn.set(state: const ConnectionState(phase: ConnectionPhase.connected));
+    expect(conn.state.phase, RadarConnectionPhase.disconnected);
+    conn.set(
+      state: const RadarConnectionState(phase: RadarConnectionPhase.connected),
+    );
     expect(notified, 1);
-    expect(conn.state.phase, ConnectionPhase.connected);
+    expect(conn.state.phase, RadarConnectionPhase.connected);
   });
 
   test('RecordingExporter records exports', () async {
