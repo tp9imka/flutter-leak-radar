@@ -425,7 +425,9 @@ void main() {
 
     test('PersistedSession JSON round-trips', () {
       final s = PersistedSession(
-        bundles: [_snap(1, hist: [_cc('Foo')])],
+        bundles: [
+          _snap(1, hist: [_cc('Foo')]),
+        ],
         selectedIds: const [1],
         view: RadarView.classHistogram,
       );

@@ -94,10 +94,7 @@ void main() {
         const GraphAnalysisOptions(appPackages: ['my_app']),
       );
       final restored = GraphAnalysisResult.fromJson(result.toJson());
-      expect(
-        restored.classPathDistributions,
-        result.classPathDistributions,
-      );
+      expect(restored.classPathDistributions, result.classPathDistributions);
     });
   });
 

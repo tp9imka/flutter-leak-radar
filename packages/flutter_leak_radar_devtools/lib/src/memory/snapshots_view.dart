@@ -44,7 +44,10 @@ class _SnapshotsViewState extends State<SnapshotsView> {
     return null;
   }
 
-  ClassPathDistribution? _distributionFor(String? className, SnapshotBundle? snap) {
+  ClassPathDistribution? _distributionFor(
+    String? className,
+    SnapshotBundle? snap,
+  ) {
     if (className == null || snap == null) return null;
     for (final d in snap.analysisResult.classPathDistributions) {
       if (d.className == className) return d;

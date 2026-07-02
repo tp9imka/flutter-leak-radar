@@ -49,7 +49,10 @@ class RadarSession {
   /// Restore happens before persistence starts so rehydration does not trigger
   /// a redundant write. The `onRestored` callback lets the host UI rebuild once
   /// restored state is applied (the iframe was rebuilt with empty state).
-  Future<void> attachStore(SnapshotStore store, {void Function()? onRestored}) async {
+  Future<void> attachStore(
+    SnapshotStore store, {
+    void Function()? onRestored,
+  }) async {
     if (_storeAttached) return;
     _storeAttached = true;
     final persistence = SessionPersistence(

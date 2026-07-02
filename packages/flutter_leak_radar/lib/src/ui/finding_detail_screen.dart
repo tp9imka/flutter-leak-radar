@@ -559,9 +559,7 @@ class _IconBtn extends StatelessWidget {
         borderRadius: BorderRadius.circular(LeakRadarDimens.iconButtonRadius),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(
-            LeakRadarDimens.iconButtonRadius,
-          ),
+          borderRadius: BorderRadius.circular(LeakRadarDimens.iconButtonRadius),
           child: Container(
             width: LeakRadarDimens.iconButtonSize,
             height: LeakRadarDimens.iconButtonSize,
@@ -603,9 +601,7 @@ class _LoadPathButton extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             color: const Color.fromRGBO(90, 209, 230, 0.10),
-            border: Border.all(
-              color: const Color.fromRGBO(90, 209, 230, 0.28),
-            ),
+            border: Border.all(color: const Color.fromRGBO(90, 209, 230, 0.28)),
             borderRadius: BorderRadius.circular(10),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

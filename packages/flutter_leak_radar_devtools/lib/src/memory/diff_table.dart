@@ -290,7 +290,9 @@ class _DiffRow extends StatelessWidget {
             SizedBox(
               width: _wInst,
               child: Text(
-                absolute ? '${diff.after.instanceCount}' : _fmtDelta(diff.instanceDelta),
+                absolute
+                    ? '${diff.after.instanceCount}'
+                    : _fmtDelta(diff.instanceDelta),
                 style: absolute
                     ? RadarTypography.monoNumber.copyWith(fontSize: 12)
                     : RadarTypography.monoNumber.copyWith(

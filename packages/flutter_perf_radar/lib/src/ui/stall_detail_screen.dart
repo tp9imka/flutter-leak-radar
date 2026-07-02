@@ -66,7 +66,11 @@ class StallDetailScreen extends StatelessWidget {
         title: Text('Stall detail', style: RadarTypography.appBarTitle),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, thickness: 1, color: RadarColors.hairline08),
+          child: Divider(
+            height: 1,
+            thickness: 1,
+            color: RadarColors.hairline08,
+          ),
         ),
       ),
       body: ListView(

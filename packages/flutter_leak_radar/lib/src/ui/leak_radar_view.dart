@@ -209,8 +209,7 @@ class LeakRadarViewState extends State<LeakRadarView> {
           sortKey: _sortKey,
           sortDir: _sortDir,
           kindFilter: _kindFilter,
-          onToggle: () =>
-              setState(() => _filtersExpanded = !_filtersExpanded),
+          onToggle: () => setState(() => _filtersExpanded = !_filtersExpanded),
           onSort: (key, dir) => setState(() {
             _sortKey = key;
             _sortDir = dir;
@@ -451,8 +450,7 @@ class _VmDegradedBanner extends StatelessWidget {
               ],
             ),
           ),
-          if (onDismiss != null)
-            _BannerClose(onTap: onDismiss!),
+          if (onDismiss != null) _BannerClose(onTap: onDismiss!),
         ],
       ),
     );
@@ -475,11 +473,7 @@ class _BannerClose extends StatelessWidget {
         onTap: onTap,
         child: const Padding(
           padding: EdgeInsets.all(2),
-          child: Icon(
-            Icons.close,
-            size: 13,
-            color: RadarColors.warning,
-          ),
+          child: Icon(Icons.close, size: 13, color: RadarColors.warning),
         ),
       ),
     );
@@ -977,22 +971,22 @@ class _ActionBtn extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-            if (busy && accent)
-              SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(strokeWidth: 1.8, color: fg),
-              )
-            else
-              Icon(icon, size: 15, color: fg),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: RadarTypography.monoLabel.copyWith(
-                color: fg,
-                fontSize: 11.5,
+              if (busy && accent)
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 1.8, color: fg),
+                )
+              else
+                Icon(icon, size: 15, color: fg),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: RadarTypography.monoLabel.copyWith(
+                  color: fg,
+                  fontSize: 11.5,
+                ),
               ),
-            ),
             ],
           ),
         ),

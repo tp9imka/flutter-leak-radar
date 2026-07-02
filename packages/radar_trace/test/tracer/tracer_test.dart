@@ -251,14 +251,16 @@ void main() {
       expect(stats.duplicateCount, 0);
     });
 
-    test('start()/SpanHandle carries the dedupKey through to dedup counting',
-        () {
-      final t = Tracer();
-      t.start('op', dedupKey: const ['x']).stop();
-      t.start('op', dedupKey: const ['x']).stop();
-      final stats = t.snapshot().stats[TraceKey(name: 'op', category: null)]!;
-      expect(stats.duplicateCount, 1);
-    });
+    test(
+      'start()/SpanHandle carries the dedupKey through to dedup counting',
+      () {
+        final t = Tracer();
+        t.start('op', dedupKey: const ['x']).stop();
+        t.start('op', dedupKey: const ['x']).stop();
+        final stats = t.snapshot().stats[TraceKey(name: 'op', category: null)]!;
+        expect(stats.duplicateCount, 1);
+      },
+    );
 
     test('traceAsync carries the dedupKey', () async {
       final t = Tracer();

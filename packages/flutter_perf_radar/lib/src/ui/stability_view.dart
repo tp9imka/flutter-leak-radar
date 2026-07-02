@@ -764,29 +764,29 @@ class _StallRow extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 6),
-          // Proportional duration bar
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return Container(
-                height: 3,
-                width: constraints.maxWidth,
-                decoration: BoxDecoration(
-                  color: RadarColors.hairline08,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-                child: FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: barFraction.clamp(0.0, 1.0),
-                  child: Container(
+              // Proportional duration bar
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return Container(
+                    height: 3,
+                    width: constraints.maxWidth,
                     decoration: BoxDecoration(
-                      color: _durationColor,
+                      color: RadarColors.hairline08,
                       borderRadius: BorderRadius.circular(2),
                     ),
-                  ),
-                ),
-              );
-            },
-          ),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: barFraction.clamp(0.0, 1.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: _durationColor,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
             ],
           ),
         ),

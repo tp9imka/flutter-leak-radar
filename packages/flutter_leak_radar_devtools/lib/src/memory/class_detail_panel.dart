@@ -274,7 +274,10 @@ class _PathBucketTileState extends State<_PathBucketTile> {
                     style: RadarTypography.monoNumber.copyWith(fontSize: 12),
                   ),
                   const SizedBox(width: 6),
-                  Text(fmtBytes(b.shallowBytes), style: RadarTypography.caption),
+                  Text(
+                    fmtBytes(b.shallowBytes),
+                    style: RadarTypography.caption,
+                  ),
                   const SizedBox(width: 4),
                   Icon(
                     _expanded ? Icons.expand_less : Icons.expand_more,

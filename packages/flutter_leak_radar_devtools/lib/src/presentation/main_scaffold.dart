@@ -90,8 +90,7 @@ class _LeakRadarMainScaffoldState extends State<LeakRadarMainScaffold> {
               children: [
                 LeftRail(
                   currentView: _session.currentView,
-                  onViewChanged: (v) =>
-                      setState(() => _session.selectView(v)),
+                  onViewChanged: (v) => setState(() => _session.selectView(v)),
                 ),
                 const VerticalDivider(width: 1),
                 Expanded(child: _buildContent()),
