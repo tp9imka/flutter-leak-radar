@@ -21,7 +21,14 @@ class MemoryController extends ChangeNotifier {
     required SnapshotService service,
     required ConnectionStateNotifier connection,
   }) : _service = service,
-       _connection = connection;
+       _connection = connection {
+    // [canCapture] derives from the connection, which often becomes ready AFTER
+    // first paint (the main isolate wires up asynchronously). Forward the
+    // connection's changes so views listening to this controller re-read
+    // [canCapture] and (re-)enable the capture toolbar without a manual
+    // re-navigation.
+    _connection.addListener(notifyListeners);
+  }
 
   final SnapshotService _service;
   final ConnectionStateNotifier _connection;
@@ -216,5 +223,11 @@ class MemoryController extends ChangeNotifier {
     } catch (e, s) {
       developer.log('forceGc failed', name: _log, error: e, stackTrace: s);
     }
+  }
+
+  @override
+  void dispose() {
+    _connection.removeListener(notifyListeners);
+    super.dispose();
   }
 }

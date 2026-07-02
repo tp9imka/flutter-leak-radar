@@ -51,6 +51,14 @@ class _FakeConnectionNotifier extends ConnectionStateNotifier {
   Future<void> init() async {}
 }
 
+/// A connection notifier whose change events can be emitted on demand, to
+/// verify the controller forwards them to its own listeners.
+class _NotifyingConnection extends ConnectionStateNotifier {
+  @override
+  Future<void> init() async {}
+  void emit() => notifyListeners();
+}
+
 MemoryController _controller() => MemoryController(
   service: const SnapshotService(),
   connection: _FakeConnectionNotifier(
@@ -186,6 +194,21 @@ void main() {
       expect(c.isSelected(1), isFalse);
       expect(c.isSelected(2), isTrue);
       expect(c.isSelected(3), isTrue);
+    });
+
+    test('re-notifies its listeners when the VM connection changes', () {
+      // Regression: Capture stayed disabled until the user re-navigated, because
+      // the toolbar (gated on canCapture, derived from the connection) never
+      // repainted when the connection became ready after first paint.
+      final conn = _NotifyingConnection();
+      final c = MemoryController(
+        service: const SnapshotService(),
+        connection: conn,
+      );
+      var ticks = 0;
+      c.addListener(() => ticks++);
+      conn.emit();
+      expect(ticks, 1);
     });
 
     test('pair is ordered oldest→newest regardless of selection order', () {

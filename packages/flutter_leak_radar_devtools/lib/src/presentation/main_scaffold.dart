@@ -38,7 +38,9 @@ class _LeakRadarMainScaffoldState extends State<LeakRadarMainScaffold> {
     _session.ensureInitialized();
     // Rebuild when memory state changes so an async session restore (which
     // rehydrates on a freshly rebuilt, empty iframe) is reflected — including
-    // the restored active view.
+    // the restored active view. The controller also forwards VM-connection
+    // changes (see MemoryController), so the capture toolbar re-enables as soon
+    // as the connection is ready.
     _session.memory.addListener(_onSessionChanged);
   }
 
