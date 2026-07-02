@@ -609,6 +609,10 @@ class _RadarExportSheetState extends State<_RadarExportSheet> {
             ? 'application/json'
             : 'text/markdown',
       );
+      // Static Share API keeps this portable across share_plus 10.x–13.x —
+      // consumers pinned to <11 lack SharePlus.instance/ShareParams (matches
+      // flutter_leak_radar's export path).
+      // ignore: deprecated_member_use
       await Share.shareXFiles([file], text: 'Flutter Radar — $_scopeLabel');
     } catch (_) {
       // Never throw into host.
