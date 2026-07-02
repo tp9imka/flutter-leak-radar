@@ -1,4 +1,5 @@
 import '../graph/heap_graph_view.dart';
+import '../model/class_path_distribution.dart';
 import '../model/class_root_profile.dart';
 import '../model/graph_analysis_result.dart';
 import '../model/graph_retaining_path.dart';
@@ -300,6 +301,12 @@ final class GraphLeakAnalyzer {
       liveAnchorClassNames: options.liveAnchorClassNames,
     );
 
+    final classPathDistributions = buildClassPathDistributions(
+      graph,
+      paths,
+      maxSignatureDepth: options.maxSignatureDepth,
+    );
+
     return GraphAnalysisResult(
       clusters: clusters,
       stats: GraphAnalysisStats(
@@ -312,6 +319,7 @@ final class GraphLeakAnalyzer {
         warnings: warnings,
       ),
       classRootProfiles: classRootProfiles,
+      classPathDistributions: classPathDistributions,
     );
   }
 }
@@ -453,4 +461,138 @@ GraphRetainingPath _representativePath(
     hops: buildHops(links, classNames),
     rootKind: paths.rootKindOf(nodeId),
   );
+}
+
+/// Upper bound on how many of a class's instances are walked when building its
+/// [ClassPathDistribution]. Path reconstruction is O(pathLength) per instance,
+/// so a huge class (e.g. `String`) is sampled rather than fully walked; the
+/// result records [ClassPathDistribution.sampledInstances] so the UI can flag a
+/// partial breakdown instead of presenting it as complete.
+const int kMaxInstancesPerPathDistribution = 2000;
+
+/// Upper bound on how many distinct path buckets are retained per class; the
+/// rest roll up into [ClassPathDistribution.otherPathCount].
+const int kMaxPathBucketsPerClass = 25;
+
+/// Builds, for a bounded set of classes, the distribution of their reachable
+/// instances across distinct shortest retaining paths — grouping instances by
+/// [pathSignature] so paths differing only beyond the signature depth (or in
+/// array indices) share a bucket.
+///
+/// The target set mirrors [buildClassRootProfiles]' materialized-path set: the
+/// [kMaxClassRootProfilePaths] classes with the most instances, UNION every
+/// class with at least one leak-prone-rooted instance. Per class, at most
+/// [perClassInstanceCap] instances are walked; classes exceeding it are
+/// reported as sampled.
+List<ClassPathDistribution> buildClassPathDistributions(
+  HeapGraphView graph,
+  ShortestRetainingPaths paths, {
+  int maxSignatureDepth = 12,
+  int perClassInstanceCap = kMaxInstancesPerPathDistribution,
+  int maxBucketsPerClass = kMaxPathBucketsPerClass,
+}) {
+  // Pass 1: instance counts + leak-prone classes, to pick target classes.
+  final totalInstances = <String, int>{};
+  final leakProneClasses = <String>{};
+  for (var id = 0; id < graph.nodeCount; id++) {
+    if (id == graph.rootId) continue;
+    if (!paths.isReachable(id)) continue;
+    String className;
+    try {
+      className = graph.node(id).className;
+    } catch (_) {
+      continue;
+    }
+    totalInstances[className] = (totalInstances[className] ?? 0) + 1;
+    if (paths.rootKindOf(id).isLeakProne) leakProneClasses.add(className);
+  }
+  if (totalInstances.isEmpty) return const [];
+
+  final ranked = totalInstances.keys.toList()
+    ..sort((a, b) => totalInstances[b]!.compareTo(totalInstances[a]!));
+  final targets = <String>{
+    ...ranked.take(kMaxClassRootProfilePaths),
+    ...leakProneClasses,
+  };
+
+  // Pass 2: bucket target-class instances by path signature (capped per class).
+  final acc = <String, Map<String, _PathBucketAcc>>{};
+  final sampled = <String, int>{};
+  for (var id = 0; id < graph.nodeCount; id++) {
+    if (id == graph.rootId) continue;
+    if (!paths.isReachable(id)) continue;
+
+    HeapNode node;
+    try {
+      node = graph.node(id);
+    } catch (_) {
+      continue;
+    }
+    final className = node.className;
+    if (!targets.contains(className)) continue;
+    if ((sampled[className] ?? 0) >= perClassInstanceCap) continue;
+
+    final links = paths.pathTo(id);
+    if (links == null || links.isEmpty) continue;
+    final classNames = links.map((l) {
+      try {
+        return graph.node(l.nodeId).className;
+      } catch (_) {
+        return '';
+      }
+    }).toList();
+    final hops = buildHops(links, classNames);
+    final signature = pathSignature(hops, maxDepth: maxSignatureDepth);
+
+    final bySig = acc.putIfAbsent(className, () => {});
+    final bucket = bySig.putIfAbsent(
+      signature,
+      () => _PathBucketAcc(
+        GraphRetainingPath(hops: hops, rootKind: paths.rootKindOf(id)),
+      ),
+    );
+    bucket.instanceCount++;
+    bucket.shallowBytes += node.shallowSize;
+    sampled[className] = (sampled[className] ?? 0) + 1;
+  }
+
+  final result = <ClassPathDistribution>[];
+  for (final className in acc.keys) {
+    final buckets = acc[className]!.values.toList()
+      ..sort((a, b) {
+        final byCount = b.instanceCount.compareTo(a.instanceCount);
+        if (byCount != 0) return byCount;
+        return b.shallowBytes.compareTo(a.shallowBytes);
+      });
+    final top = buckets.take(maxBucketsPerClass);
+    final otherPathCount = buckets
+        .skip(maxBucketsPerClass)
+        .fold(0, (sum, b) => sum + b.instanceCount);
+    result.add(
+      ClassPathDistribution(
+        className: className,
+        totalInstances: totalInstances[className]!,
+        sampledInstances: sampled[className] ?? 0,
+        paths: [
+          for (final b in top)
+            PathBucket(
+              path: b.path,
+              instanceCount: b.instanceCount,
+              shallowBytes: b.shallowBytes,
+            ),
+        ],
+        otherPathCount: otherPathCount,
+      ),
+    );
+  }
+
+  result.sort((a, b) => b.totalInstances.compareTo(a.totalInstances));
+  return result;
+}
+
+class _PathBucketAcc {
+  _PathBucketAcc(this.path);
+  final GraphRetainingPath path;
+  int instanceCount = 0;
+  int shallowBytes = 0;
 }

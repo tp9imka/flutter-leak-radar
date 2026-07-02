@@ -1,3 +1,12 @@
+## 0.1.2
+
+- Optional `dedupKey` on `Tracer.trace` / `traceAsync` / `start` — a
+  caller-supplied signature (e.g. arguments) marking repeated invocations of the
+  same operation. `SpanKeyStatsSnapshot.duplicateCount` reports how many spans
+  repeated a previously-seen signature for a key (bounded to ~1024 signatures),
+  distinct from any statistical "hot" heuristic. `Span.dedupKey` carries the
+  joined signature.
+
 ## 0.1.1
 
 - Docs only (no code change): document the per-key `SpanKeyStatsSnapshot`

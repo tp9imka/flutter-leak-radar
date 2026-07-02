@@ -36,6 +36,22 @@ class _LeakRadarMainScaffoldState extends State<LeakRadarMainScaffold> {
   void initState() {
     super.initState();
     _session.ensureInitialized();
+    // Rebuild when memory state changes so an async session restore (which
+    // rehydrates on a freshly rebuilt, empty iframe) is reflected — including
+    // the restored active view. The controller also forwards VM-connection
+    // changes (see MemoryController), so the capture toolbar re-enables as soon
+    // as the connection is ready.
+    _session.memory.addListener(_onSessionChanged);
+  }
+
+  @override
+  void dispose() {
+    _session.memory.removeListener(_onSessionChanged);
+    super.dispose();
+  }
+
+  void _onSessionChanged() {
+    if (mounted) setState(() {});
   }
 
   // Controllers live on [RadarSession] and persist for the whole extension
@@ -74,8 +90,7 @@ class _LeakRadarMainScaffoldState extends State<LeakRadarMainScaffold> {
               children: [
                 LeftRail(
                   currentView: _session.currentView,
-                  onViewChanged: (v) =>
-                      setState(() => _session.currentView = v),
+                  onViewChanged: (v) => setState(() => _session.selectView(v)),
                 ),
                 const VerticalDivider(width: 1),
                 Expanded(child: _buildContent()),

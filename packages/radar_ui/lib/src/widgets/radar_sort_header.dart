@@ -1,6 +1,6 @@
 // lib/src/widgets/radar_sort_header.dart
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import '../tokens/colors.dart';
 import '../tokens/typography.dart';
@@ -59,36 +59,43 @@ class RadarSortHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        final newDir = _isActive
-            ? _nextDirection
-            : RadarSortDirection.descending;
-        onSort(sortKey, newDir);
-      },
-      child: Row(
-        mainAxisAlignment: textAlign == TextAlign.right
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: RadarTypography.monoLabel.copyWith(
-              color: _isActive ? RadarColors.accent : RadarColors.text40,
-            ),
-            textAlign: textAlign,
-          ),
-          if (_isActive) ...[
-            const SizedBox(width: 3),
+    return Material(
+      color: Colors.transparent,
+      borderRadius: const BorderRadius.all(Radius.circular(4)),
+      child: InkWell(
+        borderRadius: const BorderRadius.all(Radius.circular(4)),
+        onTap: () {
+          final newDir = _isActive
+              ? _nextDirection
+              : RadarSortDirection.descending;
+          onSort(sortKey, newDir);
+        },
+        // No extra padding — sort headers live in tight, exactly-sized column
+        // cells where even 2px would overflow. The ripple hugs the Row bounds.
+        child: Row(
+          mainAxisAlignment: textAlign == TextAlign.right
+              ? MainAxisAlignment.end
+              : MainAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
             Text(
-              _arrow,
+              label,
               style: RadarTypography.monoLabel.copyWith(
-                color: RadarColors.accent,
+                color: _isActive ? RadarColors.accent : RadarColors.text40,
               ),
+              textAlign: textAlign,
             ),
+            if (_isActive) ...[
+              const SizedBox(width: 3),
+              Text(
+                _arrow,
+                style: RadarTypography.monoLabel.copyWith(
+                  color: RadarColors.accent,
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

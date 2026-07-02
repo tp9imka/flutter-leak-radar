@@ -45,6 +45,7 @@ class RetainingPathsView extends StatelessWidget {
         return _RetainingPathsBody(
           key: ValueKey(snapshot.id),
           profiles: profiles,
+          distributions: snapshot.analysisResult.classPathDistributions,
         );
       },
     );
@@ -68,9 +69,14 @@ RootKind _dominantKind(ClassRootProfile p) {
 }
 
 class _RetainingPathsBody extends StatefulWidget {
-  const _RetainingPathsBody({super.key, required this.profiles});
+  const _RetainingPathsBody({
+    super.key,
+    required this.profiles,
+    required this.distributions,
+  });
 
   final List<ClassRootProfile> profiles;
+  final List<ClassPathDistribution> distributions;
 
   @override
   State<_RetainingPathsBody> createState() => _RetainingPathsBodyState();
@@ -111,6 +117,14 @@ class _RetainingPathsBodyState extends State<_RetainingPathsBody> {
     if (className == null) return null;
     for (final p in widget.profiles) {
       if (p.className == className) return p;
+    }
+    return null;
+  }
+
+  ClassPathDistribution? _distributionFor(String? className) {
+    if (className == null) return null;
+    for (final d in widget.distributions) {
+      if (d.className == className) return d;
     }
     return null;
   }
@@ -169,6 +183,7 @@ class _RetainingPathsBodyState extends State<_RetainingPathsBody> {
           child: ClassDetailPanel(
             className: _selected,
             profile: _profileFor(_selected),
+            distribution: _distributionFor(_selected),
           ),
         ),
       ],

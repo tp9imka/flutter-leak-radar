@@ -8,6 +8,7 @@ import '../model/error_record.dart';
 import '../model/stall_record.dart';
 import '../model/stability_snapshot.dart';
 import '../facade/perf_radar.dart';
+import 'stall_detail_screen.dart';
 import 'dart:async';
 
 // ── Sub-tab index ─────────────────────────────────────────────────────────────
@@ -702,67 +703,93 @@ class _StallRow extends StatelessWidget {
     return '${m}m ${(s % 60).toStringAsFixed(0)}s';
   }
 
+  /// Opens the detail screen, correlating this stall with the slowest retained
+  /// spans from the live trace snapshot (empty/no-op when no engine is active).
+  void _openDetail(BuildContext context) {
+    final spans = [
+      for (final s in PerfRadar.snapshot().stats.values) ...s.outliers,
+    ];
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => StallDetailScreen(stall: stall, candidateSpans: spans),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final barFraction = maxDurationMicros > 0
         ? stall.durationMicros / maxDurationMicros
         : 0.0;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: RadarColors.bgSurface,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _openDetail(context),
         borderRadius: RadarDensity.rowRadius,
-        border: Border.all(color: RadarColors.hairline08),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: RadarColors.bgSurface,
+            borderRadius: RadarDensity.rowRadius,
+            border: Border.all(color: RadarColors.hairline08),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Duration (color-graded, mono, prominent)
-              Text(
-                _durationLabel,
-                style: radarMonoStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: _durationColor,
-                ),
+              Row(
+                children: [
+                  // Duration (color-graded, mono, prominent)
+                  Text(
+                    _durationLabel,
+                    style: radarMonoStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _durationColor,
+                    ),
+                  ),
+                  const Spacer(),
+                  // Session-relative time of detection
+                  Text(
+                    _formatTime(stall.clockMicros),
+                    style: RadarTypography.monoLabel,
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 16,
+                    color: RadarColors.text40,
+                  ),
+                ],
               ),
-              const Spacer(),
-              // Session-relative time of detection
-              Text(
-                _formatTime(stall.clockMicros),
-                style: RadarTypography.monoLabel,
+              const SizedBox(height: 6),
+              // Proportional duration bar
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return Container(
+                    height: 3,
+                    width: constraints.maxWidth,
+                    decoration: BoxDecoration(
+                      color: RadarColors.hairline08,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: barFraction.clamp(0.0, 1.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: _durationColor,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          // Proportional duration bar
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return Container(
-                height: 3,
-                width: constraints.maxWidth,
-                decoration: BoxDecoration(
-                  color: RadarColors.hairline08,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-                child: FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: barFraction.clamp(0.0, 1.0),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: _durationColor,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
+        ),
       ),
     );
   }

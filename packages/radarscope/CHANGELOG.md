@@ -1,3 +1,9 @@
+## 0.1.2
+
+- Require the latest radar packages so a `radarscope` install pulls the current
+  feature set: `flutter_leak_radar ^0.2.1`, `flutter_perf_radar ^0.1.1`,
+  `radar_trace ^0.1.2`, `radar_ui ^0.1.1`. No API change.
+
 ## 0.1.1
 - use compatibility API for sharing reports
 

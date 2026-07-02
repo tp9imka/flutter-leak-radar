@@ -659,9 +659,19 @@ class TraceDetailScreen extends StatelessWidget {
                 const RadarTag(label: 'HOT', color: RadarColors.warning),
                 const SizedBox(width: 8),
               ],
-              Text(
-                '${stats.count} calls$_rateLabel',
-                style: RadarTypography.caption,
+              if (stats.duplicateCount > 0) ...[
+                RadarTag(
+                  label: '${stats.duplicateCount} dup',
+                  color: RadarColors.info,
+                ),
+                const SizedBox(width: 8),
+              ],
+              Flexible(
+                child: Text(
+                  '${stats.count} calls$_rateLabel',
+                  style: RadarTypography.caption,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
@@ -1062,7 +1072,9 @@ class _SpanTimeline extends StatelessWidget {
       (m, s) => math.max(m, s.startMicros + s.durationMicros),
     );
     final totalWindow = (maxEnd - minStart).toDouble();
-    if (totalWindow <= 0) return const SizedBox.shrink();
+    if (!totalWindow.isFinite || totalWindow <= 0) {
+      return const SizedBox.shrink();
+    }
 
     return Column(
       children: [
@@ -1078,6 +1090,33 @@ class _SpanTimeline extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Computes the `(left, width)` of a span bar within a track of [totalWidth].
+///
+/// Guarantees a visible minimum width and keeps the bar inside the track. It
+/// deliberately sizes the bar *before* positioning and shifts `left` to fit,
+/// rather than clamping the width to the remaining space — a naive
+/// `width.clamp(minBar, totalWidth - left)` throws `ArgumentError` when a span
+/// starts near the right edge and the remaining space drops below `minBar`
+/// (the "Invalid argument(s): 6.0" crash). Non-finite inputs degrade to safe
+/// defaults. Visible for testing.
+@visibleForTesting
+({double left, double width}) spanBarGeometry({
+  required double offsetFraction,
+  required double widthFraction,
+  required double totalWidth,
+  double minBar = 6.0,
+}) {
+  if (!totalWidth.isFinite || totalWidth <= 0) {
+    return (left: 0.0, width: 0.0);
+  }
+  var width = widthFraction.isFinite ? widthFraction * totalWidth : minBar;
+  width = width.clamp(math.min(minBar, totalWidth), totalWidth);
+  var left = (offsetFraction.isFinite ? offsetFraction : 0.0) * totalWidth;
+  if (left + width > totalWidth) left = totalWidth - width;
+  left = left.clamp(0.0, totalWidth);
+  return (left: left, width: width);
 }
 
 class _SpanBar extends StatelessWidget {
@@ -1102,11 +1141,16 @@ class _SpanBar extends StatelessWidget {
       child: LayoutBuilder(
         builder: (ctx, constraints) {
           final totalWidth = constraints.maxWidth;
-          final left = (offsetFraction * totalWidth).clamp(0.0, totalWidth);
-          final barWidth = (widthFraction * totalWidth).clamp(
-            6.0,
-            totalWidth - left,
+          if (!totalWidth.isFinite || totalWidth <= 0) {
+            return const SizedBox.shrink();
+          }
+          final geo = spanBarGeometry(
+            offsetFraction: offsetFraction,
+            widthFraction: widthFraction,
+            totalWidth: totalWidth,
           );
+          final left = geo.left;
+          final barWidth = geo.width;
 
           return Stack(
             children: [

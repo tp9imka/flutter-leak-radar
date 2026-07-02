@@ -44,6 +44,17 @@ class _SnapshotsViewState extends State<SnapshotsView> {
     return null;
   }
 
+  ClassPathDistribution? _distributionFor(
+    String? className,
+    SnapshotBundle? snap,
+  ) {
+    if (className == null || snap == null) return null;
+    for (final d in snap.analysisResult.classPathDistributions) {
+      if (d.className == className) return d;
+    }
+    return null;
+  }
+
   void _export(SnapshotBundle b) {
     final safeLabel = b.label.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
     try {
@@ -58,32 +69,34 @@ class _SnapshotsViewState extends State<SnapshotsView> {
     return ListenableBuilder(
       listenable: _c,
       builder: (context, _) {
-        final pair = _c.pair;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _CaptureToolbar(controller: _c),
             if (_c.hasSnapshots)
               _CapturesStrip(controller: _c, onExport: _export),
-            Expanded(child: _body(pair)),
+            Expanded(child: _body()),
           ],
         );
       },
     );
   }
 
-  Widget _body(DiffPair? pair) {
+  Widget _body() {
     if (!_c.hasSnapshots) {
       return _IdleHint(canCapture: _c.canCapture);
     }
-    if (pair == null) {
+    final comparison = _c.comparison;
+    if (comparison == null) {
       return Center(
         child: Text(
-          'Select two snapshots above to diff them.',
+          'Select a snapshot to show all its classes, or two to diff them.',
           style: RadarTypography.caption,
+          textAlign: TextAlign.center,
         ),
       );
     }
+    final againstEmpty = _c.comparingAgainstEmpty;
     final diff = _c.diff ?? const <ClassCountDiff>[];
     final selectedDiff = _selectedClass == null
         ? null
@@ -94,7 +107,10 @@ class _SnapshotsViewState extends State<SnapshotsView> {
         Expanded(
           child: DiffTable(
             diffs: diff,
-            summary: _DiffSummary(pair: pair),
+            absolute: againstEmpty,
+            summary: againstEmpty
+                ? _ShowAllSummary(snapshot: comparison)
+                : _DiffSummary(pair: _c.pair!),
             selected: _selectedClass,
             onSelected: (c) => setState(() => _selectedClass = c),
           ),
@@ -104,9 +120,21 @@ class _SnapshotsViewState extends State<SnapshotsView> {
           width: 340,
           child: ClassDetailPanel(
             className: _selectedClass,
-            profile: _profileFor(_selectedClass, pair.comparison),
+            profile: _profileFor(_selectedClass, comparison),
+            distribution: _distributionFor(_selectedClass, comparison),
             headerTrailing: selectedDiff == null
                 ? null
+                : againstEmpty
+                ? [
+                    RadarTag(
+                      label: '${selectedDiff.after.instanceCount} inst',
+                      color: RadarColors.accent,
+                    ),
+                    RadarTag(
+                      label: fmtBytes(selectedDiff.after.shallowBytes),
+                      color: RadarColors.accent,
+                    ),
+                  ]
                 : [
                     RadarTag(
                       label:
@@ -205,7 +233,8 @@ class _CaptureToolbar extends StatelessWidget {
             else
               Text(
                 '${controller.snapshots.length} snapshot'
-                '${controller.snapshots.length == 1 ? '' : 's'}',
+                '${controller.snapshots.length == 1 ? '' : 's'}'
+                '${controller.restoredFromDisk ? ' · restored' : ''}',
                 style: RadarTypography.monoLabel,
               ),
           ],
@@ -455,6 +484,21 @@ class _DiffSummary extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ShowAllSummary extends StatelessWidget {
+  const _ShowAllSummary({required this.snapshot});
+
+  final SnapshotBundle snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'all classes · ${snapshot.histogram.length} · '
+      '${fmtBytes(snapshot.shallowBytes)} · no baseline',
+      style: RadarTypography.monoLabel,
     );
   }
 }

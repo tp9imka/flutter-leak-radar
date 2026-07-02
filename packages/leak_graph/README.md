@@ -31,6 +31,11 @@ dependencies:
   app-relevance filtering, optional live-tree confirmation, and clustering) and
   returns a `GraphAnalysisResult`. `retainingPathForClass` gives the shortest
   path to a single class on demand.
+- **Per-path instance distribution** — `GraphAnalysisResult.classPathDistributions`
+  breaks a class's instances down across their distinct shortest retaining paths
+  (a "N instances → X via path A, Y via path B…" view) for a bounded set of
+  classes, reporting sampled-vs-total so a capped breakdown is never presented
+  as complete.
 - **Snapshot-to-snapshot diff** — `computeDiff` turns two class histograms into
   per-class instance/byte deltas (`ClassCountDiff`), sorted largest-grower
   first, backing before/after comparison.

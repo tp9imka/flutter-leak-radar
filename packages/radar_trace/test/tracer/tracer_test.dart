@@ -216,6 +216,60 @@ void main() {
       expect(second.startMicros, greaterThan(first.startMicros));
     });
   });
+
+  group('Tracer — dedupKey', () {
+    test('joins the dedupKey list into the span signature', () {
+      final t = Tracer();
+      t.trace('load', () => 1, dedupKey: const ['conv', '42']);
+      final key = TraceKey(name: 'load', category: null);
+      expect(t.snapshot().stats[key]!.outliers.first.dedupKey, 'conv,42');
+    });
+
+    test('counts repeated dedup signatures as duplicates', () {
+      final t = Tracer();
+      t.trace('load', () => 1, dedupKey: const ['a', '1']);
+      t.trace('load', () => 1, dedupKey: const ['a', '1']); // duplicate
+      t.trace('load', () => 1, dedupKey: const ['b', '2']); // distinct
+      final stats = t.snapshot().stats[TraceKey(name: 'load', category: null)]!;
+      expect(stats.count, 3);
+      expect(stats.duplicateCount, 1);
+    });
+
+    test('no dedupKey yields zero duplicates', () {
+      final t = Tracer();
+      t.trace('load', () => 1);
+      t.trace('load', () => 1);
+      final stats = t.snapshot().stats[TraceKey(name: 'load', category: null)]!;
+      expect(stats.duplicateCount, 0);
+    });
+
+    test('an empty dedupKey list is treated as no key', () {
+      final t = Tracer();
+      t.trace('load', () => 1, dedupKey: const []);
+      final stats = t.snapshot().stats[TraceKey(name: 'load', category: null)]!;
+      expect(stats.outliers.first.dedupKey, isNull);
+      expect(stats.duplicateCount, 0);
+    });
+
+    test(
+      'start()/SpanHandle carries the dedupKey through to dedup counting',
+      () {
+        final t = Tracer();
+        t.start('op', dedupKey: const ['x']).stop();
+        t.start('op', dedupKey: const ['x']).stop();
+        final stats = t.snapshot().stats[TraceKey(name: 'op', category: null)]!;
+        expect(stats.duplicateCount, 1);
+      },
+    );
+
+    test('traceAsync carries the dedupKey', () async {
+      final t = Tracer();
+      await t.traceAsync('io', () async => 1, dedupKey: const ['same']);
+      await t.traceAsync('io', () async => 1, dedupKey: const ['same']);
+      final stats = t.snapshot().stats[TraceKey(name: 'io', category: null)]!;
+      expect(stats.duplicateCount, 1);
+    });
+  });
 }
 
 /// Test helper: extends [TraceRecorder] to capture all recorded spans

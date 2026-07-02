@@ -2,6 +2,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:radar_ui/radar_ui.dart';
 
 import '../engine/vm_service_status.dart';
@@ -53,6 +54,16 @@ class LeakRadarViewState extends State<LeakRadarView> {
   final TextEditingController _searchCtrl = TextEditingController();
 
   bool _scanning = false;
+
+  /// Sort + kind-filter controls are collapsed by default so the leak list
+  /// gets the vertical space; the user expands them on demand.
+  bool _filtersExpanded = false;
+
+  /// The VM degradation banner is dismissible per incident; it re-appears when
+  /// the VM status changes to a different kind or the user retries the
+  /// connection.
+  bool _vmBannerDismissed = false;
+  Type? _lastVmStatusType;
 
   /// The most recent [LeakReport] received from [LeakRadar], or null
   /// before any scan.
@@ -163,12 +174,28 @@ class LeakRadarViewState extends State<LeakRadarView> {
     final findings = report?.findings ?? const <LeakFinding>[];
     final vmStatus = LeakRadar.vmServiceStatus;
 
+    // Re-surface a dismissed banner when the VM status changes to a new kind.
+    // Plain field writes in build (no setState): they only shape this build.
+    if (vmStatus.runtimeType != _lastVmStatusType) {
+      _vmBannerDismissed = false;
+      _lastVmStatusType = vmStatus.runtimeType;
+    }
+    final showVmBanner =
+        vmStatus != null && vmStatus is! VmConnected && !_vmBannerDismissed;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SummaryRow(report: report, vmStatus: vmStatus),
-        if (vmStatus != null && vmStatus is! VmConnected)
-          _VmDegradedBanner(status: vmStatus),
+        _SummaryRow(
+          report: report,
+          vmStatus: vmStatus,
+          onReconnect: () => setState(() => _vmBannerDismissed = false),
+        ),
+        if (showVmBanner)
+          _VmDegradedBanner(
+            status: vmStatus,
+            onDismiss: () => setState(() => _vmBannerDismissed = true),
+          ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: RadarSearchField(
@@ -177,17 +204,17 @@ class LeakRadarViewState extends State<LeakRadarView> {
             onChanged: (q) => setState(() => _searchQuery = q),
           ),
         ),
-        _SortRow(
+        _FilterDisclosure(
+          expanded: _filtersExpanded,
           sortKey: _sortKey,
           sortDir: _sortDir,
+          kindFilter: _kindFilter,
+          onToggle: () => setState(() => _filtersExpanded = !_filtersExpanded),
           onSort: (key, dir) => setState(() {
             _sortKey = key;
             _sortDir = dir;
           }),
-        ),
-        _KindFilterRow(
-          active: _kindFilter,
-          onSelected: (f) => setState(() => _kindFilter = f),
+          onKind: (f) => setState(() => _kindFilter = f),
         ),
         Expanded(
           child: findings.isEmpty
@@ -219,10 +246,17 @@ class LeakRadarViewState extends State<LeakRadarView> {
 // ── Summary row ───────────────────────────────────────────────────────────────
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.report, required this.vmStatus});
+  const _SummaryRow({
+    required this.report,
+    required this.vmStatus,
+    this.onReconnect,
+  });
 
   final LeakReport? report;
   final VmServiceStatus? vmStatus;
+
+  /// Invoked when the user taps the VM chip to retry the connection.
+  final VoidCallback? onReconnect;
 
   @override
   Widget build(BuildContext context) {
@@ -264,7 +298,8 @@ class _SummaryRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          if (vmStatus != null) _VmChip(status: vmStatus!),
+          if (vmStatus != null)
+            _VmChip(status: vmStatus!, onReconnect: onReconnect),
         ],
       ),
     );
@@ -291,9 +326,10 @@ class _SevCount extends StatelessWidget {
 // ── VM connection chip ────────────────────────────────────────────────────────
 
 class _VmChip extends StatefulWidget {
-  const _VmChip({required this.status});
+  const _VmChip({required this.status, this.onReconnect});
 
   final VmServiceStatus status;
+  final VoidCallback? onReconnect;
 
   @override
   State<_VmChip> createState() => _VmChipState();
@@ -304,6 +340,7 @@ class _VmChipState extends State<_VmChip> {
 
   Future<void> _reconnect() async {
     if (_busy) return;
+    widget.onReconnect?.call();
     setState(() => _busy = true);
     await LeakRadar.reconnectVmService();
     if (mounted) setState(() => _busy = false);
@@ -355,9 +392,10 @@ class _VmChipState extends State<_VmChip> {
 // ── Degraded VM banner ────────────────────────────────────────────────────────
 
 class _VmDegradedBanner extends StatelessWidget {
-  const _VmDegradedBanner({required this.status});
+  const _VmDegradedBanner({required this.status, this.onDismiss});
 
   final VmServiceStatus status;
+  final VoidCallback? onDismiss;
 
   String get _reason => switch (status) {
     VmConnected() => '',
@@ -412,7 +450,31 @@ class _VmDegradedBanner extends StatelessWidget {
               ],
             ),
           ),
+          if (onDismiss != null) _BannerClose(onTap: onDismiss!),
         ],
+      ),
+    );
+  }
+}
+
+/// Dismiss affordance on the right of the VM banner.
+class _BannerClose extends StatelessWidget {
+  const _BannerClose({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: const Padding(
+          padding: EdgeInsets.all(2),
+          child: Icon(Icons.close, size: 13, color: RadarColors.warning),
+        ),
       ),
     );
   }
@@ -505,6 +567,111 @@ class _KindFilterRow extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Collapsible sort + filter ─────────────────────────────────────────────────
+
+/// A compact, tappable header that expands to reveal the sort row and kind
+/// filter chips. Collapsed by default so the leak list gets the vertical space.
+class _FilterDisclosure extends StatelessWidget {
+  const _FilterDisclosure({
+    required this.expanded,
+    required this.sortKey,
+    required this.sortDir,
+    required this.kindFilter,
+    required this.onToggle,
+    required this.onSort,
+    required this.onKind,
+  });
+
+  final bool expanded;
+  final _SortKey sortKey;
+  final RadarSortDirection sortDir;
+  final _KindFilter kindFilter;
+  final VoidCallback onToggle;
+  final void Function(_SortKey key, RadarSortDirection dir) onSort;
+  final ValueChanged<_KindFilter> onKind;
+
+  @override
+  Widget build(BuildContext context) {
+    final arrow = sortDir == RadarSortDirection.descending ? '↓' : '↑';
+    final kindActive = kindFilter != _KindFilter.all;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onToggle,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              child: Row(
+                children: [
+                  Icon(
+                    expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 16,
+                    color: RadarColors.text40,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'sort: ${sortKey.name} $arrow',
+                    style: radarMonoStyle(
+                      fontSize: 10.5,
+                      color: RadarColors.text40,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'filters',
+                    style: radarMonoStyle(
+                      fontSize: 10.5,
+                      color: RadarColors.text25,
+                    ),
+                  ),
+                  if (kindActive) ...[
+                    const SizedBox(width: 5),
+                    const _ActiveDot(),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: expanded
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _SortRow(
+                      sortKey: sortKey,
+                      sortDir: sortDir,
+                      onSort: onSort,
+                    ),
+                    _KindFilterRow(active: kindFilter, onSelected: onKind),
+                  ],
+                )
+              : const SizedBox(width: double.infinity),
+        ),
+      ],
+    );
+  }
+}
+
+class _ActiveDot extends StatelessWidget {
+  const _ActiveDot();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 6,
+    height: 6,
+    decoration: const BoxDecoration(
+      color: RadarColors.accent,
+      shape: BoxShape.circle,
+    ),
+  );
 }
 
 // ── Finding row ───────────────────────────────────────────────────────────────
@@ -723,23 +890,32 @@ class _LeakActionBar extends StatelessWidget {
           // Clear all — compact icon-only to save space
           Tooltip(
             message: 'Clear all leaks',
-            child: GestureDetector(
-              key: const Key('leak_clear_all_btn'),
-              onTap: hasFindings && !scanning ? onClearAll : null,
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: RadarColors.bgInput,
-                  borderRadius: RadarDensity.inputRadius,
-                  border: Border.all(color: RadarColors.hairline10),
-                ),
-                child: Icon(
-                  Icons.delete_sweep_outlined,
-                  size: 18,
-                  color: hasFindings && !scanning
-                      ? RadarColors.critical
-                      : RadarColors.text25,
+            child: Material(
+              color: RadarColors.bgInput,
+              borderRadius: RadarDensity.inputRadius,
+              child: InkWell(
+                key: const Key('leak_clear_all_btn'),
+                onTap: hasFindings && !scanning
+                    ? () {
+                        HapticFeedback.selectionClick();
+                        onClearAll();
+                      }
+                    : null,
+                borderRadius: RadarDensity.inputRadius,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    borderRadius: RadarDensity.inputRadius,
+                    border: Border.all(color: RadarColors.hairline10),
+                  ),
+                  child: Icon(
+                    Icons.delete_sweep_outlined,
+                    size: 18,
+                    color: hasFindings && !scanning
+                        ? RadarColors.critical
+                        : RadarColors.text25,
+                  ),
                 ),
               ),
             ),
@@ -775,35 +951,44 @@ class _ActionBtn extends StatelessWidget {
         : RadarColors.bgInput;
     final fg = accent ? RadarColors.bgPhone : RadarColors.text80;
 
-    return GestureDetector(
-      onTap: busy ? null : onTap,
-      child: Container(
-        height: 36,
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: RadarDensity.inputRadius,
-          border: accent ? null : Border.all(color: RadarColors.hairline10),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (busy && accent)
-              SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(strokeWidth: 1.8, color: fg),
-              )
-            else
-              Icon(icon, size: 15, color: fg),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: RadarTypography.monoLabel.copyWith(
-                color: fg,
-                fontSize: 11.5,
+    return Material(
+      color: bg,
+      borderRadius: RadarDensity.inputRadius,
+      child: InkWell(
+        onTap: busy
+            ? null
+            : () {
+                HapticFeedback.selectionClick();
+                onTap();
+              },
+        borderRadius: RadarDensity.inputRadius,
+        child: Container(
+          height: 36,
+          decoration: BoxDecoration(
+            borderRadius: RadarDensity.inputRadius,
+            border: accent ? null : Border.all(color: RadarColors.hairline10),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (busy && accent)
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 1.8, color: fg),
+                )
+              else
+                Icon(icon, size: 15, color: fg),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: RadarTypography.monoLabel.copyWith(
+                  color: fg,
+                  fontSize: 11.5,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

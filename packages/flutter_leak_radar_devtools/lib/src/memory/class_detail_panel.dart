@@ -19,11 +19,17 @@ class ClassDetailPanel extends StatelessWidget {
     super.key,
     required this.className,
     required this.profile,
+    this.distribution,
     this.headerTrailing,
   });
 
   final String? className;
   final ClassRootProfile? profile;
+
+  /// How this class's instances distribute across distinct shortest retaining
+  /// paths, when materialized for the class. Null falls back to the profile's
+  /// single representative path.
+  final ClassPathDistribution? distribution;
 
   /// Optional widgets shown on the header row (e.g. diff delta tags).
   final List<Widget>? headerTrailing;
@@ -65,7 +71,7 @@ class ClassDetailPanel extends StatelessWidget {
                       ),
                     ),
                   )
-                : _ProfileBody(profile: profile!),
+                : _ProfileBody(profile: profile!, distribution: distribution),
           ),
         ],
       ),
@@ -113,9 +119,10 @@ class _Header extends StatelessWidget {
 }
 
 class _ProfileBody extends StatelessWidget {
-  const _ProfileBody({required this.profile});
+  const _ProfileBody({required this.profile, this.distribution});
 
   final ClassRootProfile profile;
+  final ClassPathDistribution? distribution;
 
   @override
   Widget build(BuildContext context) {
@@ -125,6 +132,7 @@ class _ProfileBody extends StatelessWidget {
     final leakProne = profile.byRoot.entries
         .where((e) => rootBucket(e.key) == RootBucket.leakProne)
         .fold(0, (s, e) => s + e.value);
+    final dist = distribution;
 
     return ListView(
       padding: const EdgeInsets.all(12),
@@ -146,17 +154,161 @@ class _ProfileBody extends StatelessWidget {
           style: RadarTypography.caption,
         ),
         const Divider(height: 24, color: RadarColors.hairline08),
-        Text('Representative retaining path', style: RadarTypography.monoLabel),
-        const SizedBox(height: 6),
-        if (profile.representativePath != null)
-          RetainingPathTile(path: profile.representativePath!)
-        else
+        if (dist != null && dist.paths.isNotEmpty)
+          _PathDistributionSection(distribution: dist)
+        else ...[
           Text(
-            'Not captured for this class — only the busiest classes keep a '
-            'materialised path to bound snapshot size.',
+            'Representative retaining path',
+            style: RadarTypography.monoLabel,
+          ),
+          const SizedBox(height: 6),
+          if (profile.representativePath != null)
+            RetainingPathTile(path: profile.representativePath!)
+          else
+            Text(
+              'Not captured for this class — only the busiest classes keep a '
+              'materialised path to bound snapshot size.',
+              style: RadarTypography.caption,
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+/// The distribution of a class's instances across distinct shortest retaining
+/// paths (the "144 instances → 24 via path A, 20 via path B…" breakdown). Each
+/// row expands on tap to the full hop-by-hop path.
+class _PathDistributionSection extends StatelessWidget {
+  const _PathDistributionSection({required this.distribution});
+
+  final ClassPathDistribution distribution;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = distribution;
+    final maxCount = d.paths.isEmpty ? 0 : d.paths.first.instanceCount;
+    final subtitle = d.isSampled
+        ? 'sampled ${d.sampledInstances} of ${d.totalInstances} instances · '
+              '${d.paths.length} path${d.paths.length == 1 ? '' : 's'}'
+        : '${d.totalInstances} instance${d.totalInstances == 1 ? '' : 's'} '
+              'across ${d.paths.length} path${d.paths.length == 1 ? '' : 's'}';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Retaining paths', style: RadarTypography.monoLabel),
+        const SizedBox(height: 2),
+        Text(subtitle, style: RadarTypography.caption),
+        const SizedBox(height: 8),
+        for (final bucket in d.paths)
+          _PathBucketTile(bucket: bucket, maxCount: maxCount),
+        if (d.otherPathCount > 0) ...[
+          const SizedBox(height: 2),
+          Text(
+            '+${d.otherPathCount} instance'
+            '${d.otherPathCount == 1 ? '' : 's'} in more paths',
             style: RadarTypography.caption,
           ),
+        ],
       ],
+    );
+  }
+}
+
+class _PathBucketTile extends StatefulWidget {
+  const _PathBucketTile({required this.bucket, required this.maxCount});
+
+  final PathBucket bucket;
+  final int maxCount;
+
+  @override
+  State<_PathBucketTile> createState() => _PathBucketTileState();
+}
+
+class _PathBucketTileState extends State<_PathBucketTile> {
+  bool _expanded = false;
+
+  String _label(GraphRetainingPath path) {
+    if (path.hops.isEmpty) return '(root)';
+    if (path.hops.length == 1) return path.hops.single.className;
+    final first = path.hops.first.className;
+    final last = path.hops.last.className;
+    return path.hops.length == 2 ? '$first → $last' : '$first → … → $last';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final b = widget.bucket;
+    final pct = widget.maxCount == 0 ? 0.0 : b.instanceCount / widget.maxCount;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: RadarColors.bgPanel,
+        borderRadius: const BorderRadius.all(Radius.circular(6)),
+        border: Border.all(
+          color: RadarColors.hairline08,
+          width: RadarDensity.hairline,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Row(
+                children: [
+                  RootDot(kind: b.path.rootKind),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _label(b.path),
+                      style: RadarTypography.monoBody.copyWith(fontSize: 12),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${b.instanceCount}',
+                    style: RadarTypography.monoNumber.copyWith(fontSize: 12),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    fmtBytes(b.shallowBytes),
+                    style: RadarTypography.caption,
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    _expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 14,
+                    color: RadarColors.text40,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.all(Radius.circular(2)),
+              child: SizedBox(
+                height: 3,
+                child: FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: pct.clamp(0.0, 1.0),
+                  child: ColoredBox(color: rootBucket(b.path.rootKind).color),
+                ),
+              ),
+            ),
+          ),
+          if (_expanded)
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: RetainingPathTile(path: b.path),
+            ),
+        ],
+      ),
     );
   }
 }

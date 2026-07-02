@@ -23,9 +23,15 @@ class DiffTable extends StatefulWidget {
     required this.summary,
     required this.selected,
     required this.onSelected,
+    this.absolute = false,
   });
 
   final List<ClassCountDiff> diffs;
+
+  /// When true the diff is a single snapshot against an empty baseline, so the
+  /// numeric columns are rendered as absolute totals (neutral, no sign/colour)
+  /// rather than signed deltas.
+  final bool absolute;
 
   /// Small A→B byte-delta summary shown in the sub-header.
   final Widget summary;
@@ -160,11 +166,17 @@ class _DiffTableState extends State<DiffTable> {
                 ),
                 SortHeaderCell(
                   width: _wInst,
-                  child: _sortHeader('Δ inst', _DiffSortKey.instanceDelta),
+                  child: _sortHeader(
+                    widget.absolute ? 'inst' : 'Δ inst',
+                    _DiffSortKey.instanceDelta,
+                  ),
                 ),
                 SortHeaderCell(
                   width: _wBytes,
-                  child: _sortHeader('Δ bytes', _DiffSortKey.bytesDelta),
+                  child: _sortHeader(
+                    widget.absolute ? 'bytes' : 'Δ bytes',
+                    _DiffSortKey.bytesDelta,
+                  ),
                 ),
                 SortHeaderCell(
                   width: _wLive,
@@ -179,7 +191,9 @@ class _DiffTableState extends State<DiffTable> {
               ? Center(
                   child: Text(
                     widget.diffs.isEmpty
-                        ? 'No class-count changes between these snapshots.'
+                        ? (widget.absolute
+                              ? 'This snapshot has no classes.'
+                              : 'No class-count changes between these snapshots.')
                         : 'No classes match the filter.',
                     style: RadarTypography.caption,
                   ),
@@ -189,6 +203,7 @@ class _DiffTableState extends State<DiffTable> {
                   itemExtent: 34,
                   itemBuilder: (context, i) => _DiffRow(
                     diff: rows[i],
+                    absolute: widget.absolute,
                     selected: rows[i].after.className == widget.selected,
                     onTap: () => widget.onSelected(
                       rows[i].after.className == widget.selected
@@ -208,10 +223,12 @@ class _DiffRow extends StatelessWidget {
     required this.diff,
     required this.selected,
     required this.onTap,
+    this.absolute = false,
   });
 
   final ClassCountDiff diff;
   final bool selected;
+  final bool absolute;
   final VoidCallback onTap;
 
   Color _deltaColor(int v) {
@@ -273,22 +290,30 @@ class _DiffRow extends StatelessWidget {
             SizedBox(
               width: _wInst,
               child: Text(
-                _fmtDelta(diff.instanceDelta),
-                style: RadarTypography.monoNumber.copyWith(
-                  color: _deltaColor(diff.instanceDelta),
-                  fontSize: 12,
-                ),
+                absolute
+                    ? '${diff.after.instanceCount}'
+                    : _fmtDelta(diff.instanceDelta),
+                style: absolute
+                    ? RadarTypography.monoNumber.copyWith(fontSize: 12)
+                    : RadarTypography.monoNumber.copyWith(
+                        color: _deltaColor(diff.instanceDelta),
+                        fontSize: 12,
+                      ),
                 textAlign: TextAlign.right,
               ),
             ),
             SizedBox(
               width: _wBytes,
               child: Text(
-                _fmtBytesDelta(diff.bytesDelta),
-                style: RadarTypography.monoNumber.copyWith(
-                  color: _deltaColor(diff.bytesDelta),
-                  fontSize: 12,
-                ),
+                absolute
+                    ? fmtBytes(diff.after.shallowBytes)
+                    : _fmtBytesDelta(diff.bytesDelta),
+                style: absolute
+                    ? RadarTypography.monoNumber.copyWith(fontSize: 12)
+                    : RadarTypography.monoNumber.copyWith(
+                        color: _deltaColor(diff.bytesDelta),
+                        fontSize: 12,
+                      ),
                 textAlign: TextAlign.right,
               ),
             ),
