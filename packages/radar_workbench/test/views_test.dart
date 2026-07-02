@@ -153,7 +153,7 @@ void main() {
   group('SnapshotsView', () {
     testWidgets('no snapshots shows the idle capture hint', (tester) async {
       await tester.pumpWidget(
-        _wrap(SnapshotsView(controller: _controller(), onExport: (_) {})),
+        _wrap(SnapshotsView(controller: _controller(), onExport: (_) async {})),
       );
       expect(find.text('Capture heap snapshots'), findsOneWidget);
       expect(find.text('Capture'), findsOneWidget);
@@ -167,7 +167,7 @@ void main() {
       c.toggleSelection(1);
       c.toggleSelection(2);
       await tester.pumpWidget(
-        _wrapDesktop(SnapshotsView(controller: c, onExport: (_) {})),
+        _wrapDesktop(SnapshotsView(controller: c, onExport: (_) async {})),
       );
       await tester.pump();
       expect(find.text('Foo'), findsWidgets);
@@ -182,11 +182,30 @@ void main() {
         ..debugAdd(_snap(1, hist: [_cc('Foo', inst: 5, bytes: 100)]));
       c.toggleSelection(1);
       await tester.pumpWidget(
-        _wrapDesktop(SnapshotsView(controller: c, onExport: (_) {})),
+        _wrapDesktop(SnapshotsView(controller: c, onExport: (_) async {})),
       );
       await tester.pump();
       expect(find.text('Foo'), findsWidgets);
       expect(find.textContaining('no baseline'), findsOneWidget);
+    });
+
+    testWidgets('tapping the export action invokes onExport with the '
+        'snapshot', (tester) async {
+      _setDesktopSize(tester);
+      final bundle = _snap(1, hist: [_cc('Foo', inst: 5, bytes: 100)]);
+      final c = _controller()..debugAdd(bundle);
+      final captured = <SnapshotBundle>[];
+      await tester.pumpWidget(
+        _wrapDesktop(
+          SnapshotsView(controller: c, onExport: (b) async => captured.add(b)),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('Export JSON'));
+      await tester.pumpAndSettle();
+
+      expect(captured, [bundle]);
     });
   });
 

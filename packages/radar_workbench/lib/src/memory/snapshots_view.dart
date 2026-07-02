@@ -22,7 +22,7 @@ class SnapshotsView extends StatefulWidget {
   });
 
   final MemoryController controller;
-  final void Function(SnapshotBundle bundle) onExport;
+  final Future<void> Function(SnapshotBundle bundle) onExport;
 
   @override
   State<SnapshotsView> createState() => _SnapshotsViewState();
@@ -59,9 +59,9 @@ class _SnapshotsViewState extends State<SnapshotsView> {
     return null;
   }
 
-  void _export(SnapshotBundle b) {
+  Future<void> _export(SnapshotBundle b) async {
     try {
-      widget.onExport(b);
+      await widget.onExport(b);
     } catch (e) {
       developer.log('export failed', name: _log, error: e);
     }
