@@ -2,13 +2,24 @@
 
 The ordered, dependency-safe sequence for publishing the suite to pub.dev.
 
-## Automated: `tool/publish-all.sh`
+## Automated: sync constraints, then `tool/publish-all.sh`
 
-For a routine round, `tool/publish-all.sh --dry-run` validates tier-0 packaging,
-then `tool/publish-all.sh` publishes the changed packages in tier order, waiting
-for pub.dev visibility between tiers. Edit the `TIER0` / `TIER1` arrays in the
-script to match what changed. The manual per-package steps below remain the
-source of truth for first-time publishes and automated-publishing setup.
+Every release round:
+
+1. **`tool/sync-constraints.sh`** — pins each intra-repo dependency constraint to
+   `^<current version>` of the target package, so upper tiers *require* (not just
+   *allow*) the latest lower tiers. A plain `^0.2.0` lets a consumer stay on a
+   stale transitive version; pinning the lower bound forces the current one. Any
+   package whose constraints change must be bumped + republished — the script
+   prints which. (`--check` mode gates this in CI.)
+2. **`tool/publish-all.sh --dry-run`** validates packaging.
+3. **`tool/publish-all.sh`** publishes in tier order (0 → 1 → 2), waiting for
+   pub.dev visibility between tiers. `--tier N` publishes a single tier.
+
+Tiers (in the script): **0** core (`radar_ui`, `radar_trace`, `leak_graph`) → **1**
+radars (`flutter_leak_radar`, `flutter_perf_radar`) → **2** umbrella (`radarscope`).
+`flutter_leak_radar_lint` is independent (own cadence); `flutter_leak_radar_devtools`
+is `publish_to: none`.
 
 ### Round: devtools persistence + overlay UX + tracer/perf improvements
 
@@ -19,10 +30,10 @@ source of truth for first-time publishes and automated-publishing setup.
 | leak_graph | 0.2.2 | 0 | `classPathDistributions` |
 | flutter_leak_radar | 0.2.1 | 1 | overlay UX + refreshed bundled extension |
 | flutter_perf_radar | 0.1.1 | 1 | `dedupKey`, stall detail, timeline crash fix |
+| radarscope | 0.1.2 | 2 | require the latest radars (constraints only) |
 
-**Skip (unchanged):** `radarscope` (its `^` constraints pick up the new tier-0/1
-versions automatically), `flutter_leak_radar_lint`, and
-`flutter_leak_radar_devtools` (`publish_to: none`).
+**Skip:** `flutter_leak_radar_lint` (unchanged), `flutter_leak_radar_devtools`
+(`publish_to: none`).
 
 ## Preconditions
 

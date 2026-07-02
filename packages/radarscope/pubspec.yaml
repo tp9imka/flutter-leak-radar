@@ -3,7 +3,7 @@ description: >-
   All-in-one umbrella for the Radar observability suite — one import and one
   init for Flutter memory, performance, and stability, with an overlay badge
   and a unified inspector.
-version: 0.1.1
+version: 0.1.2
 repository: https://github.com/tp9imka/flutter-leak-radar
 issue_tracker: https://github.com/tp9imka/flutter-leak-radar/issues
 homepage: https://tp9imka.github.io/flutter-leak-radar/
@@ -23,10 +23,10 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
-  flutter_leak_radar: ^0.2.0
-  flutter_perf_radar: ^0.1.0
-  radar_trace: ^0.1.0
-  radar_ui: ^0.1.0
+  flutter_leak_radar: ^0.2.1
+  flutter_perf_radar: ^0.1.1
+  radar_trace: ^0.1.2
+  radar_ui: ^0.1.1
   share_plus: ">=10.0.0 <14.0.0"
 
 dev_dependencies:
