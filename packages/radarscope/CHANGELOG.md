@@ -1,11 +1,15 @@
-## 0.1.2
+## 0.1.3
 
 - `Radar.trace` / `traceAsync` / `start` now accept an optional `dedupKey`,
-  forwarded to `PerfRadar` for duplicate-invocation counting (previously the
-  umbrella facade dropped it).
+  forwarded to `PerfRadar` for duplicate-invocation counting. The umbrella
+  facade previously dropped it, so callers going through `Radar` couldn't use
+  the tracer's duplicate detection.
+
+## 0.1.2
+
 - Require the latest radar packages so a `radarscope` install pulls the current
   feature set: `flutter_leak_radar ^0.2.1`, `flutter_perf_radar ^0.1.1`,
-  `radar_trace ^0.1.2`, `radar_ui ^0.1.1`.
+  `radar_trace ^0.1.2`, `radar_ui ^0.1.1`. No API change.
 
 ## 0.1.1
 - use compatibility API for sharing reports
