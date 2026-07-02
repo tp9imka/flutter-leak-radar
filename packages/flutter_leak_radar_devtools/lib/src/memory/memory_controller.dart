@@ -6,6 +6,7 @@ import 'package:leak_graph/leak_graph.dart';
 import '../capture/snapshot_bundle.dart';
 import '../capture/snapshot_service.dart';
 import '../connection/connection_state_notifier.dart';
+import '../session/snapshot_store.dart';
 
 /// The two snapshots chosen for a diff, ordered oldest → newest.
 typedef DiffPair = ({SnapshotBundle baseline, SnapshotBundle comparison});
@@ -26,14 +27,35 @@ class MemoryController extends ChangeNotifier {
   final ConnectionStateNotifier _connection;
   static const _log = 'leakRadarDevTools.memory';
 
+  /// Upper bound on how many recent snapshots are persisted, to stay within
+  /// durable-store limits. In-memory capture stays unbounded.
+  static const _maxPersistedSnapshots = 8;
+
   final List<SnapshotBundle> _snapshots = [];
   final List<int> _selected = []; // ids chosen for diff, max 2
   int _nextId = 1;
   bool _capturing = false;
   String? _error;
 
+  /// True once this session was rehydrated from a durable store (used by the
+  /// UI to show a subtle "restored" hint).
+  bool restoredFromDisk = false;
+
   /// All captures, oldest first.
   List<SnapshotBundle> get snapshots => List.unmodifiable(_snapshots);
+
+  /// Ids currently selected for diffing, in selection order.
+  List<int> get selectedIds => List.unmodifiable(_selected);
+
+  /// The most recent snapshots to persist (capped at [_maxPersistedSnapshots]).
+  List<SnapshotBundle> get persistableSnapshots {
+    if (_snapshots.length <= _maxPersistedSnapshots) {
+      return List.unmodifiable(_snapshots);
+    }
+    return List.unmodifiable(
+      _snapshots.sublist(_snapshots.length - _maxPersistedSnapshots),
+    );
+  }
 
   bool get capturing => _capturing;
   String? get error => _error;
@@ -63,12 +85,32 @@ class MemoryController extends ChangeNotifier {
   /// the comparison of the selected pair if two are chosen, else the latest.
   SnapshotBundle? get focused => pair?.comparison ?? latest;
 
-  /// Ranked class-growth diff for the selected pair; null unless two snapshots
-  /// are selected. Computed on demand from the two histograms.
+  SnapshotBundle? get _singleSelected =>
+      _selected.length == 1 ? _byId(_selected.first) : null;
+
+  /// Snapshot populating the diff table's "after" / absolute column: the
+  /// comparison of the selected pair, or — when exactly one snapshot is
+  /// selected — that snapshot shown against an empty baseline. Null when
+  /// nothing is selected.
+  SnapshotBundle? get comparison => pair?.comparison ?? _singleSelected;
+
+  /// True when exactly one snapshot is selected, so [diff] is that snapshot
+  /// against an empty baseline (an absolute "show everything" view) rather than
+  /// a delta between two snapshots.
+  bool get comparingAgainstEmpty => pair == null && _singleSelected != null;
+
+  /// Ranked class diff for the current selection: growth between the two
+  /// selected snapshots, or — when a single snapshot is selected — that
+  /// snapshot against an empty baseline (every class shown at its full count).
+  /// Null when nothing is selected. Computed on demand from the histograms.
   List<ClassCountDiff>? get diff {
     final p = pair;
-    if (p == null) return null;
-    return computeDiff(p.baseline.histogram, p.comparison.histogram);
+    if (p != null) {
+      return computeDiff(p.baseline.histogram, p.comparison.histogram);
+    }
+    final only = _singleSelected;
+    if (only != null) return computeDiff(const [], only.histogram);
+    return null;
   }
 
   SnapshotBundle? _byId(int id) {
@@ -133,6 +175,24 @@ class MemoryController extends ChangeNotifier {
     _snapshots.clear();
     _selected.clear();
     _error = null;
+    restoredFromDisk = false;
+    notifyListeners();
+  }
+
+  /// Replaces the current state with a previously persisted [session]. Ids and
+  /// selection are taken from the session; [_nextId] resumes past the highest
+  /// restored id. No-op for an empty session. Notifies listeners once.
+  void rehydrate(PersistedSession session) {
+    if (session.bundles.isEmpty) return;
+    _snapshots
+      ..clear()
+      ..addAll(session.bundles);
+    final ids = {for (final s in _snapshots) s.id};
+    _selected
+      ..clear()
+      ..addAll(session.selectedIds.where(ids.contains).take(2));
+    _nextId = (ids.isEmpty ? 0 : ids.reduce((a, b) => a > b ? a : b)) + 1;
+    restoredFromDisk = true;
     notifyListeners();
   }
 

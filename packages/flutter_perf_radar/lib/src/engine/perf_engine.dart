@@ -121,19 +121,27 @@ final class PerfEngine {
   }
 
   /// Measures [body] synchronously and records a span.
-  T trace<T>(String name, T Function() body, {String? category}) =>
-      _tracer.trace(name, body, category: category);
+  T trace<T>(
+    String name,
+    T Function() body, {
+    String? category,
+    List<String>? dedupKey,
+  }) => _tracer.trace(name, body, category: category, dedupKey: dedupKey);
 
   /// Measures [body] asynchronously and records a span.
   Future<T> traceAsync<T>(
     String name,
     Future<T> Function() body, {
     String? category,
-  }) => _tracer.traceAsync(name, body, category: category);
+    List<String>? dedupKey,
+  }) => _tracer.traceAsync(name, body, category: category, dedupKey: dedupKey);
 
   /// Returns a [SpanHandle] for a manually bounded span.
-  SpanHandle startSpan(String name, {String? category}) =>
-      _tracer.start(name, category: category);
+  SpanHandle startSpan(
+    String name, {
+    String? category,
+    List<String>? dedupKey,
+  }) => _tracer.start(name, category: category, dedupKey: dedupKey);
 
   /// Immutable snapshot of all span aggregates.
   TraceSnapshot snapshot() => _tracer.snapshot();

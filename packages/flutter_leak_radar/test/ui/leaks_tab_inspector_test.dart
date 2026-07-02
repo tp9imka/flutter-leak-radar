@@ -263,6 +263,10 @@ void main() {
         await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
         await tester.pumpAndSettle();
 
+        // The path is loaded on demand (opening never blocks); fetch it first.
+        await tester.tap(find.text('Load retaining path'));
+        await tester.pumpAndSettle();
+
         // Path hops must render as "field → objectType" style text.
         expect(
           find.textContaining('RoutingTable'),

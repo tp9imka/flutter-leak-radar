@@ -42,9 +42,10 @@ final class Tracer {
     T Function() body, {
     String? category,
     Map<String, Object?>? attributes,
+    List<String>? dedupKey,
   }) {
     final startMicros = traceClockNowMicros();
-    final pending = _begin(name, category, attributes, startMicros);
+    final pending = _begin(name, category, attributes, startMicros, dedupKey);
 
     T result;
     try {
@@ -70,9 +71,10 @@ final class Tracer {
     Future<T> Function() body, {
     String? category,
     Map<String, Object?>? attributes,
+    List<String>? dedupKey,
   }) async {
     final startMicros = traceClockNowMicros();
-    final pending = _begin(name, category, attributes, startMicros);
+    final pending = _begin(name, category, attributes, startMicros, dedupKey);
 
     T result;
     try {
@@ -96,8 +98,15 @@ final class Tracer {
     String name, {
     String? category,
     Map<String, Object?>? attributes,
+    List<String>? dedupKey,
   }) {
-    final pending = _begin(name, category, attributes, traceClockNowMicros());
+    final pending = _begin(
+      name,
+      category,
+      attributes,
+      traceClockNowMicros(),
+      dedupKey,
+    );
     return SpanHandle(pendingSpan: pending, recorder: recorder);
   }
 
@@ -110,6 +119,7 @@ final class Tracer {
     String? category,
     Map<String, Object?>? attributes,
     int startMicros,
+    List<String>? dedupKey,
   ) {
     final parentSpan = activeSpan;
     final spanId = SpanId.generate();
@@ -123,6 +133,9 @@ final class Tracer {
       durationMicros: 0,
       status: SpanStatus.ok,
       attributes: attributes ?? const {},
+      dedupKey: (dedupKey == null || dedupKey.isEmpty)
+          ? null
+          : dedupKey.join(','),
     );
   }
 

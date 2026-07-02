@@ -48,10 +48,15 @@ abstract final class PerfRadar {
   ///
   /// Delegates to the running engine when active; otherwise calls [body]
   /// directly. Always returns the body's result. Never throws.
-  static T trace<T>(String name, T Function() body, {String? category}) {
+  static T trace<T>(
+    String name,
+    T Function() body, {
+    String? category,
+    List<String>? dedupKey,
+  }) {
     final engine = _engine;
     if (engine == null) return body();
-    return engine.trace(name, body, category: category);
+    return engine.trace(name, body, category: category, dedupKey: dedupKey);
   }
 
   /// Measures [body] asynchronously and records a span.
@@ -59,18 +64,33 @@ abstract final class PerfRadar {
     String name,
     Future<T> Function() body, {
     String? category,
+    List<String>? dedupKey,
   }) {
     final engine = _engine;
     if (engine == null) return body();
-    return engine.traceAsync(name, body, category: category);
+    return engine.traceAsync(
+      name,
+      body,
+      category: category,
+      dedupKey: dedupKey,
+    );
   }
 
   /// Returns a [SpanHandle] for a manually bounded span.
   ///
   /// When no engine is active, returns an inert no-op handle.
-  static SpanHandle start(String name, {String? category}) {
+  ///
+  /// [dedupKey] is an optional caller-supplied signature (e.g. arguments) used
+  /// to count duplicate invocations of the same operation.
+  static SpanHandle start(
+    String name, {
+    String? category,
+    List<String>? dedupKey,
+  }) {
     final engine = _engine;
-    if (engine != null) return engine.startSpan(name, category: category);
+    if (engine != null) {
+      return engine.startSpan(name, category: category, dedupKey: dedupKey);
+    }
     return _inertSpanHandle();
   }
 

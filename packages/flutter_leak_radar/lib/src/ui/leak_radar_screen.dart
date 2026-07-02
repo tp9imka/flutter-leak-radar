@@ -2,6 +2,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../model/leak_finding.dart';
@@ -373,45 +374,56 @@ class _BottomBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              GestureDetector(
-                key: const Key('leak_radar_scan_btn'),
-                onTap: scanning ? null : onScanTap,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: scanning
-                        ? LeakRadarColors.accent.withValues(alpha: 0.5)
-                        : LeakRadarColors.accent,
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: LeakRadarColors.accent.withValues(alpha: 0.25),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: scanning
+                      ? LeakRadarColors.accent.withValues(alpha: 0.5)
+                      : LeakRadarColors.accent,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    key: const Key('leak_radar_scan_btn'),
+                    onTap: scanning
+                        ? null
+                        : () {
+                            HapticFeedback.selectionClick();
+                            onScanTap();
+                          },
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: LeakRadarColors.accent.withValues(alpha: 0.25),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
                       ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.refresh,
-                        size: 16,
-                        color: LeakRadarColors.pageBg,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.refresh,
+                            size: 16,
+                            color: LeakRadarColors.pageBg,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Scan now',
+                            style: monoFont(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: LeakRadarColors.pageBg,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Scan now',
-                        style: monoFont(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: LeakRadarColors.pageBg,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),

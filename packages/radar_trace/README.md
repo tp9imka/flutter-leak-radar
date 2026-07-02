@@ -170,6 +170,10 @@ final tracer = Tracer(recorder: recorder);
 
 ## Features
 
+- **Duplicate detection** — pass an optional `dedupKey` (e.g. the call's
+  arguments) to `trace`/`traceAsync`/`start`;
+  `SpanKeyStatsSnapshot.duplicateCount` reports how many calls repeated a
+  previously-seen signature for a key, distinct from any statistical heuristic.
 - **Zero-throw contract** — recording errors never propagate to the host;
   bodies always receive their result or exception unmodified.
 - **Zone-based async nesting** — parent spans are threaded through `Zone`

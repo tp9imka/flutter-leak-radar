@@ -1,3 +1,15 @@
+## 0.2.1
+
+- Session state (captured snapshots, diff selection, active view) now survives
+  DevTools disposing the extension iframe on tab switches — persisted to
+  `.dart_tool/` via the Dart Tooling Daemon and rehydrated on relaunch, with a
+  bounded history and a "restored" indicator. Degrades to in-memory when no DTD
+  connection is available.
+- A single selected snapshot can be compared against an empty baseline (an
+  absolute "show all classes" view), not only two snapshots against each other.
+- The class detail panel shows how a class's instances distribute across their
+  distinct shortest retaining paths, each row expandable to the full hop chain.
+
 ## 0.2.0
 
 ### Memory companion redesign

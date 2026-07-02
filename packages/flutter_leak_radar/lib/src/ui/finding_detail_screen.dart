@@ -32,14 +32,15 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
     super.initState();
     // Prefer the retaining path already carried on the finding: graph
     // (retainedByNonLiveRoot) findings carry one computed from the on-device
-    // heap snapshot, so it needs NO VM-service connection. Only fall back to a
-    // live VM-service lookup when the finding has none (growth / precise).
+    // heap snapshot, so it needs NO VM-service connection and renders instantly.
+    //
+    // For findings without one (growth / precise), do NOT fetch here: the live
+    // VM-service lookup is expensive and blocked the screen from opening. It is
+    // fetched on demand instead, when the user taps "Load retaining path".
     final carried = widget.finding.retainingPath;
     if (carried != null) {
       _path = carried;
       _fetchedPath = true;
-    } else {
-      _fetchPath();
     }
   }
 
@@ -337,7 +338,12 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Text('lazily fetched', style: LeakRadarText.label),
+                  Text(
+                    widget.finding.retainingPath != null
+                        ? 'from on-device snapshot'
+                        : 'load on demand',
+                    style: LeakRadarText.label,
+                  ),
                 ],
               ),
             ],
@@ -361,11 +367,13 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
         ),
       );
     }
-    if (_fetchedPath && _path == null) {
+    if (_path != null) return _buildPath(_path!);
+    if (_fetchedPath) {
       return Text('retaining path unavailable', style: LeakRadarText.label);
     }
-    if (_path != null) return _buildPath(_path!);
-    return const SizedBox.shrink();
+    // Not fetched yet: the live VM lookup is deferred so opening the screen
+    // never blocks. Load it only when the user asks.
+    return _LoadPathButton(onTap: _fetchPath);
   }
 
   Widget _buildPath(RetainingPathView path) {
@@ -544,27 +552,89 @@ class _IconBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Tooltip(
     message: tooltip,
-    child: GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: LeakRadarDimens.iconButtonSize,
-        height: LeakRadarDimens.iconButtonSize,
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        decoration: BoxDecoration(
-          color: LeakRadarDimens.iconButtonBg,
-          border: Border.all(color: LeakRadarDimens.iconButtonBorder),
-          borderRadius: BorderRadius.circular(LeakRadarDimens.iconButtonRadius),
-        ),
-        child: Icon(
-          icon,
-          size: 18,
-          color: onTap != null
-              ? LeakRadarColors.text100
-              : LeakRadarColors.text25,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Material(
+        color: LeakRadarDimens.iconButtonBg,
+        borderRadius: BorderRadius.circular(LeakRadarDimens.iconButtonRadius),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(
+            LeakRadarDimens.iconButtonRadius,
+          ),
+          child: Container(
+            width: LeakRadarDimens.iconButtonSize,
+            height: LeakRadarDimens.iconButtonSize,
+            decoration: BoxDecoration(
+              border: Border.all(color: LeakRadarDimens.iconButtonBorder),
+              borderRadius: BorderRadius.circular(
+                LeakRadarDimens.iconButtonRadius,
+              ),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: onTap != null
+                  ? LeakRadarColors.text100
+                  : LeakRadarColors.text25,
+            ),
+          ),
         ),
       ),
     ),
   );
+}
+
+/// On-demand loader for the retaining path (deferred so the screen opens
+/// instantly). Tapping runs the live VM-service lookup.
+class _LoadPathButton extends StatelessWidget {
+  const _LoadPathButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color.fromRGBO(90, 209, 230, 0.10),
+            border: Border.all(
+              color: const Color.fromRGBO(90, 209, 230, 0.28),
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.download_outlined,
+                size: 14,
+                color: LeakRadarColors.severityInfo,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  'Load retaining path',
+                  overflow: TextOverflow.ellipsis,
+                  style: monoFont(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: LeakRadarColors.severityInfo,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _PathLine extends StatelessWidget {

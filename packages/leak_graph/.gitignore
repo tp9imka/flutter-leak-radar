@@ -1,0 +1,3 @@
+# Heap snapshots captured by the CLI (leak_capture / capture) — never commit or publish.
+*.data
+*.heapsnapshot

@@ -158,7 +158,7 @@ void main() {
   });
 
   group('FindingDetailScreen — retaining path', () {
-    testWidgets('shows spinner while fetching, then unavailable', (
+    testWidgets('defers the fetch to a load button, then shows unavailable', (
       tester,
     ) async {
       await LeakRadar.debugInstall(
@@ -169,7 +169,13 @@ void main() {
       );
       final finding = testFinding();
       await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      // Opening the screen must NOT trigger the (blocking) VM lookup: a load
+      // affordance is shown instead of a spinner or the resolved path.
+      expect(find.text('Load retaining path'), findsOneWidget);
+      expect(find.textContaining('unavailable'), findsNothing);
+
+      await tester.tap(find.text('Load retaining path'));
       await tester.pumpAndSettle();
       expect(find.textContaining('unavailable'), findsOneWidget);
     });
@@ -273,10 +279,14 @@ void main() {
       final finding = testFinding();
       await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
       await tester.pumpAndSettle();
-      expect(
-        find.byWidgetPredicate((w) => w is InkWell && w.onTap != null),
-        findsOneWidget,
+      // Target the capture button specifically — other tappable InkWells
+      // (share, load-path) now also exist on the screen.
+      final captureInk = find.ancestor(
+        of: find.text('Capture .dartheap'),
+        matching: find.byType(InkWell),
       );
+      expect(captureInk, findsOneWidget);
+      expect(tester.widget<InkWell>(captureInk).onTap, isNotNull);
     });
 
     testWidgets('bottom row renders without overflow', (tester) async {
@@ -360,6 +370,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Retained (non-live root)'), findsOneWidget);
+      // Path is now loaded on demand; fetch it, then assert it renders.
+      await tester.tap(find.text('Load retaining path'));
+      await tester.pumpAndSettle();
       expect(find.textContaining('WidgetsFlutterBinding'), findsWidgets);
       expect(tester.takeException(), isNull);
     });

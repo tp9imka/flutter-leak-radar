@@ -38,6 +38,10 @@ class ClassHistogramView extends StatelessWidget {
             for (final p in snapshot.analysisResult.classRootProfiles)
               p.className: p,
           },
+          distributions: {
+            for (final d in snapshot.analysisResult.classPathDistributions)
+              d.className: d,
+          },
         );
       },
     );
@@ -64,10 +68,12 @@ class _HistogramBody extends StatefulWidget {
     super.key,
     required this.entries,
     required this.profiles,
+    required this.distributions,
   });
 
   final List<ClassCount> entries;
   final Map<String, ClassRootProfile> profiles;
+  final Map<String, ClassPathDistribution> distributions;
 
   @override
   State<_HistogramBody> createState() => _HistogramBodyState();
@@ -209,6 +215,9 @@ class _HistogramBodyState extends State<_HistogramBody> {
           child: ClassDetailPanel(
             className: _selected,
             profile: _selected == null ? null : widget.profiles[_selected],
+            distribution: _selected == null
+                ? null
+                : widget.distributions[_selected],
           ),
         ),
       ],

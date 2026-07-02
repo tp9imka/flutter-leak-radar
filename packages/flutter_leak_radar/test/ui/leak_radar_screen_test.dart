@@ -245,9 +245,30 @@ void main() {
       );
     });
 
+    testWidgets('sort + filter controls are collapsed by default', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
+      await tester.pumpAndSettle();
+
+      // Chips + sort headers are hidden until the disclosure is expanded, so
+      // the leak list gets the vertical space.
+      expect(find.text('all'), findsNothing);
+      expect(find.text('not disposed'), findsNothing);
+
+      await tester.tap(find.text('filters'));
+      await tester.pumpAndSettle();
+      expect(find.text('all'), findsOneWidget);
+      expect(find.text('not disposed'), findsOneWidget);
+    });
+
     testWidgets('"all" filter chip is visible and tappable', (tester) async {
       await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
-      await tester.pump();
+      await tester.pumpAndSettle();
+
+      // Sort + filter controls collapse by default; expand them first.
+      await tester.tap(find.text('filters'));
+      await tester.pumpAndSettle();
 
       expect(find.text('all'), findsOneWidget);
       await tester.tap(find.text('all'));
@@ -258,7 +279,10 @@ void main() {
 
     testWidgets('"growth" filter chip is visible and tappable', (tester) async {
       await tester.pumpWidget(const MaterialApp(home: LeakRadarScreen()));
-      await tester.pump();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('filters'));
+      await tester.pumpAndSettle();
 
       // 'growth' appears in both the sort header row and the filter chip row.
       expect(find.text('growth'), findsWidgets);
@@ -293,6 +317,10 @@ void main() {
 
         expect(find.text('CriticalBloc'), findsOneWidget);
 
+        // Expand the collapsed sort/filter controls before using them.
+        await tester.tap(find.text('filters'));
+        await tester.pumpAndSettle();
+
         // Tap the filter chip — 'growth' appears in both sort row and chip row;
         // the chip is the last widget found in tree order.
         await tester.tap(find.text('growth').last);
@@ -326,6 +354,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('GrowingBloc'), findsOneWidget);
+
+      // Expand the collapsed sort/filter controls before using them.
+      await tester.tap(find.text('filters'));
+      await tester.pumpAndSettle();
 
       // Tap the filter chip — 'growth' appears in both sort row and chip row;
       // the chip is the last widget found in tree order.

@@ -1,3 +1,22 @@
+## 0.2.1
+
+In-app overlay UX polish (no public API change) plus a refreshed bundled
+DevTools extension.
+
+- The VM-degradation banner is now dismissible per incident and re-appears on a
+  status change or reconnect.
+- Sort and kind-filter controls collapse behind a compact "filters" disclosure
+  by default, giving the leak list more vertical space.
+- Material ink ripples and haptics on the Force GC / Scan / Clear actions and
+  the sort/filter controls.
+- The finding-detail retaining path loads on demand instead of on open,
+  removing an open-time freeze on findings without a carried path.
+- Bundled DevTools (Leak Radar) extension refreshed: its Memory companion now
+  survives DevTools tab switches (session persisted via the Dart Tooling
+  Daemon, degrading to in-memory when unavailable), a single snapshot can be
+  shown against an empty baseline ("show everything"), and a class's instances
+  are broken down across their distinct shortest retaining paths.
+
 ## 0.2.0
 
 Redesigned the in-app Leaks inspector on the shared `radar_ui` design system

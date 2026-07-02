@@ -1,3 +1,15 @@
+## 0.1.1
+
+- Optional `dedupKey` on `PerfRadar.trace` / `traceAsync` / `start`, surfaced as
+  a "N dup" count in the trace detail — real duplicate invocations, distinct
+  from the statistical HOT tag.
+- Stalls are now tappable: a stall opens a detail screen correlating its
+  blocking window with the instrumented spans that overlapped it (honest empty
+  state when nothing overlapped; only retained slowest spans are available to
+  correlate — frame samples carry no timestamp, so they are not correlated).
+- Fixed a span-timeline render crash ("Invalid argument(s): 6.0") when a span
+  started near the right edge of the timeline; bar geometry is now bounds-safe.
+
 ## 0.1.0
 
 Initial release.
