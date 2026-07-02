@@ -158,6 +158,20 @@ class MemoryController extends ChangeNotifier {
     }
   }
 
+  /// Appends a pre-built, already-analyzed [bundle] (e.g. imported from a heap
+  /// dump file) without going through the VM service. Assigns the next session
+  /// id, auto-selects it while fewer than two are selected (so a diff appears
+  /// without extra taps, matching [capture]), notifies listeners, and returns
+  /// the stored id-assigned bundle.
+  SnapshotBundle addBundle(SnapshotBundle bundle) {
+    final id = _nextId++;
+    final stored = bundle.copyWith(id: id);
+    _snapshots.add(stored);
+    if (_selected.length < 2) _selected.add(id);
+    notifyListeners();
+    return stored;
+  }
+
   /// Toggles [id] in the diff selection (max two). Selecting a third drops the
   /// oldest selection.
   void toggleSelection(int id) {

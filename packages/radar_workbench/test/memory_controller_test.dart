@@ -69,6 +69,26 @@ SnapshotBundle _snap(
   analysisResult: _analysis(profiles, distributions: distributions),
 );
 
+/// An unassigned-id bundle (as a file-import path would build), for
+/// [MemoryController.addBundle] tests where the id is assigned by the
+/// controller rather than the fixture.
+SnapshotBundle _bundle(String label) => SnapshotBundle(
+  capturedAt: DateTime(2026, 1, 1),
+  label: label,
+  histogram: const [],
+  analysisResult: const GraphAnalysisResult(
+    clusters: [],
+    stats: GraphAnalysisStats(
+      totalObjects: 0,
+      reachableObjects: 0,
+      leakCandidates: 0,
+      clusters: 0,
+      suppressedByAppFilter: 0,
+      warnings: [],
+    ),
+  ),
+);
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 void main() {
@@ -329,6 +349,36 @@ void main() {
       expect(restored.bundles.single.id, 1);
       expect(restored.selectedIds, [1]);
       expect(restored.view, RadarView.classHistogram);
+    });
+  });
+
+  group('addBundle (desktop import path)', () {
+    test('assigns sequential ids, appends, and auto-selects the first two', () {
+      final c = MemoryController(
+        snapshotSource: FakeSnapshotSource(),
+        connection: FakeRadarConnection(),
+      );
+      final a = c.addBundle(_bundle('a'));
+      final b = c.addBundle(_bundle('b'));
+      final third = c.addBundle(_bundle('c'));
+
+      expect(c.snapshots.map((s) => s.label), ['a', 'b', 'c']);
+      expect(a.id, 1);
+      expect(b.id, 2);
+      expect(third.id, 3);
+      // First two auto-selected; third not (selection caps at 2).
+      expect(c.selectedIds, [1, 2]);
+    });
+
+    test('ids from addBundle do not collide with a later capture id', () {
+      final c = MemoryController(
+        snapshotSource: FakeSnapshotSource(),
+        connection: FakeRadarConnection(),
+      );
+      c.addBundle(_bundle('a'));
+      final b = c.addBundle(_bundle('b'));
+      expect(b.id, 2);
+      expect(c.byId(2)?.label, 'b');
     });
   });
 }
