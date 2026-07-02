@@ -19,3 +19,4 @@ export 'src/widgets/radar_sort_header.dart';
 export 'src/widgets/radar_filter_chip.dart';
 export 'src/widgets/radar_live_pulse_dot.dart';
 export 'src/widgets/radar_linear_progress.dart';
+export 'src/widgets/radar_trend_chart.dart';
