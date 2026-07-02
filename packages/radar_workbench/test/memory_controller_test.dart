@@ -69,6 +69,26 @@ SnapshotBundle _snap(
   analysisResult: _analysis(profiles, distributions: distributions),
 );
 
+/// An unassigned-id bundle (as a file-import path would build), for
+/// [MemoryController.addBundle] tests where the id is assigned by the
+/// controller rather than the fixture.
+SnapshotBundle _bundle(String label) => SnapshotBundle(
+  capturedAt: DateTime(2026, 1, 1),
+  label: label,
+  histogram: const [],
+  analysisResult: const GraphAnalysisResult(
+    clusters: [],
+    stats: GraphAnalysisStats(
+      totalObjects: 0,
+      reachableObjects: 0,
+      leakCandidates: 0,
+      clusters: 0,
+      suppressedByAppFilter: 0,
+      warnings: [],
+    ),
+  ),
+);
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 void main() {
@@ -329,6 +349,123 @@ void main() {
       expect(restored.bundles.single.id, 1);
       expect(restored.selectedIds, [1]);
       expect(restored.view, RadarView.classHistogram);
+    });
+  });
+
+  group('addBundle (desktop import path)', () {
+    test('assigns sequential ids, appends, and auto-selects the first two', () {
+      final c = MemoryController(
+        snapshotSource: FakeSnapshotSource(),
+        connection: FakeRadarConnection(),
+      );
+      final a = c.addBundle(_bundle('a'));
+      final b = c.addBundle(_bundle('b'));
+      final third = c.addBundle(_bundle('c'));
+
+      expect(c.snapshots.map((s) => s.label), ['a', 'b', 'c']);
+      expect(a.id, 1);
+      expect(b.id, 2);
+      expect(third.id, 3);
+      // First two auto-selected; third not (selection caps at 2).
+      expect(c.selectedIds, [1, 2]);
+    });
+
+    test('ids from addBundle do not collide with a later capture id', () {
+      final c = MemoryController(
+        snapshotSource: FakeSnapshotSource(),
+        connection: FakeRadarConnection(),
+      );
+      c.addBundle(_bundle('a'));
+      final b = c.addBundle(_bundle('b'));
+      expect(b.id, 2);
+      expect(c.byId(2)?.label, 'b');
+    });
+  });
+
+  group('focusOn (desktop active-dump hook)', () {
+    test('focused honors an explicitly focused id over latest', () {
+      final c = MemoryController(
+        snapshotSource: FakeSnapshotSource(),
+        connection: FakeRadarConnection(),
+      );
+      final a = c.addBundle(_bundle('a'));
+      final b = c.addBundle(_bundle('b')); // b is latest
+      // addBundle auto-selects the first two ids for diffing (existing
+      // behavior); deselect both so `pair` is null here and `focused` falls
+      // through to `latest`, isolating focusOn's own fallback chain.
+      c.toggleSelection(a.id);
+      c.toggleSelection(b.id);
+      // Default: focused falls through to latest (b), not a.
+      expect(c.focused?.label, 'b');
+      c.focusOn(a.id);
+      expect(c.focusedId, a.id);
+      expect(c.focused?.label, 'a'); // now honors the explicit focus
+      c.focusOn(null);
+      expect(c.focused?.label, 'b'); // cleared → back to latest
+    });
+
+    test('focusOn(unknown id) falls through to pair/latest', () {
+      final c = MemoryController(
+        snapshotSource: FakeSnapshotSource(),
+        connection: FakeRadarConnection(),
+      );
+      final a = c.addBundle(_bundle('a'));
+      final b = c.addBundle(_bundle('b'));
+      // Deselect both so `pair` is null; isolates the fallback to `latest`.
+      c.toggleSelection(a.id);
+      c.toggleSelection(b.id);
+      c.focusOn(9999); // not present
+      expect(c.focused?.id, b.id); // _byId(9999) == null → latest
+    });
+
+    test('remove(id) reconciles a focused id pointing at the removed '
+        'snapshot', () {
+      final c = MemoryController(
+        snapshotSource: FakeSnapshotSource(),
+        connection: FakeRadarConnection(),
+      );
+      final a = c.addBundle(_bundle('a'));
+      final b = c.addBundle(_bundle('b')); // b is latest
+      // Deselect both so `pair` is null and `focused` falls through to
+      // `latest` once the explicit focus is gone.
+      c.toggleSelection(a.id);
+      c.toggleSelection(b.id);
+      c.focusOn(a.id);
+      c.remove(a.id);
+      expect(c.focusedId, isNull);
+      expect(c.focused?.id, b.id); // falls back to latest, not a stale id
+    });
+
+    test('clearAll() clears a previously focused id', () {
+      final c = MemoryController(
+        snapshotSource: FakeSnapshotSource(),
+        connection: FakeRadarConnection(),
+      );
+      final a = c.addBundle(_bundle('a'));
+      c.focusOn(a.id);
+      c.clearAll();
+      expect(c.focusedId, isNull);
+    });
+
+    test('rehydrate() clears the focused id so it cannot collide with a '
+        'same-numbered snapshot in the restored session', () {
+      final c = MemoryController(
+        snapshotSource: FakeSnapshotSource(),
+        connection: FakeRadarConnection(),
+      );
+      final a = c.addBundle(_bundle('a')); // assigned id 1
+      c.focusOn(a.id);
+      c.rehydrate(
+        PersistedSession(
+          bundles: [_snap(1), _snap(2)], // unrelated new id-1 snapshot
+          selectedIds: const [2],
+          view: RadarView.snapshotDiff,
+        ),
+      );
+      expect(c.focusedId, isNull);
+      // Without the fix, `focused` would resolve to the new session's id-1
+      // snapshot purely by numeric coincidence with the old focus.
+      expect(c.focused?.id, 2); // latest of the restored session
     });
   });
 }

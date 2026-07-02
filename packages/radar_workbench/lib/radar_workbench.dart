@@ -35,3 +35,4 @@ export 'src/shell/left_rail.dart';
 export 'src/shell/radar_view.dart';
 export 'src/stability/errors_view.dart';
 export 'src/stability/stalls_view.dart';
+export 'src/trend/trend.dart';

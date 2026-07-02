@@ -41,6 +41,7 @@ class MemoryController extends ChangeNotifier {
   final List<SnapshotBundle> _snapshots = [];
   final List<int> _selected = []; // ids chosen for diff, max 2
   int _nextId = 1;
+  int? _focusedId;
   bool _capturing = false;
   String? _error;
 
@@ -53,6 +54,12 @@ class MemoryController extends ChangeNotifier {
 
   /// Ids currently selected for diffing, in selection order.
   List<int> get selectedIds => List.unmodifiable(_selected);
+
+  /// The explicitly-focused snapshot id for the single-snapshot views
+  /// (histogram / retaining paths), or null to fall back to the diff pair /
+  /// latest. Set by hosts (e.g. the desktop app) that let the user pick an
+  /// arbitrary dump to inspect; unused by DevTools (which leaves it null).
+  int? get focusedId => _focusedId;
 
   /// The most recent snapshots to persist (capped at [_maxPersistedSnapshots]).
   List<SnapshotBundle> get persistableSnapshots {
@@ -90,7 +97,10 @@ class MemoryController extends ChangeNotifier {
 
   /// Snapshot shown by the single-snapshot views (histogram, retaining paths):
   /// the comparison of the selected pair if two are chosen, else the latest.
-  SnapshotBundle? get focused => pair?.comparison ?? latest;
+  SnapshotBundle? get focused =>
+      (_focusedId == null ? null : _byId(_focusedId!)) ??
+      pair?.comparison ??
+      latest;
 
   SnapshotBundle? get _singleSelected =>
       _selected.length == 1 ? _byId(_selected.first) : null;
@@ -158,6 +168,26 @@ class MemoryController extends ChangeNotifier {
     }
   }
 
+  /// Appends a pre-built, already-analyzed [bundle] (e.g. imported from a heap
+  /// dump file) without going through the VM service. Assigns the next session
+  /// id, auto-selects it while fewer than two are selected (so a diff appears
+  /// without extra taps, matching [capture]), notifies listeners, and returns
+  /// the stored id-assigned bundle.
+  SnapshotBundle addBundle(SnapshotBundle bundle) {
+    final id = _nextId++;
+    final stored = bundle.copyWith(id: id);
+    _snapshots.add(stored);
+    if (_selected.length < 2) _selected.add(id);
+    notifyListeners();
+    return stored;
+  }
+
+  /// Sets [focusedId] (or clears it with null) and notifies.
+  void focusOn(int? id) {
+    _focusedId = id;
+    notifyListeners();
+  }
+
   /// Toggles [id] in the diff selection (max two). Selecting a third drops the
   /// oldest selection.
   void toggleSelection(int id) {
@@ -173,6 +203,7 @@ class MemoryController extends ChangeNotifier {
   void remove(int id) {
     _snapshots.removeWhere((s) => s.id == id);
     _selected.remove(id);
+    if (_focusedId == id) _focusedId = null;
     notifyListeners();
   }
 
@@ -180,6 +211,7 @@ class MemoryController extends ChangeNotifier {
     _snapshots.clear();
     _selected.clear();
     _error = null;
+    _focusedId = null;
     restoredFromDisk = false;
     notifyListeners();
   }
@@ -197,6 +229,7 @@ class MemoryController extends ChangeNotifier {
       ..clear()
       ..addAll(session.selectedIds.where(ids.contains).take(2));
     _nextId = (ids.isEmpty ? 0 : ids.reduce((a, b) => a > b ? a : b)) + 1;
+    _focusedId = null;
     restoredFromDisk = true;
     notifyListeners();
   }

@@ -26,7 +26,7 @@ dependencies:
   flutter_leak_radar: ^0.2.1
   flutter_perf_radar: ^0.1.1
   radar_trace: ^0.1.2
-  radar_ui: ^0.1.1
+  radar_ui: ^0.2.0
   share_plus: ">=10.0.0 <14.0.0"
 
 dev_dependencies:

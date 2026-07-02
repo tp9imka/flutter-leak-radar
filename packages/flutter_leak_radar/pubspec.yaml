@@ -21,7 +21,7 @@ dependencies:
   meta: ^1.15.0
   share_plus: ">=10.0.0 <14.0.0"
   leak_graph: ^0.2.2
-  radar_ui: ^0.1.1
+  radar_ui: ^0.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
