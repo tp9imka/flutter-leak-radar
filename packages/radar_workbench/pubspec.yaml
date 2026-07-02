@@ -17,7 +17,7 @@ dependencies:
   flutter:
     sdk: flutter
   leak_graph: ^0.2.2
-  radar_ui: ^0.1.1
+  radar_ui: ^0.2.0
   vm_service: ^15.0.0
 
 dev_dependencies:
