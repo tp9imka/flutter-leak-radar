@@ -10,3 +10,4 @@ export 'src/model/native_allocation_diff.dart';
 export 'src/model/native_callsite.dart';
 export 'src/model/native_frame.dart';
 export 'src/model/native_heap_profile.dart';
+export 'src/parse/native_profile_parser.dart';
