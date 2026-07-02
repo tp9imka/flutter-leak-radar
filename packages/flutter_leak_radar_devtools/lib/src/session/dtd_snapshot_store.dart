@@ -3,10 +3,7 @@ import 'dart:convert';
 
 import 'package:devtools_extensions/devtools_extensions.dart';
 import 'package:dtd/dtd.dart';
-
-import '../capture/snapshot_bundle.dart';
-import '../shell/radar_view.dart';
-import 'snapshot_store.dart';
+import 'package:radar_workbench/radar_workbench.dart';
 
 /// [SnapshotStore] backed by the Dart Tooling Daemon (DTD) file system service.
 ///
