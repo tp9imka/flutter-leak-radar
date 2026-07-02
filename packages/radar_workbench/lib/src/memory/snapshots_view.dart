@@ -5,7 +5,6 @@ import 'package:leak_graph/leak_graph.dart';
 import 'package:radar_ui/radar_ui.dart';
 
 import '../capture/snapshot_bundle.dart';
-import '../util/web_download.dart';
 import 'class_detail_panel.dart';
 import 'diff_table.dart';
 import 'mem_format.dart';
@@ -16,9 +15,14 @@ const _log = 'leakRadarDevTools.snapshotsView';
 /// Capture-list Memory view: capture any number of heap snapshots, list them,
 /// export each to JSON, and diff *any two*.
 class SnapshotsView extends StatefulWidget {
-  const SnapshotsView({super.key, required this.controller});
+  const SnapshotsView({
+    super.key,
+    required this.controller,
+    required this.onExport,
+  });
 
   final MemoryController controller;
+  final Future<void> Function(SnapshotBundle bundle) onExport;
 
   @override
   State<SnapshotsView> createState() => _SnapshotsViewState();
@@ -55,10 +59,9 @@ class _SnapshotsViewState extends State<SnapshotsView> {
     return null;
   }
 
-  void _export(SnapshotBundle b) {
-    final safeLabel = b.label.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
+  Future<void> _export(SnapshotBundle b) async {
     try {
-      downloadJson('heap_${b.id}_$safeLabel.json', b.toJson());
+      await widget.onExport(b);
     } catch (e) {
       developer.log('export failed', name: _log, error: e);
     }

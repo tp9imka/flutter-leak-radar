@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:leak_graph/leak_graph.dart';
 
 import '../capture/snapshot_bundle.dart';
-import '../capture/snapshot_service.dart';
-import '../connection/connection_state_notifier.dart';
+import '../core/radar_connection.dart';
+import '../core/snapshot_source.dart';
 import '../session/snapshot_store.dart';
 
 /// The two snapshots chosen for a diff, ordered oldest → newest.
@@ -18,9 +18,9 @@ typedef DiffPair = ({SnapshotBundle baseline, SnapshotBundle comparison});
 /// diff. Held on `RadarSession` so its state survives DevTools tab switches.
 class MemoryController extends ChangeNotifier {
   MemoryController({
-    required SnapshotService service,
-    required ConnectionStateNotifier connection,
-  }) : _service = service,
+    required SnapshotSource snapshotSource,
+    required RadarConnection connection,
+  }) : _snapshotSource = snapshotSource,
        _connection = connection {
     // [canCapture] derives from the connection, which often becomes ready AFTER
     // first paint (the main isolate wires up asynchronously). Forward the
@@ -30,8 +30,8 @@ class MemoryController extends ChangeNotifier {
     _connection.addListener(notifyListeners);
   }
 
-  final SnapshotService _service;
-  final ConnectionStateNotifier _connection;
+  final SnapshotSource _snapshotSource;
+  final RadarConnection _connection;
   static const _log = 'leakRadarDevTools.memory';
 
   /// Upper bound on how many recent snapshots are persisted, to stay within
@@ -143,9 +143,7 @@ class MemoryController extends ChangeNotifier {
 
     final id = _nextId++;
     try {
-      final bundle = await _service.capture(
-        vmService: _connection.vmService!,
-        isolateRef: _connection.isolateRef!,
+      final bundle = await _snapshotSource.capture(
         label: label ?? 'Snapshot $id',
       );
       _snapshots.add(bundle.copyWith(id: id));

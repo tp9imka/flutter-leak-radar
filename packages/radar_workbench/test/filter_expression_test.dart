@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radar_ui/radar_ui.dart';
 
-import 'package:flutter_leak_radar_devtools/src/filter/filter_bar.dart';
-import 'package:flutter_leak_radar_devtools/src/filter/filter_expression.dart';
+import 'package:radar_workbench/src/filter/filter_bar.dart';
+import 'package:radar_workbench/src/filter/filter_expression.dart';
 
 // ── Test target ──────────────────────────────────────────────────────────
 

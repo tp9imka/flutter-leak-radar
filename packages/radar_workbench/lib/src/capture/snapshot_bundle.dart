@@ -61,4 +61,27 @@ final class SnapshotBundle {
       (json['analysis'] as Map).cast<String, Object?>(),
     ),
   );
+
+  /// Builds a bundle representing a failed capture/analysis: empty histogram,
+  /// empty clusters, and a single warning carrying [message]. Never throws.
+  factory SnapshotBundle.failed({
+    required String label,
+    required String message,
+    DateTime? capturedAt,
+  }) => SnapshotBundle(
+    capturedAt: capturedAt ?? DateTime.now(),
+    label: label,
+    histogram: const [],
+    analysisResult: GraphAnalysisResult(
+      clusters: const [],
+      stats: GraphAnalysisStats(
+        totalObjects: 0,
+        reachableObjects: 0,
+        leakCandidates: 0,
+        clusters: 0,
+        suppressedByAppFilter: 0,
+        warnings: [message],
+      ),
+    ),
+  );
 }

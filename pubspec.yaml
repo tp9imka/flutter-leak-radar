@@ -10,6 +10,7 @@ workspace:
   - packages/radar_trace
   - packages/flutter_perf_radar
   - packages/flutter_leak_radar_devtools
+  - packages/radar_workbench
   - packages/radarscope
   - packages/radar_ui
 dev_dependencies:
