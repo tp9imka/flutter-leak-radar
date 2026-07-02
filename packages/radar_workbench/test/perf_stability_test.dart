@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radar_ui/radar_ui.dart';
 
-import 'package:flutter_leak_radar_devtools/src/perf/perf_data_controller.dart';
-import 'package:flutter_leak_radar_devtools/src/perf/perf_snapshot_dto.dart';
-import 'package:flutter_leak_radar_devtools/src/perf/traces_view.dart';
-import 'package:flutter_leak_radar_devtools/src/perf/frames_view.dart';
-import 'package:flutter_leak_radar_devtools/src/stability/errors_view.dart';
-import 'package:flutter_leak_radar_devtools/src/stability/stalls_view.dart';
+import 'package:radar_workbench/src/perf/perf_data_controller.dart';
+import 'package:radar_workbench/src/perf/perf_snapshot_dto.dart';
+import 'package:radar_workbench/src/perf/traces_view.dart';
+import 'package:radar_workbench/src/perf/frames_view.dart';
+import 'package:radar_workbench/src/stability/errors_view.dart';
+import 'package:radar_workbench/src/stability/stalls_view.dart';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -288,13 +288,13 @@ void main() {
           'totalP50': null,
           'totalP95': null,
           'totalP99': null,
-          'recentFrames': [],
+          'recentFrames': <Object?>[],
         },
         'stability': {
           'errorCount': 0,
           'stallCount': 0,
-          'recentErrors': [],
-          'recentStalls': [],
+          'recentErrors': <Object?>[],
+          'recentStalls': <Object?>[],
         },
       };
       final dto = PerfSnapshotDto.tryFromJson(json);

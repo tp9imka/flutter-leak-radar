@@ -1,7 +1,5 @@
-import 'dart:convert';
 import 'dart:developer' as developer;
 
-import 'package:devtools_extensions/devtools_extensions.dart';
 import 'package:flutter/foundation.dart';
 
 import 'perf_snapshot_dto.dart';
@@ -36,7 +34,7 @@ enum PerfLoadState {
 class PerfDataController extends ChangeNotifier {
   PerfDataController({
     Future<Map<String, Object?>> Function(String method)? callExtension,
-  }) : _callExtension = callExtension ?? _defaultCallExtension;
+  }) : _callExtension = callExtension ?? _notConnected;
 
   static const _log = 'leakRadarDevTools.perf';
   static const _extensionMethod = 'ext.perf_radar.snapshot';
@@ -114,48 +112,10 @@ class PerfDataController extends ChangeNotifier {
     await refresh();
   }
 
-  /// Default implementation calls [serviceManager]'s callServiceExtensionOnMainIsolate.
-  static Future<Map<String, Object?>> _defaultCallExtension(
-    String method,
-  ) async {
-    final svc = serviceManager.service;
-    if (svc == null) throw const ExtensionNotAvailableException();
-    final isolateId = serviceManager.isolateManager.mainIsolate.value?.id;
-    if (isolateId == null) throw const ExtensionNotAvailableException();
-
-    try {
-      final response = await svc.callServiceExtension(
-        method,
-        isolateId: isolateId,
-      );
-      // The result is in response.json, keyed by the extension result fields.
-      final json = response.json;
-      if (json == null) {
-        throw StateError('Extension returned null JSON for $method');
-      }
-      // The extension wraps in {"result": ...} via ServiceExtensionResponse.
-      // When the VM protocol delivers it through callServiceExtension the
-      // payload is already unwrapped into the top-level map; however the
-      // result field may carry the JSON string that was passed to
-      // ServiceExtensionResponse.result().  Handle both shapes.
-      final result = json['result'];
-      if (result is String) {
-        final decoded = jsonDecode(result);
-        if (decoded is Map<String, Object?>) return decoded;
-        // Some VM versions nest the string differently; try top-level.
-        return json.cast<String, Object?>();
-      }
-      return json.cast<String, Object?>();
-    } on Exception catch (e) {
-      // RPCError with code -32601 means method not found → not available.
-      if (e.toString().contains('-32601') ||
-          e.toString().toLowerCase().contains('not found') ||
-          e.toString().toLowerCase().contains('unknown method')) {
-        throw const ExtensionNotAvailableException();
-      }
-      rethrow;
-    }
-  }
+  /// Default when no host connection is wired: the extension is unavailable, so
+  /// [refresh] transitions to [PerfLoadState.notAvailable] without any VM call.
+  static Future<Map<String, Object?>> _notConnected(String method) async =>
+      throw const ExtensionNotAvailableException();
 }
 
 /// Sentinel exception indicating the extension is not registered in the app.
