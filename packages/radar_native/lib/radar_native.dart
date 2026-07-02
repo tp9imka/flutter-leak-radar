@@ -5,6 +5,7 @@
 library;
 
 export 'src/analysis/native_diff.dart';
+export 'src/model/memory_session.dart';
 export 'src/model/native_allocation_diff.dart';
 export 'src/model/native_callsite.dart';
 export 'src/model/native_frame.dart';

@@ -39,4 +39,22 @@ void main() {
     expect(n.beforeStillLiveBytes, 0);
     expect(n.growthBytes, 300);
   });
+
+  test('NativeAllocationDiff.fromJson(toJson()) round-trips all fields', () {
+    final before = _p(t0, [_cs('leaky', live: 100, count: 2)]);
+    final after = _p(t1, [_cs('leaky', live: 900, count: 5)]);
+    final diff = diffNativeProfiles(before, after).single;
+
+    final back = NativeAllocationDiff.fromJson(diff.toJson());
+
+    expect(back.signature, diff.signature);
+    expect(back.frames, hasLength(diff.frames.length));
+    expect(back.frames.single.function, diff.frames.single.function);
+    expect(back.frames.single.module, diff.frames.single.module);
+    expect(back.beforeStillLiveBytes, diff.beforeStillLiveBytes);
+    expect(back.afterStillLiveBytes, diff.afterStillLiveBytes);
+    expect(back.beforeStillLiveCount, diff.beforeStillLiveCount);
+    expect(back.afterStillLiveCount, diff.afterStillLiveCount);
+    expect(back.growthBytes, diff.growthBytes);
+  });
 }
