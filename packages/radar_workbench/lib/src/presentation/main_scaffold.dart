@@ -60,7 +60,10 @@ class _LeakRadarMainScaffoldState extends State<LeakRadarMainScaffold> {
   Widget _buildContent() {
     return switch (_session.currentView) {
       // Memory
-      RadarView.snapshotDiff => SnapshotsView(controller: _session.memory),
+      RadarView.snapshotDiff => SnapshotsView(
+        controller: _session.memory,
+        onExport: (bundle) => _session.exporter.export(bundle),
+      ),
       RadarView.classHistogram => ClassHistogramView(
         controller: _session.memory,
       ),
@@ -83,7 +86,7 @@ class _LeakRadarMainScaffoldState extends State<LeakRadarMainScaffold> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ConnectionBar(notifier: _session.connection),
+          ConnectionBar(connection: _session.connection),
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,

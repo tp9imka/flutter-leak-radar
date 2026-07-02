@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:radar_ui/radar_ui.dart';
 
-import '../connection/connection_state_notifier.dart';
+import '../core/radar_connection.dart';
 
 /// Fixed-height top bar showing VM service connection status and
 /// basic isolate identity.
 ///
-/// Observes [ConnectionStateNotifier] and rebuilds only when the
+/// Observes [RadarConnection] and rebuilds only when the
 /// connection phase or identifiers change.
 class ConnectionBar extends StatelessWidget {
-  const ConnectionBar({super.key, required this.notifier});
+  const ConnectionBar({super.key, required this.connection});
 
-  final ConnectionStateNotifier notifier;
+  final RadarConnection connection;
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: notifier,
+      listenable: connection,
       builder: (context, _) {
-        final state = notifier.state;
-        final connected = state.phase == ExtensionConnectionPhase.connected;
+        final state = connection.state;
+        final connected = state.phase == RadarConnectionPhase.connected;
         return _ConnectionBarContent(state: state, connected: connected);
       },
     );
@@ -29,7 +29,7 @@ class ConnectionBar extends StatelessWidget {
 class _ConnectionBarContent extends StatelessWidget {
   const _ConnectionBarContent({required this.state, required this.connected});
 
-  final ExtensionConnectionState state;
+  final RadarConnectionState state;
   final bool connected;
 
   @override
@@ -104,7 +104,7 @@ class _ConnectionChip extends StatelessWidget {
 class _IsolateIdentity extends StatelessWidget {
   const _IsolateIdentity({required this.state});
 
-  final ExtensionConnectionState state;
+  final RadarConnectionState state;
 
   @override
   Widget build(BuildContext context) {
