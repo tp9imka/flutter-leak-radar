@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:radar_ui/radar_ui.dart';
 
-void main() {
+import 'src/app/bootstrap.dart';
+import 'src/shell/desktop_shell.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await bootstrapWindow();
   runApp(const RadarDesktopApp());
 }
 
-/// Placeholder app — the real window shell arrives in Task 7.
 class RadarDesktopApp extends StatelessWidget {
   const RadarDesktopApp({super.key});
 
@@ -13,8 +17,9 @@ class RadarDesktopApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      title: 'Radar Desktop',
       theme: radarDarkTheme(),
-      home: const Scaffold(body: Center(child: Text('Radar Desktop'))),
+      home: const DesktopShell(),
     );
   }
 }
