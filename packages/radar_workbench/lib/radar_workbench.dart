@@ -2,4 +2,14 @@
 /// interfaces the DevTools extension and the desktop app both build on.
 library;
 
-// Exports are added incrementally as each task lands.
+export 'src/capture/snapshot_bundle.dart';
+export 'src/filter/filter_bar.dart';
+export 'src/filter/filter_expression.dart';
+export 'src/memory/filter_target.dart';
+export 'src/memory/mem_format.dart';
+export 'src/memory/memory_view.dart';
+export 'src/memory/root_kind_ui.dart';
+export 'src/memory/sort_header_cell.dart';
+export 'src/perf/perf_snapshot_dto.dart';
+export 'src/presentation/retaining_path_tile.dart';
+export 'src/shell/radar_view.dart';
