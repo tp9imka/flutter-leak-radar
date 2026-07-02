@@ -1,7 +1,12 @@
+import 'dart:async';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:radar_workbench/radar_workbench.dart';
 
+import '../seams/desktop_snapshot_exporter.dart';
 import '../seams/disconnected_connection.dart';
+import '../seams/file_snapshot_store.dart';
 import '../seams/offline_snapshot_source.dart';
 import 'dump_meta.dart';
 
@@ -19,10 +24,16 @@ class WorkspaceController extends ChangeNotifier {
       snapshotSource: const OfflineSnapshotSource(),
       connection: _connection,
     );
+    // Auto-persist on every memory change. The shell calls `restore()` before
+    // any user mutation, so this never overwrites a good save with an empty
+    // one; the `isEmpty` guard in `_persist` is extra insurance.
+    memory.addListener(() => unawaited(_persist()));
   }
 
   final SnapshotAnalyzer _analyzer;
   late final DisconnectedRadarConnection _connection;
+  final DesktopSnapshotExporter _exporter = const DesktopSnapshotExporter();
+  final FileSnapshotStore _store = FileSnapshotStore();
 
   /// The reused workbench controller — pass to `ClassHistogramView`,
   /// `RetainingPathsView`, `DiffTable`, etc.
@@ -125,6 +136,78 @@ class WorkspaceController extends ChangeNotifier {
     _meta.clear();
     _trend.clear();
     notifyListeners();
+  }
+
+  /// Serializes the current workspace (bundles + the memory view) for
+  /// persistence. Dump metadata is recomputed from the bundles on rehydrate.
+  PersistedSession toSession() => PersistedSession(
+    bundles: memory.snapshots,
+    selectedIds: memory.selectedIds,
+    view: RadarView.snapshotDiff,
+  );
+
+  /// Restores a persisted session into an EMPTY controller (rebuilds meta
+  /// from the bundles). Used by both file-open and auto-restore.
+  void rehydrate(PersistedSession session) {
+    // memory.rehydrate preserves the bundles' ids; rebuild the row metadata
+    // from the restored snapshots.
+    memory.rehydrate(session);
+    _meta.clear();
+    for (final s in memory.snapshots) {
+      _meta[s.id] = DumpMeta(
+        id: s.id,
+        label: s.label,
+        source: DumpSource.file,
+        capturedAt: s.capturedAt,
+        classCount: s.histogram.length,
+        retainedBytes: s.shallowBytes,
+      );
+    }
+    notifyListeners();
+  }
+
+  /// Exports [id]'s bundle as a shareable report via the desktop exporter.
+  Future<void> exportDump(int id) async {
+    final bundle = memory.byId(id);
+    if (bundle != null) await _exporter.export(bundle);
+  }
+
+  /// Auto-restore the last session on launch.
+  Future<void> restore() async {
+    final session = await _store.restore();
+    if (session != null && session.bundles.isNotEmpty) rehydrate(session);
+  }
+
+  /// Persists the current session (called after mutations via the [memory]
+  /// listener). Skips empty sessions so a fresh, not-yet-restored controller
+  /// never clobbers a previously saved one.
+  Future<void> _persist() async {
+    if (memory.snapshots.isEmpty) return;
+    await _store.persist(toSession());
+  }
+
+  /// Saves the workspace to a user-chosen `.radarworkspace` file.
+  Future<void> saveWorkspace() async {
+    final loc = await getSaveLocation(
+      suggestedName: 'workspace.radarworkspace',
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'Radar Workspace', extensions: ['radarworkspace']),
+      ],
+    );
+    if (loc == null) return;
+    await _store.persistAtPath(toSession(), loc.path);
+  }
+
+  /// Opens a `.radarworkspace` file the user picks and rehydrates from it.
+  Future<void> openWorkspace() async {
+    final file = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'Radar Workspace', extensions: ['radarworkspace']),
+      ],
+    );
+    if (file == null) return;
+    final session = await _store.restoreFromPath(file.path);
+    if (session != null && session.bundles.isNotEmpty) rehydrate(session);
   }
 
   @override

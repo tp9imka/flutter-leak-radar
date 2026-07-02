@@ -48,4 +48,26 @@ class FileSnapshotStore implements SnapshotStore {
       if (file.existsSync()) await file.delete();
     } catch (_) {}
   }
+
+  /// Persists [session] to an absolute, user-chosen path (e.g. a
+  /// `.radarworkspace` file picked via `saveWorkspace`).
+  Future<void> persistAtPath(PersistedSession session, String path) async {
+    try {
+      await File(path).writeAsString(jsonEncode(session.toJson()));
+    } catch (_) {}
+  }
+
+  /// Restores a session from an absolute, user-chosen path. Mirrors
+  /// [restore] but never touches the app-support directory.
+  Future<PersistedSession?> restoreFromPath(String path) async {
+    try {
+      final file = File(path);
+      if (!file.existsSync()) return null;
+      final raw = jsonDecode(await file.readAsString());
+      if (raw is! Map<String, Object?>) return null;
+      return PersistedSession.fromJson(raw);
+    } catch (_) {
+      return null;
+    }
+  }
 }

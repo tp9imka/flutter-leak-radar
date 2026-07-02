@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:radar_ui/radar_ui.dart';
 
@@ -25,6 +27,12 @@ class _DesktopShellState extends State<DesktopShell> {
   final WorkspaceController _workspace = WorkspaceController();
   DesktopView _view = DesktopView.dumps;
   final bool _connected = false; // Phase 3 flips this
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_workspace.restore());
+  }
 
   @override
   void dispose() {

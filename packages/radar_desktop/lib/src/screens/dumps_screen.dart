@@ -129,6 +129,17 @@ class _Header extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
+          IconButton(
+            tooltip: 'Open workspace',
+            icon: const Icon(Icons.folder_open_outlined, size: 18),
+            onPressed: () => workspace.openWorkspace(),
+          ),
+          IconButton(
+            tooltip: 'Save workspace',
+            icon: const Icon(Icons.save_outlined, size: 18),
+            onPressed: () => workspace.saveWorkspace(),
+          ),
+          const SizedBox(width: 4),
           FilledButton.icon(
             onPressed: () => onBrowse(),
             icon: const Icon(Icons.upload_file, size: 16),
@@ -225,6 +236,11 @@ class _DumpTable extends StatelessWidget {
                   textAlign: TextAlign.right,
                   style: RadarTypography.monoNumber,
                 ),
+              ),
+              IconButton(
+                tooltip: 'Export report',
+                icon: const Icon(Icons.download_outlined, size: 16),
+                onPressed: () => workspace.exportDump(d.id),
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 14),

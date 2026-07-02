@@ -59,4 +59,16 @@ void main() {
     expect(wc.dumps, isEmpty);
     expect(wc.trendSelection, isNot(contains(a.id)));
   });
+
+  test('session round-trips bundles + meta through PersistedSession', () {
+    final wc = WorkspaceController();
+    final a = wc.addExisting(_bundle('a'), source: DumpSource.file);
+    final session = wc.toSession();
+    expect(session.bundles.map((b) => b.id), contains(a.id));
+
+    final wc2 = WorkspaceController();
+    wc2.rehydrate(session);
+    expect(wc2.memory.snapshots.map((s) => s.label), contains('a'));
+    expect(wc2.dumps.map((d) => d.label), contains('a'));
+  });
 }
