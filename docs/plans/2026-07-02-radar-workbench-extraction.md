@@ -31,7 +31,7 @@
 pubspec.yaml                         # new
 analysis_options.yaml                # new (mirror radar_ui)
 lib/radar_workbench.dart             # new barrel
-lib/src/core/radar_connection.dart   # NEW interface + ConnectionState/ConnectionPhase
+lib/src/core/radar_connection.dart   # NEW interface + RadarConnectionState/RadarConnectionPhase
 lib/src/core/snapshot_source.dart    # NEW interface
 lib/src/core/snapshot_exporter.dart  # NEW interface
 lib/src/capture/snapshot_bundle.dart # MOVE (+ .failed factory)
@@ -317,9 +317,9 @@ git commit -m "refactor(radar_workbench): move pure models, filter, formatters"
 **Interfaces:**
 - Consumes: `SnapshotBundle` (Task 2), `RadarView` (Task 2).
 - Produces:
-  - `enum ConnectionPhase { connecting, connected, disconnected }`
-  - `class ConnectionState { ConnectionPhase phase; String? vmName; String? isolateName; }`
-  - `abstract interface class RadarConnection implements Listenable { ConnectionState get state; VmService? get vmService; IsolateRef? get isolateRef; }`
+  - `enum RadarConnectionPhase { connecting, connected, disconnected }`
+  - `class RadarConnectionState { RadarConnectionPhase phase; String? vmName; String? isolateName; }`
+  - `abstract interface class RadarConnection implements Listenable { RadarConnectionState get state; VmService? get vmService; IsolateRef? get isolateRef; }`
   - `abstract interface class SnapshotSource { Future<SnapshotBundle> capture({String label}); }`
   - `abstract interface class SnapshotExporter { Future<void> export(SnapshotBundle bundle, {String? suggestedName}); }`
   - Moved `SnapshotStore`/`PersistedSession`/`InMemorySnapshotStore` (`SessionPersistence` moves in Task 5).
@@ -333,13 +333,13 @@ import 'package:flutter/foundation.dart';
 import 'package:vm_service/vm_service.dart';
 
 /// Phase of a host's connection to a target app's VM service.
-enum ConnectionPhase { connecting, connected, disconnected }
+enum RadarConnectionPhase { connecting, connected, disconnected }
 
 /// Immutable snapshot of a [RadarConnection]'s state.
 @immutable
-final class ConnectionState {
-  const ConnectionState({required this.phase, this.vmName, this.isolateName});
-  final ConnectionPhase phase;
+final class RadarConnectionState {
+  const RadarConnectionState({required this.phase, this.vmName, this.isolateName});
+  final RadarConnectionPhase phase;
   final String? vmName;
   final String? isolateName;
 }
@@ -351,7 +351,7 @@ final class ConnectionState {
 /// Implementations: `DevToolsRadarConnection` (over serviceManager) and the
 /// desktop's `VmServiceUriConnection` (over a direct ws:// client).
 abstract interface class RadarConnection implements Listenable {
-  ConnectionState get state;
+  RadarConnectionState get state;
   VmService? get vmService;
   IsolateRef? get isolateRef;
 }
@@ -406,8 +406,8 @@ import 'package:vm_service/vm_service.dart';
 /// A [RadarConnection] whose state is driven directly by the test.
 class FakeRadarConnection extends ChangeNotifier implements RadarConnection {
   FakeRadarConnection({
-    ConnectionState state = const ConnectionState(
-      phase: ConnectionPhase.disconnected,
+    RadarConnectionState state = const RadarConnectionState(
+      phase: RadarConnectionPhase.disconnected,
     ),
     VmService? vmService,
     IsolateRef? isolateRef,
@@ -415,12 +415,12 @@ class FakeRadarConnection extends ChangeNotifier implements RadarConnection {
        _vmService = vmService,
        _isolateRef = isolateRef;
 
-  ConnectionState _state;
+  RadarConnectionState _state;
   VmService? _vmService;
   IsolateRef? _isolateRef;
 
   @override
-  ConnectionState get state => _state;
+  RadarConnectionState get state => _state;
   @override
   VmService? get vmService => _vmService;
   @override
@@ -428,7 +428,7 @@ class FakeRadarConnection extends ChangeNotifier implements RadarConnection {
 
   /// Test hook: mutate the connection and notify listeners.
   void set({
-    ConnectionState? state,
+    RadarConnectionState? state,
     VmService? vmService,
     IsolateRef? isolateRef,
   }) {
@@ -478,12 +478,12 @@ void main() {
     final conn = FakeRadarConnection();
     var notified = 0;
     conn.addListener(() => notified++);
-    expect(conn.state.phase, ConnectionPhase.disconnected);
+    expect(conn.state.phase, RadarConnectionPhase.disconnected);
     conn.set(
-      state: const ConnectionState(phase: ConnectionPhase.connected),
+      state: const RadarConnectionState(phase: RadarConnectionPhase.connected),
     );
     expect(notified, 1);
-    expect(conn.state.phase, ConnectionPhase.connected);
+    expect(conn.state.phase, RadarConnectionPhase.connected);
   });
 
   test('RecordingExporter records exports', () async {
@@ -782,7 +782,7 @@ final controller = MemoryController(
 For the test `re-notifies its listeners when the VM connection changes`, drive the change via the fake:
 ```dart
 connection.set(
-  state: const ConnectionState(phase: ConnectionPhase.connected),
+  state: const RadarConnectionState(phase: RadarConnectionPhase.connected),
 );
 ```
 (The old test toggled a `ConnectionStateNotifier`; the fake's `set` is the direct equivalent and fires `notifyListeners`.) Keep every assertion identical. Populate snapshots via `controller.debugAdd(bundle)` exactly as the original did.
@@ -917,7 +917,7 @@ git commit -m "refactor(radar_workbench): move perf/stability views + decouple P
 - Modify: `lib/radar_workbench.dart` (barrel).
 
 **Interfaces:**
-- Consumes: `MemoryController`, `RadarConnection`, `ConnectionState`/`ConnectionPhase`, all Task 2/6 widgets.
+- Consumes: `MemoryController`, `RadarConnection`, `RadarConnectionState`/`RadarConnectionPhase`, all Task 2/6 widgets.
 - Produces: `ClassHistogramView`, `DiffTable`, `RetainingPathsView`, `ClassDetailPanel`, `LeftRail`, `LeakRadarMainScaffold`, `ConnectionBar({required RadarConnection connection})`, `SnapshotsView({required MemoryController controller, required void Function(SnapshotBundle) onExport})`.
 
 - [ ] **Step 1: Move the clean view files**
@@ -957,7 +957,7 @@ class ConnectionBar extends StatelessWidget {
 
   final RadarConnection connection;
 ```
-Then update the body: every read of `notifier` becomes `connection`, `notifier.state` yields a `ConnectionState`, and the phase enum is now `ConnectionPhase.connected` / `.connecting` / `.disconnected` (was `ExtensionConnectionPhase.*`). The `state.vmName` / `state.isolateName` fields are identical. If the bar listens via `AnimatedBuilder`/`ListenableBuilder`, pass `connection` as the animation/listenable (it implements `Listenable`).
+Then update the body: every read of `notifier` becomes `connection`, `notifier.state` yields a `RadarConnectionState`, and the phase enum is now `RadarConnectionPhase.connected` / `.connecting` / `.disconnected` (was `ExtensionConnectionPhase.*`). The `state.vmName` / `state.isolateName` fields are identical. If the bar listens via `AnimatedBuilder`/`ListenableBuilder`, pass `connection` as the animation/listenable (it implements `Listenable`).
 
 - [ ] **Step 3: Refactor `snapshots_view.dart` to export via callback**
 
@@ -1293,7 +1293,7 @@ git commit -m "refactor(radar_workbench): host-injected RadarSession + install()
 - Modify: `packages/flutter_leak_radar_devtools/pubspec.yaml` (add `radar_workbench: ^0.1.0`, bump `version: 0.3.0`)
 
 **Interfaces:**
-- Consumes: `radar_workbench` (`RadarConnection`, `ConnectionState`/`ConnectionPhase`, `SnapshotSource`, `SnapshotExporter`, `SnapshotAnalyzer`, `SnapshotBundle`, `MemoryController`, `PerfDataController`, `ExtensionNotAvailableException`, `RadarSession`, `LeakRadarMainScaffold`), the retained `ConnectionStateNotifier` / `web_download` / `DtdSnapshotStore`.
+- Consumes: `radar_workbench` (`RadarConnection`, `RadarConnectionState`/`RadarConnectionPhase`, `SnapshotSource`, `SnapshotExporter`, `SnapshotAnalyzer`, `SnapshotBundle`, `MemoryController`, `PerfDataController`, `ExtensionNotAvailableException`, `RadarSession`, `LeakRadarMainScaffold`), the retained `ConnectionStateNotifier` / `web_download` / `DtdSnapshotStore`.
 - Produces: `DevToolsRadarConnection`, `DevToolsSnapshotSource`, `DevToolsSnapshotExporter`, `devtoolsPerfCallExtension`, and a rewired `LeakRadarDevToolsExtension`.
 
 - [ ] **Step 1: Add the radar_workbench dependency + bump version**
@@ -1330,13 +1330,13 @@ class DevToolsRadarConnection extends ChangeNotifier implements RadarConnection 
   final ConnectionStateNotifier _inner;
 
   @override
-  ConnectionState get state {
+  RadarConnectionState get state {
     final s = _inner.state;
-    return ConnectionState(
+    return RadarConnectionState(
       phase: switch (s.phase) {
-        ExtensionConnectionPhase.connecting => ConnectionPhase.connecting,
-        ExtensionConnectionPhase.connected => ConnectionPhase.connected,
-        ExtensionConnectionPhase.disconnected => ConnectionPhase.disconnected,
+        ExtensionConnectionPhase.connecting => RadarConnectionPhase.connecting,
+        ExtensionConnectionPhase.connected => RadarConnectionPhase.connected,
+        ExtensionConnectionPhase.disconnected => RadarConnectionPhase.disconnected,
       },
       vmName: s.vmName,
       isolateName: s.isolateName,
