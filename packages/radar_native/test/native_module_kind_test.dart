@@ -22,6 +22,10 @@ void main() {
       NativeModuleKind.app,
     );
     expect(
+      moduleKind('/data/app/~~H==/com.katim.leak_lab-H==/base.apk!libapp.so'),
+      NativeModuleKind.app,
+    );
+    expect(
       moduleKind('/apex/com.android.runtime/lib64/bionic/libc.so'),
       NativeModuleKind.system,
     );

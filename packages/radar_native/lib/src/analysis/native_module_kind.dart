@@ -68,11 +68,14 @@ NativeModuleKind moduleKind(String module) {
   // Rule 2: the Flutter/Dart engine itself.
   if (shortName == 'libflutter.so') return NativeModuleKind.engine;
 
-  // Rule 3: the app's own dex/AOT code — but not an apk-embedded `!lib.so`.
+  // Rule 3: the app's own dex/AOT code. On modern Android
+  // (extractNativeLibs=false) the app's own AOT snapshot is reported as
+  // `base.apk!libapp.so`, so a `!` in the path does not disqualify it —
+  // `shortName` already strips the `base.apk!` prefix down to `libapp.so`.
   final isAppShortName =
       _appShortNames.contains(shortName) ||
       _appExtensions.any(shortName.endsWith);
-  if (isAppShortName && !module.contains('!')) return NativeModuleKind.app;
+  if (isAppShortName) return NativeModuleKind.app;
 
   // Rule 4: AOSP platform/system libraries.
   final isSystemPath =
