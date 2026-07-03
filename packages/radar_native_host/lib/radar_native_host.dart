@@ -20,4 +20,5 @@ export 'src/perfetto/perfetto_trace_processor_parser.dart';
 export 'src/perfetto/trace_processor_runner.dart';
 export 'src/symbolize/build_id_reader.dart';
 export 'src/symbolize/symbol_store_builder.dart';
+export 'src/symbolize/symbolize_cli.dart';
 export 'src/symbolize/symbolizer.dart';
