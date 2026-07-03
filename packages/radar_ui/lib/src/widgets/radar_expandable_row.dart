@@ -58,35 +58,38 @@ class _RadarExpandableRowState extends State<RadarExpandableRow> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        GestureDetector(
-          onTap: _toggle,
-          behavior: HitTestBehavior.opaque,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minHeight: RadarDensity.rowHeight,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: RadarDensity.rowHPad,
-                vertical: RadarDensity.rowVPad,
+        Semantics(
+          button: true,
+          child: GestureDetector(
+            onTap: _toggle,
+            behavior: HitTestBehavior.opaque,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: RadarDensity.rowHeight,
               ),
-              child: Row(
-                children: [
-                  AnimatedRotation(
-                    turns: _expanded ? 0.25 : 0.0,
-                    duration: reduceMotion
-                        ? Duration.zero
-                        : const Duration(milliseconds: 150),
-                    curve: Curves.easeOut,
-                    child: const Icon(
-                      Icons.chevron_right,
-                      size: 16,
-                      color: RadarColors.text40,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: RadarDensity.rowHPad,
+                  vertical: RadarDensity.rowVPad,
+                ),
+                child: Row(
+                  children: [
+                    AnimatedRotation(
+                      turns: _expanded ? 0.25 : 0.0,
+                      duration: reduceMotion
+                          ? Duration.zero
+                          : const Duration(milliseconds: 150),
+                      curve: Curves.easeOut,
+                      child: const Icon(
+                        Icons.chevron_right,
+                        size: 16,
+                        color: RadarColors.text40,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(child: widget.header),
-                ],
+                    const SizedBox(width: 6),
+                    Expanded(child: widget.header),
+                  ],
+                ),
               ),
             ),
           ),

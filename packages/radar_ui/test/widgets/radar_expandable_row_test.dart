@@ -127,5 +127,70 @@ void main() {
 
       expect(find.text('callsite'), findsOneWidget);
     });
+
+    testWidgets('chevron animation duration is zero under reduced motion', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MediaQuery(
+          data: MediaQueryData(disableAnimations: true),
+          child: MaterialApp(
+            home: Scaffold(
+              body: RadarExpandableRow(
+                header: Text('mod'),
+                child: Text('callsite'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final rotation = tester.widget<AnimatedRotation>(
+        find.byType(AnimatedRotation),
+      );
+      expect(rotation.duration, Duration.zero);
+    });
+
+    testWidgets('chevron animation duration is non-zero by default', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: RadarExpandableRow(
+              header: Text('mod'),
+              child: Text('callsite'),
+            ),
+          ),
+        ),
+      );
+
+      final rotation = tester.widget<AnimatedRotation>(
+        find.byType(AnimatedRotation),
+      );
+      expect(rotation.duration, const Duration(milliseconds: 150));
+    });
+
+    testWidgets('exposes button semantics on the header', (tester) async {
+      final SemanticsHandle handle = tester.ensureSemantics();
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: RadarExpandableRow(
+              header: Text('mod'),
+              child: Text('callsite'),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        tester.getSemantics(find.byType(GestureDetector)),
+        containsSemantics(isButton: true),
+      );
+
+      handle.dispose();
+    });
   });
 }
