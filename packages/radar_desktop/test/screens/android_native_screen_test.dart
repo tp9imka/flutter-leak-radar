@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radar_desktop/src/android/native_profiling_controller.dart';
+import 'package:radar_desktop/src/screens/android_native_module_row.dart';
 import 'package:radar_desktop/src/screens/android_native_screen.dart';
 import 'package:radar_native/radar_native.dart';
 import 'package:radar_ui/radar_ui.dart';
@@ -167,5 +168,141 @@ void main() {
 
     expect(controller.selectedIndex, 0);
     expect(find.textContaining('+500 B'), findsNothing);
+  });
+
+  testWidgets('tapping the allocs header re-sorts rows by alloc count', (
+    tester,
+  ) async {
+    // "aaa.so" has more still-live bytes but fewer allocs than "bbb.so", so
+    // the default (still-live desc) and allocs-sorted orders differ.
+    final profile = NativeHeapProfile(
+      capturedAt: DateTime(2026, 1, 1),
+      label: 'snapshot',
+      meta: const NativeProfileMeta(),
+      callsites: [
+        NativeCallsite(
+          frames: const [
+            NativeFrame(function: 'malloc', module: '/system/lib64/libc.so'),
+            NativeFrame(
+              function: '0x1000',
+              module: '/data/app/~~abc==/com.example.app-1/base.apk!aaa.so',
+              buildId: 'BUILD_AAA',
+            ),
+          ],
+          allocBytes: 2000,
+          allocCount: 4,
+          freeBytes: 0,
+          freeCount: 0,
+        ),
+        NativeCallsite(
+          frames: const [
+            NativeFrame(function: 'malloc', module: '/system/lib64/libc.so'),
+            NativeFrame(
+              function: '0x2000',
+              module: '/data/app/~~abc==/com.example.app-1/base.apk!bbb.so',
+              buildId: 'BUILD_BBB',
+            ),
+          ],
+          allocBytes: 500,
+          allocCount: 50,
+          freeBytes: 0,
+          freeCount: 0,
+        ),
+      ],
+    );
+
+    final controller = NativeProfilingController(
+      _FakeImporter({'snapshot': profile}),
+    );
+    await controller.importTrace('snapshot.pftrace', label: 'snapshot');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: radarDarkTheme(),
+        home: Scaffold(body: AndroidNativeScreen(controller: controller)),
+      ),
+    );
+
+    List<String> moduleOrder() => tester
+        .widgetList<AndroidNativeModuleRow>(find.byType(AndroidNativeModuleRow))
+        .map((row) => row.summary.module)
+        .toList();
+
+    expect(moduleOrder(), ['aaa.so', 'bbb.so']);
+
+    await tester.tap(find.text('allocs'));
+    await tester.pumpAndSettle();
+
+    expect(moduleOrder(), ['bbb.so', 'aaa.so']);
+  });
+
+  testWidgets('a shrinking module renders a negative accent-colored delta', (
+    tester,
+  ) async {
+    final before = NativeHeapProfile(
+      capturedAt: DateTime(2026, 1, 1),
+      label: 'before',
+      meta: const NativeProfileMeta(),
+      callsites: [
+        NativeCallsite(
+          frames: const [
+            NativeFrame(function: 'malloc', module: '/system/lib64/libc.so'),
+            NativeFrame(
+              function: '0xfeedface',
+              module:
+                  '/data/app/~~abc==/com.example.app-1/base.apk!'
+                  'libshrink.so',
+              buildId: 'BUILD_SHRINK',
+            ),
+          ],
+          allocBytes: 1000,
+          allocCount: 10,
+          freeBytes: 200,
+          freeCount: 2,
+        ),
+      ],
+    );
+    final after = NativeHeapProfile(
+      capturedAt: DateTime(2026, 1, 2),
+      label: 'after',
+      meta: const NativeProfileMeta(),
+      callsites: [
+        NativeCallsite(
+          frames: const [
+            NativeFrame(function: 'malloc', module: '/system/lib64/libc.so'),
+            NativeFrame(
+              function: '0xfeedface',
+              module:
+                  '/data/app/~~abc==/com.example.app-1/base.apk!'
+                  'libshrink.so',
+              buildId: 'BUILD_SHRINK',
+            ),
+          ],
+          allocBytes: 1000,
+          allocCount: 10,
+          freeBytes: 700,
+          freeCount: 7,
+        ),
+      ],
+    );
+
+    final controller = NativeProfilingController(
+      _FakeImporter({'before': before, 'after': after}),
+    );
+    await controller.importTrace('before.pftrace', label: 'before');
+    await controller.importTrace('after.pftrace', label: 'after');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: radarDarkTheme(),
+        home: Scaffold(body: AndroidNativeScreen(controller: controller)),
+      ),
+    );
+
+    // Shrunk from 800 B still-live to 300 B still-live: delta of -500 B,
+    // rendered in the "shrank" (accent) color rather than "grew" (critical).
+    expect(find.textContaining('-500 B'), findsOneWidget);
+    final deltaText = tester.widget<Text>(find.textContaining('-500 B'));
+    expect(deltaText.style?.color, RadarColors.accent);
   });
 }

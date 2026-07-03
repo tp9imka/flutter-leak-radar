@@ -17,7 +17,6 @@ class AndroidNativeModuleRow extends StatelessWidget {
     super.key,
     required this.summary,
     required this.deltaBytes,
-    required this.isSymbolized,
     required this.onOpenDetail,
   });
 
@@ -26,7 +25,6 @@ class AndroidNativeModuleRow extends StatelessWidget {
   /// `null` when there is no previous checkpoint to diff against.
   final int? deltaBytes;
 
-  final bool isSymbolized;
   final ValueChanged<NativeCallsite>? onOpenDetail;
 
   @override
@@ -84,7 +82,6 @@ class AndroidNativeModuleRow extends StatelessWidget {
             for (final callsite in summary.callsites)
               AndroidNativeCallsiteRow(
                 callsite: callsite,
-                isSymbolized: isSymbolized,
                 onOpenDetail: onOpenDetail,
               ),
           ],
@@ -100,12 +97,10 @@ class AndroidNativeCallsiteRow extends StatelessWidget {
   const AndroidNativeCallsiteRow({
     super.key,
     required this.callsite,
-    required this.isSymbolized,
     required this.onOpenDetail,
   });
 
   final NativeCallsite callsite;
-  final bool isSymbolized;
   final ValueChanged<NativeCallsite>? onOpenDetail;
 
   /// A frame is symbolized when its function is non-empty and not a raw

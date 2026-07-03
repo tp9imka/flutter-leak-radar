@@ -57,7 +57,14 @@ class _AndroidNativeScreenState extends State<AndroidNativeScreen> {
           deltaByModule[b.module] ?? 0,
         ),
       };
-      return _direction == RadarSortDirection.descending ? -cmp : cmp;
+      // Ties keep a deterministic, alphabetical order (matching
+      // `summarizeByModule`'s own tie-break) regardless of sort direction —
+      // `List.sort` is not stable, so without this, tied modules would
+      // reorder nondeterministically across rebuilds.
+      if (cmp != 0) {
+        return _direction == RadarSortDirection.descending ? -cmp : cmp;
+      }
+      return a.module.compareTo(b.module);
     });
     return sorted;
   }
@@ -110,7 +117,6 @@ class _AndroidNativeScreenState extends State<AndroidNativeScreen> {
                         deltaBytes: showDelta
                             ? (deltaByModule[summaries[i].module] ?? 0)
                             : null,
-                        isSymbolized: controller.isSymbolized,
                         onOpenDetail: widget.onOpenDetail,
                       ),
                     ),
