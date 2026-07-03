@@ -98,4 +98,29 @@ void main() {
   test('empty on both sides -> empty', () {
     expect(diffModuleSummaries(prof(const []), prof(const [])), isEmpty);
   });
+
+  test('module still-live bytes decrease but stay positive -> shrank', () {
+    const cacheLib =
+        '/data/app/~~H==/com.katim.leak_lab-H==/base.apk!libcache.so';
+    final before = prof([
+      cs([
+        ['malloc', libc],
+        ['put', cacheLib],
+      ], 8000),
+    ]);
+    final after = prof([
+      cs([
+        ['malloc', libc],
+        ['put', cacheLib],
+      ], 3000),
+    ]);
+
+    final diff = diffModuleSummaries(before, after).single;
+
+    expect(diff.module, 'libcache.so');
+    expect(diff.beforeStillLiveBytes, 8000);
+    expect(diff.afterStillLiveBytes, 3000);
+    expect(diff.deltaBytes, -5000);
+    expect(diff.status, NativeDiffStatus.shrank);
+  });
 }
