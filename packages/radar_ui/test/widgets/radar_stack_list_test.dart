@@ -39,5 +39,33 @@ void main() {
 
       expect(find.text('no frames'), findsOneWidget);
     });
+
+    testWidgets('a very long symbol ellipsizes without overflow', (
+      tester,
+    ) async {
+      final longSymbol = 'std::__ndk1::vector<${'A' * 300}>::push_back';
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 200,
+              child: RadarStackList(
+                frames: [
+                  RadarStackFrame(
+                    text: longSymbol,
+                    module: 'libflutter.so',
+                    tag: const Text('module-only'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // No RenderFlex overflow exception, and the tag stays visible.
+      expect(tester.takeException(), isNull);
+      expect(find.text('module-only'), findsOneWidget);
+    });
   });
 }
