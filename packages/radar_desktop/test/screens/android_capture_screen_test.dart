@@ -144,7 +144,77 @@ Finder _buttonLabeled(String label) => find.ancestor(
   matching: find.bySubtype<FilledButton>(),
 );
 
+/// [BuildIdReader]/[Symbolizer] stand-ins that are never actually invoked by
+/// these visibility-only widget tests — real file-picker-driven flows
+/// aren't exercised here either, matching `_FakeImporter`'s doc comment.
+class _NoopBuildIdReader implements BuildIdReader {
+  const _NoopBuildIdReader();
+
+  @override
+  Future<String?> readBuildId(String soPath) async =>
+      throw UnimplementedError('not needed by these tests');
+}
+
+class _NoopSymbolizer implements Symbolizer {
+  const _NoopSymbolizer();
+
+  @override
+  Future<String?> symbolize({
+    required String soPath,
+    required int address,
+  }) async => throw UnimplementedError('not needed by these tests');
+}
+
 void main() {
+  group('resolve from .so directory action', () {
+    testWidgets('hidden with no SymbolStoreBuilder injected', (tester) async {
+      final controller = NativeProfilingController(
+        _FakeImporter(profilesByLabel: {'before': _profile('before')}),
+      );
+      await controller.importTrace('before.pftrace', label: 'before');
+
+      await _pump(tester, controller);
+
+      expect(_buttonLabeled('Resolve from .so directory'), findsNothing);
+    });
+
+    testWidgets('hidden when a builder is injected but nothing is selected', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        NativeProfilingController(
+          _FakeImporter(),
+          symbolStoreBuilder: const SymbolStoreBuilder(
+            buildIdReader: _NoopBuildIdReader(),
+            symbolizer: _NoopSymbolizer(),
+          ),
+        ),
+      );
+
+      expect(_buttonLabeled('Resolve from .so directory'), findsNothing);
+    });
+
+    testWidgets('shown once a builder is injected and a checkpoint is '
+        'selected', (tester) async {
+      final controller = NativeProfilingController(
+        _FakeImporter(profilesByLabel: {'before': _profile('before')}),
+        symbolStoreBuilder: const SymbolStoreBuilder(
+          buildIdReader: _NoopBuildIdReader(),
+          symbolizer: _NoopSymbolizer(),
+        ),
+      );
+      await controller.importTrace('before.pftrace', label: 'before');
+
+      await _pump(tester, controller);
+
+      final button = tester.widget<FilledButton>(
+        _buttonLabeled('Resolve from .so directory'),
+      );
+      expect(button.onPressed, isNotNull);
+    });
+  });
+
   testWidgets('renders the three enabled import actions', (tester) async {
     await _pump(tester, NativeProfilingController(_FakeImporter()));
 

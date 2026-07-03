@@ -65,8 +65,10 @@ final class NativeProfilingController extends ChangeNotifier {
     this._importer, {
     DeviceProbe? deviceProbe,
     NativeHeapCapture? capture,
+    SymbolStoreBuilder? symbolStoreBuilder,
   }) : _deviceProbe = deviceProbe,
-       _capture = capture;
+       _capture = capture,
+       _symbolStoreBuilder = symbolStoreBuilder;
 
   final NativeTraceImporter _importer;
 
@@ -77,12 +79,17 @@ final class NativeProfilingController extends ChangeNotifier {
   /// `null` alongside [_deviceProbe]; see [canCapture].
   final NativeHeapCapture? _capture;
 
+  /// `null` in builds/environments without the host `.so`-symbolizing
+  /// tools wired up; see [canResolveSymbols].
+  final SymbolStoreBuilder? _symbolStoreBuilder;
+
   List<NativeHeapProfile> _checkpoints = const [];
   SymbolStore? _symbolStore;
   FfiAllocationLog? _ffiLog;
   int _selectedIndex = 0;
   NativeImportState _state = NativeImportState.idle;
   String? _errorMessage;
+  String? _symbolizeMessage;
 
   List<AndroidDevice> _devices = const [];
   CaptureState _captureState = CaptureState.idle;
@@ -118,6 +125,19 @@ final class NativeProfilingController extends ChangeNotifier {
   /// capture UI on this rather than calling [refreshDevices] or
   /// [captureAndImport] speculatively.
   bool get canCapture => _deviceProbe != null && _capture != null;
+
+  /// True when a [SymbolStoreBuilder] was injected AND a checkpoint is
+  /// selected, i.e. [resolveSymbolsFromSoDir] has both the tooling and a
+  /// profile to resolve. Callers should gate the "resolve from .so
+  /// directory" action on this rather than calling it speculatively.
+  bool get canResolveSymbols => _symbolStoreBuilder != null && selected != null;
+
+  /// Human-readable outcome of the most recent [resolveSymbolsFromSoDir]
+  /// call — e.g. "Resolved 3 function names." or "No matching .so files
+  /// found — nothing resolved." `null` before any call. Distinct from
+  /// [errorMessage], which is reserved for a genuine tool failure (a
+  /// missing binary or a non-zero exit), not "matched nothing".
+  String? get symbolizeMessage => _symbolizeMessage;
 
   /// Devices found by the most recent [refreshDevices] call, or `const
   /// []` before the first probe.
@@ -176,10 +196,57 @@ final class NativeProfilingController extends ChangeNotifier {
   Future<void> importSymbolStore(String path) async {
     _beginImport();
     try {
-      _symbolStore = await _importer.importSymbolStore(path);
+      _applySymbolStore(await _importer.importSymbolStore(path));
       _endImport();
     } catch (error) {
       _failImport(error);
+    }
+  }
+
+  /// Build-id-matches every `*.so` found under [dirPath] against
+  /// [selected]'s unstripped-frame build-ids, symbolizes each module-only
+  /// (`0x…`) frame address via the injected [SymbolStoreBuilder], and
+  /// applies the resulting store through the same [_applySymbolStore] path
+  /// [importSymbolStore] uses for an imported JSON one.
+  ///
+  /// Never leaves a silent no-op: a run that matches nothing sets an
+  /// honest [symbolizeMessage] rather than doing nothing. A genuine tool
+  /// failure — the tool binary missing from `PATH`
+  /// ([ProcessException]) or a non-zero exit ([SymbolizeToolException]) —
+  /// is caught and surfaced via [state]/[errorMessage], same as every
+  /// other import action; it never crashes the app.
+  ///
+  /// Throws [StateError] if no [SymbolStoreBuilder] was injected or no
+  /// checkpoint is selected; callers should gate this action on
+  /// [canResolveSymbols] instead of calling it speculatively (see
+  /// [refreshDevices] for the same convention).
+  Future<void> resolveSymbolsFromSoDir(String dirPath) async {
+    final builder = _symbolStoreBuilder;
+    if (builder == null) {
+      throw StateError('NativeProfilingController has no SymbolStoreBuilder');
+    }
+    final profile = selected;
+    if (profile == null) {
+      throw StateError('NativeProfilingController has no selected profile');
+    }
+
+    _beginImport();
+    try {
+      final soPaths = _findSoFiles(dirPath);
+      final report = await builder.buildWithReport(profile, soPaths: soPaths);
+      _applySymbolStore(report.store);
+      _symbolizeMessage = report.resolvedAddresses == 0
+          ? 'No matching .so files found — nothing resolved.'
+          : 'Resolved ${report.resolvedAddresses} function '
+                '${report.resolvedAddresses == 1 ? 'name' : 'names'}.';
+      _endImport();
+    } on ProcessException catch (error) {
+      _failImport(
+        '${error.executable} not found — install the NDK (or set '
+        'RADAR_LLVM_SYMBOLIZER / RADAR_READELF).',
+      );
+    } on SymbolizeToolException catch (error) {
+      _failImport('Symbolization tool failed: ${error.message}');
     }
   }
 
@@ -268,7 +335,28 @@ final class NativeProfilingController extends ChangeNotifier {
   void _beginImport() {
     _state = NativeImportState.loading;
     _errorMessage = null;
+    _symbolizeMessage = null;
     notifyListeners();
+  }
+
+  /// Single application path for any newly obtained [SymbolStore] — shared
+  /// by [importSymbolStore] (a parsed JSON file) and
+  /// [resolveSymbolsFromSoDir] (one freshly built in-app), so
+  /// [selectedSymbolized] always resolves through one consistent path.
+  void _applySymbolStore(SymbolStore store) {
+    _symbolStore = store;
+  }
+
+  /// Every `*.so` path found recursively under [dirPath]. A directory that
+  /// does not exist contributes no paths rather than throwing — mirrors
+  /// `radar_native_host`'s `symbolize` CLI `--so-dir` handling.
+  List<String> _findSoFiles(String dirPath) {
+    final dir = Directory(dirPath);
+    if (!dir.existsSync()) return const [];
+    return [
+      for (final entity in dir.listSync(recursive: true))
+        if (entity is File && entity.path.endsWith('.so')) entity.path,
+    ];
   }
 
   void _endImport() {
