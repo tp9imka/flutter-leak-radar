@@ -57,4 +57,79 @@ void main() {
     expect(back.afterStillLiveCount, diff.afterStillLiveCount);
     expect(back.growthBytes, diff.growthBytes);
   });
+
+  test('includeRemoved surfaces before-only sites as gone rows', () {
+    // before has sites A(1000) + B(500); after has A(1000) only.
+    final before = NativeHeapProfile(
+      capturedAt: DateTime.utc(2026, 7, 3),
+      label: 'b',
+      meta: const NativeProfileMeta(),
+      callsites: [
+        NativeCallsite(
+          frames: const [NativeFrame(function: 'fa', module: 'libA.so')],
+          allocBytes: 1000,
+          allocCount: 1,
+          freeBytes: 0,
+          freeCount: 0,
+        ),
+        NativeCallsite(
+          frames: const [NativeFrame(function: 'fb', module: 'libB.so')],
+          allocBytes: 500,
+          allocCount: 1,
+          freeBytes: 0,
+          freeCount: 0,
+        ),
+      ],
+    );
+    final after = NativeHeapProfile(
+      capturedAt: DateTime.utc(2026, 7, 3, 1),
+      label: 'a',
+      meta: const NativeProfileMeta(),
+      callsites: [
+        NativeCallsite(
+          frames: const [NativeFrame(function: 'fa', module: 'libA.so')],
+          allocBytes: 1000,
+          allocCount: 1,
+          freeBytes: 0,
+          freeCount: 0,
+        ),
+      ],
+    );
+    final without = diffNativeProfiles(before, after);
+    // before-only site (fb/libB) must not surface without includeRemoved.
+    final removedSignature = before.callsites.last.signature;
+    expect(without.map((e) => e.signature), isNot(contains(removedSignature)));
+    expect(without, hasLength(1)); // default: before-only dropped
+    final with_ = diffNativeProfiles(before, after, includeRemoved: true);
+    expect(with_, hasLength(2));
+    final gone = with_.firstWhere((e) => e.afterStillLiveBytes == 0);
+    expect(gone.beforeStillLiveBytes, 500);
+    expect(gone.frames.single.module, 'libB.so'); // frames from `before`
+    expect(gone.status, NativeDiffStatus.gone);
+  });
+
+  test('equal-growth rows are ordered deterministically by signature', () {
+    // two new sites with identical growth must sort by signature ascending
+    NativeCallsite cs(String fn) => NativeCallsite(
+      frames: [NativeFrame(function: fn, module: 'm.so')],
+      allocBytes: 100,
+      allocCount: 1,
+      freeBytes: 0,
+      freeCount: 0,
+    );
+    final before = NativeHeapProfile(
+      capturedAt: DateTime.utc(2026, 7, 3),
+      label: 'b',
+      meta: const NativeProfileMeta(),
+      callsites: const [],
+    );
+    final after = NativeHeapProfile(
+      capturedAt: DateTime.utc(2026, 7, 3, 1),
+      label: 'a',
+      meta: const NativeProfileMeta(),
+      callsites: [cs('zzz'), cs('aaa')],
+    );
+    final out = diffNativeProfiles(before, after);
+    expect(out.map((e) => e.frames.single.function).toList(), ['aaa', 'zzz']);
+  });
 }
