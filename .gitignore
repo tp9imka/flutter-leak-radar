@@ -122,3 +122,6 @@ app.*.symbols
 
 # Agent scratch — SDD ledgers, task briefs, and reports
 .superpowers/
+
+# Device-spike scratch — throwaway app, captures, downloaded tools
+.spikes/
