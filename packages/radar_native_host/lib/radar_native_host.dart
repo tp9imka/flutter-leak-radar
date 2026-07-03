@@ -8,3 +8,5 @@ library;
 
 export 'src/perfetto/perfetto_profile_mapper.dart';
 export 'src/perfetto/perfetto_row.dart';
+export 'src/perfetto/perfetto_sql.dart';
+export 'src/perfetto/trace_processor_runner.dart';
