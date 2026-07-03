@@ -146,5 +146,53 @@ void main() {
         expect(find.byType(ConnectBar), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'dropping the connection while a perf view is showing falls back '
+      'to a memory view instead of leaving it stale',
+      (tester) async {
+        final connection = VmServiceUriConnection(
+          connect: (_) async => _FakeVmService(),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(home: DesktopShell(connection: connection)),
+        );
+
+        await connection.connect('ws://x');
+        await tester.pump();
+
+        await tester.tap(find.text('Traces'));
+        await tester.pump();
+        expect(find.byType(TracesView), findsOneWidget);
+
+        await connection.disconnect();
+        await tester.pump();
+
+        expect(find.byType(TracesView), findsNothing);
+        expect(find.byType(DumpsScreen), findsOneWidget);
+      },
+    );
+
+    testWidgets('disposing the shell does not dispose an injected connection', (
+      tester,
+    ) async {
+      final connection = VmServiceUriConnection(
+        connect: (_) async => _FakeVmService(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: DesktopShell(connection: connection)),
+      );
+
+      // Replace the tree so DesktopShell.dispose() runs.
+      await tester.pumpWidget(const SizedBox.shrink());
+
+      // An injected connection belongs to the caller: it must still be a
+      // live, listenable ChangeNotifier after the shell that borrowed it
+      // is torn down. A real dispose() call would make this assert-fail
+      // ("A disposed ChangeNotifier was used") in debug mode.
+      expect(() => connection.addListener(() {}), returnsNormally);
+    });
   });
 }
