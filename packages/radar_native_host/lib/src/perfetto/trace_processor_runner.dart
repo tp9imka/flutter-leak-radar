@@ -53,14 +53,14 @@ final class TraceProcessorException implements Exception {
 }
 
 /// Number of cells a well-formed still-live-with-stack row splits into.
-const int _cellCount = 9;
+const int _cellCount = 10;
 
 /// Exposed for testing: parse trace_processor's stdout into rows.
 ///
 /// `trace_processor_shell -q` CSV-quotes its single `row` column: each data
 /// line is wrapped in `"..."`, with any literal `"` inside doubled. This
 /// strips that quoting per line, then splits the unquoted content on
-/// U+001F into the 9 [PerfettoRow] cells. Lines are split on `\n` or
+/// U+001F into the 10 [PerfettoRow] cells. Lines are split on `\n` or
 /// `\r\n`, so CRLF-terminated output parses the same as LF-terminated
 /// output. The header line (`"row"`) and blank lines are dropped, and any
 /// other *structurally* malformed line (missing surrounding quotes, or

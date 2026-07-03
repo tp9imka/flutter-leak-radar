@@ -46,7 +46,11 @@ final class PerfettoProfileMapper implements NativeProfileParser {
       frames: [
         for (final row in sorted)
           NativeFrame(
-            function: row.function,
+            function: row.function.isNotEmpty
+                ? row.function
+                : (row.relPc != null
+                      ? '0x${row.relPc!.toRadixString(16)}'
+                      : ''),
             module: row.module,
             buildId: row.buildId,
           ),
