@@ -60,11 +60,16 @@ const int _cellCount = 9;
 /// `trace_processor_shell -q` CSV-quotes its single `row` column: each data
 /// line is wrapped in `"..."`, with any literal `"` inside doubled. This
 /// strips that quoting per line, then splits the unquoted content on
-/// U+001F into the 9 [PerfettoRow] cells. The header line (`"row"`) and
-/// blank lines are dropped; any other malformed line is skipped rather
-/// than thrown on.
+/// U+001F into the 9 [PerfettoRow] cells. Lines are split on `\n` or
+/// `\r\n`, so CRLF-terminated output parses the same as LF-terminated
+/// output. The header line (`"row"`) and blank lines are dropped, and any
+/// other *structurally* malformed line (missing surrounding quotes, or
+/// the wrong number of cells) is skipped rather than thrown on. A line
+/// that is structurally valid but has a non-integer numeric cell still
+/// throws a [FormatException] from [int.parse]; that failure is
+/// intentional rather than silently swallowed.
 List<PerfettoRow> parseTraceProcessorOutput(String stdout) => [
-  for (final line in stdout.split('\n'))
+  for (final line in stdout.split(RegExp(r'\r?\n')))
     if (_unquoteCells(line) case final cells?) PerfettoRow.fromCells(cells),
 ];
 
