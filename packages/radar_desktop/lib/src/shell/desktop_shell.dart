@@ -3,12 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:radar_ui/radar_ui.dart';
 
+import '../android/native_profiling_controller.dart';
 import '../app/desktop_view.dart';
+import '../screens/android_capture_screen.dart';
+import '../screens/android_compare_screen.dart';
+import '../screens/android_ffi_screen.dart';
+import '../screens/android_native_screen.dart';
+import '../screens/android_session_screen.dart';
 import '../screens/compare_screen.dart';
 import '../screens/dumps_screen.dart';
 import '../screens/histogram_screen.dart';
 import '../screens/paths_screen.dart';
 import '../screens/trends_screen.dart';
+import '../seams/android/perfetto_trace_importer.dart';
 import '../workspace/workspace_controller.dart';
 import 'desktop_rail.dart';
 import 'desktop_window_chrome.dart';
@@ -25,6 +32,9 @@ class DesktopShell extends StatefulWidget {
 
 class _DesktopShellState extends State<DesktopShell> {
   final WorkspaceController _workspace = WorkspaceController();
+  final NativeProfilingController _android = NativeProfilingController(
+    const PerfettoTraceImporter(),
+  );
   DesktopView _view = DesktopView.dumps;
   final bool _connected = false; // Phase 3 flips this
 
@@ -37,12 +47,14 @@ class _DesktopShellState extends State<DesktopShell> {
   @override
   void dispose() {
     _workspace.dispose();
+    _android.dispose();
     super.dispose();
   }
 
   void _select(DesktopView v) {
-    // Clamp: never activate a locked (perf/stability) view while offline.
-    if (!_connected && !v.isMemory) return;
+    // Clamp: never activate a locked (perf/stability) view while offline;
+    // ANDROID NATIVE is its own offline workspace, so it is never clamped.
+    if (!_connected && !v.isMemory && !v.isAndroid) return;
     setState(() => _view = v);
   }
 
@@ -76,6 +88,16 @@ class _DesktopShellState extends State<DesktopShell> {
             style: RadarTypography.body,
           ),
         );
+      case DesktopView.androidSession:
+        return AndroidSessionScreen(controller: _android);
+      case DesktopView.androidNative:
+        return AndroidNativeScreen(controller: _android);
+      case DesktopView.androidCompare:
+        return AndroidCompareScreen(controller: _android);
+      case DesktopView.androidFfi:
+        return AndroidFfiScreen(controller: _android);
+      case DesktopView.androidCapture:
+        return AndroidCaptureScreen(controller: _android);
     }
   }
 
