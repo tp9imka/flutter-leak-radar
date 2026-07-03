@@ -18,3 +18,4 @@ export 'src/perfetto/perfetto_row.dart';
 export 'src/perfetto/perfetto_sql.dart';
 export 'src/perfetto/perfetto_trace_processor_parser.dart';
 export 'src/perfetto/trace_processor_runner.dart';
+export 'src/symbolize/build_id_reader.dart';
