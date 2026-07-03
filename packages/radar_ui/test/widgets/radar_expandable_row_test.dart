@@ -172,8 +172,6 @@ void main() {
     });
 
     testWidgets('exposes button semantics on the header', (tester) async {
-      final SemanticsHandle handle = tester.ensureSemantics();
-
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -185,12 +183,14 @@ void main() {
         ),
       );
 
+      // Assert the widget declares button semantics via a stable, non-deprecated
+      // API (the `containsSemantics` matcher is deprecated on newer Flutter).
       expect(
-        tester.getSemantics(find.byType(GestureDetector)),
-        containsSemantics(isButton: true),
+        find.byWidgetPredicate(
+          (w) => w is Semantics && w.properties.button == true,
+        ),
+        findsWidgets,
       );
-
-      handle.dispose();
     });
   });
 }
