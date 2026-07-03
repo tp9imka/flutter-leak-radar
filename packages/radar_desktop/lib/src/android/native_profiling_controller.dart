@@ -234,11 +234,18 @@ final class NativeProfilingController extends ChangeNotifier {
     try {
       final soPaths = _findSoFiles(dirPath);
       final report = await builder.buildWithReport(profile, soPaths: soPaths);
-      _applySymbolStore(report.store);
-      _symbolizeMessage = report.resolvedAddresses == 0
-          ? 'No matching .so files found — nothing resolved.'
-          : 'Resolved ${report.resolvedAddresses} function '
-                '${report.resolvedAddresses == 1 ? 'name' : 'names'}.';
+      if (report.resolvedAddresses == 0) {
+        // Nothing resolved: do NOT replace an already-attached symbol store
+        // with an empty one — keep the user's existing symbols and say why.
+        _symbolizeMessage = report.matchedBuildIds == 0
+            ? 'No .so matched this capture — nothing resolved.'
+            : 'Matched .so files, but resolved no symbols — nothing resolved.';
+      } else {
+        _applySymbolStore(report.store);
+        _symbolizeMessage =
+            'Resolved ${report.resolvedAddresses} function '
+            '${report.resolvedAddresses == 1 ? 'name' : 'names'}.';
+      }
       _endImport();
     } on ProcessException catch (error) {
       _failImport(

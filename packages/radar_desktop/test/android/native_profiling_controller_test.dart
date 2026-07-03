@@ -603,6 +603,37 @@ void main() {
       expect(controller.symbolizeMessage, contains('Resolved 1 function'));
     });
 
+    test('a no-match run keeps a previously resolved symbol store instead of '
+        'clobbering it with an empty one', () async {
+      final soPath = '${soDir.path}/libapp.so';
+      File(soPath)
+        ..createSync(recursive: true)
+        ..writeAsStringSync('marker');
+      final controller = NativeProfilingController(
+        _FakeImporter(profilesByLabel: {'before': _beforeProfile()}),
+        symbolStoreBuilder: SymbolStoreBuilder(
+          buildIdReader: _FakeBuildIdReader({soPath: 'BUILD_APP'}),
+          symbolizer: _FakeSymbolizer({0xdeadbeef: 'MyApp::allocateBuffer'}),
+        ),
+      );
+      await controller.importTrace('before.pftrace', label: 'before');
+      await controller.resolveSymbolsFromSoDir(soDir.path);
+      expect(controller.isSymbolized, isTrue);
+
+      // A second run against an empty dir resolves nothing — the prior store
+      // must survive rather than be replaced by an empty one.
+      final emptyDir = Directory.systemTemp.createTempSync('radar_empty_so');
+      addTearDown(() => emptyDir.deleteSync(recursive: true));
+      await controller.resolveSymbolsFromSoDir(emptyDir.path);
+
+      expect(controller.isSymbolized, isTrue);
+      expect(
+        controller.selectedSymbolized!.callsites.first.frames[1].function,
+        'MyApp::allocateBuffer',
+      );
+      expect(controller.symbolizeMessage, contains('nothing resolved'));
+    });
+
     test('an empty directory resolves nothing and sets an honest message, '
         'without crashing', () async {
       final before = _beforeProfile();
