@@ -12,6 +12,7 @@ export 'src/capture/adb_devices.dart';
 export 'src/capture/adb_runner.dart';
 export 'src/capture/device_probe.dart';
 export 'src/capture/heapprofd_config.dart';
+export 'src/capture/native_heap_capture.dart';
 export 'src/perfetto/perfetto_profile_mapper.dart';
 export 'src/perfetto/perfetto_row.dart';
 export 'src/perfetto/perfetto_sql.dart';
