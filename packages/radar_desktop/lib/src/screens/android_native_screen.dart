@@ -4,6 +4,7 @@ import 'package:radar_ui/radar_ui.dart';
 import 'package:radar_workbench/radar_workbench.dart';
 
 import '../android/native_profiling_controller.dart';
+import 'android_detail_screen.dart';
 import 'android_native_module_row.dart';
 
 /// Sortable columns of the still-live table.
@@ -13,7 +14,8 @@ enum _NativeSortKey { stillLive, allocs, growth }
 /// module and symbolized when a symbol store has been imported. The Android
 /// still-live "workhorse" view: a checkpoint picker over a ranked,
 /// expandable module table (see `docs/flutter_radar_android_profiling`
-/// §4.2). Row rendering lives in `android_native_module_row.dart`.
+/// §4.2). Row rendering lives in `android_native_module_row.dart`; the
+/// trailing `›` button drills into `android_detail_screen.dart`.
 class AndroidNativeScreen extends StatefulWidget {
   const AndroidNativeScreen({
     super.key,
@@ -23,8 +25,9 @@ class AndroidNativeScreen extends StatefulWidget {
 
   final NativeProfilingController controller;
 
-  /// Opens the detail view for a callsite. Nullable — wired in a later task;
-  /// the trailing `›` button no-ops until then.
+  /// Opens the detail view for a callsite. Defaults to pushing
+  /// [AndroidDetailScreen]; override (e.g. in tests) to observe the tap
+  /// without exercising real navigation.
   final ValueChanged<NativeCallsite>? onOpenDetail;
 
   @override
@@ -40,6 +43,24 @@ class _AndroidNativeScreenState extends State<AndroidNativeScreen> {
       _sortKey = _NativeSortKey.values.firstWhere((e) => e.name == key);
       _direction = dir;
     });
+  }
+
+  /// Opens the detail view for [callsite]: the injected override when the
+  /// caller supplied one, otherwise a real push of [AndroidDetailScreen].
+  void _openDetail(NativeCallsite callsite) {
+    final override = widget.onOpenDetail;
+    if (override != null) {
+      override(callsite);
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AndroidDetailScreen(
+          controller: widget.controller,
+          callsite: callsite,
+        ),
+      ),
+    );
   }
 
   List<NativeModuleSummary> _sorted(
@@ -117,7 +138,7 @@ class _AndroidNativeScreenState extends State<AndroidNativeScreen> {
                         deltaBytes: showDelta
                             ? (deltaByModule[summaries[i].module] ?? 0)
                             : null,
-                        onOpenDetail: widget.onOpenDetail,
+                        onOpenDetail: _openDetail,
                       ),
                     ),
             ),

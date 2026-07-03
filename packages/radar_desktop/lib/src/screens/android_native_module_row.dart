@@ -103,15 +103,10 @@ class AndroidNativeCallsiteRow extends StatelessWidget {
   final NativeCallsite callsite;
   final ValueChanged<NativeCallsite>? onOpenDetail;
 
-  /// A frame is symbolized when its function is non-empty and not a raw
-  /// `0x…` address — never guessed beyond what the symbol store resolved.
-  static bool _isFrameSymbolized(String function) =>
-      function.isNotEmpty && !function.startsWith('0x');
-
   @override
   Widget build(BuildContext context) {
     final frame = attributedFrame(callsite);
-    final symbolized = frame != null && _isFrameSymbolized(frame.function);
+    final symbolized = frame != null && isFrameSymbolized(frame.function);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),

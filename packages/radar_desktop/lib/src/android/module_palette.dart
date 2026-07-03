@@ -23,3 +23,11 @@ String moduleKindLabel(NativeModuleKind kind) => switch (kind) {
   NativeModuleKind.system => 'Runtime',
   NativeModuleKind.unknown => '—',
 };
+
+/// Whether a stack frame's [function] is a resolved symbol name rather than
+/// a raw `0x…` address — never guessed beyond what the symbol store
+/// resolved. Shared by the still-live table's callsite rows
+/// (`android_native_module_row.dart`) and the callsite detail screen
+/// (`android_detail_screen.dart`).
+bool isFrameSymbolized(String function) =>
+    function.isNotEmpty && !function.startsWith('0x');

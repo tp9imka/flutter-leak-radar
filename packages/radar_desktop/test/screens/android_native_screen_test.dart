@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radar_desktop/src/android/native_profiling_controller.dart';
+import 'package:radar_desktop/src/screens/android_detail_screen.dart';
 import 'package:radar_desktop/src/screens/android_native_module_row.dart';
 import 'package:radar_desktop/src/screens/android_native_screen.dart';
 import 'package:radar_native/radar_native.dart';
@@ -147,6 +148,35 @@ void main() {
     // Unsymbolized leaf ('0xdeadbeef') falls back to module-only fidelity.
     expect(find.text('MODULE-ONLY'), findsOneWidget);
   });
+
+  testWidgets(
+    'tapping a callsite\'s › chevron pushes the detail screen for it',
+    (tester) async {
+      final controller = await _readyController(tester);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: radarDarkTheme(),
+          home: Scaffold(body: AndroidNativeScreen(controller: controller)),
+        ),
+      );
+
+      await tester.tap(find.byType(RadarExpandableRow).first);
+      await tester.pumpAndSettle();
+
+      // `RadarExpandableRow`'s own chevron also renders `Icons.chevron_right`
+      // as a plain (non-button) icon, so disambiguate via the callsite row's
+      // `IconButton` rather than the icon itself.
+      await tester.tap(find.byType(IconButton));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AndroidDetailScreen), findsOneWidget);
+      // The pushed screen is for the tapped callsite's attributed module:
+      // once in its header, once more as the dimmed module label beside
+      // the stack's `libapp.so` frame (the other frame is `libc.so`).
+      expect(find.text('libapp.so'), findsNWidgets(2));
+    },
+  );
 
   testWidgets('selecting an earlier checkpoint hides the Δ column value', (
     tester,
