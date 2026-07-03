@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:radar_native_host/radar_native_host.dart';
 import 'package:radar_ui/radar_ui.dart';
+import 'package:radar_workbench/radar_workbench.dart';
 
 import '../android/native_profiling_controller.dart';
 import '../app/desktop_view.dart';
@@ -17,7 +18,10 @@ import '../screens/histogram_screen.dart';
 import '../screens/paths_screen.dart';
 import '../screens/trends_screen.dart';
 import '../seams/android/perfetto_trace_importer.dart';
+import '../seams/desktop_perf_call.dart';
+import '../seams/vm_service_uri_connection.dart';
 import '../workspace/workspace_controller.dart';
+import 'connect_bar.dart';
 import 'desktop_rail.dart';
 import 'desktop_window_chrome.dart';
 
@@ -25,7 +29,11 @@ import 'desktop_window_chrome.dart';
 /// the right. Owns the workspace and routes the selected [DesktopView] to its
 /// real screen; locked (perf/stability) views never activate while offline.
 class DesktopShell extends StatefulWidget {
-  const DesktopShell({super.key});
+  const DesktopShell({super.key, this.connection});
+
+  /// The live VM service connection driving PERFORMANCE/STABILITY. Injectable
+  /// for tests; when null, the shell owns its own [VmServiceUriConnection].
+  final VmServiceUriConnection? connection;
 
   @override
   State<DesktopShell> createState() => _DesktopShellState();
@@ -38,17 +46,33 @@ class _DesktopShellState extends State<DesktopShell> {
     deviceProbe: const AdbDeviceProbe(ProcessAdbRunner()),
     capture: AdbHeapprofdCapture(const ProcessAdbRunner()),
   );
+  late final VmServiceUriConnection _connection =
+      widget.connection ?? VmServiceUriConnection();
+  late final PerfDataController _perf = PerfDataController(
+    callExtension: perfCallFor(_connection),
+  );
   DesktopView _view = DesktopView.dumps;
-  final bool _connected = false; // Phase 3 flips this
+
+  bool get _connected =>
+      _connection.state.phase == RadarConnectionPhase.connected;
 
   @override
   void initState() {
     super.initState();
     unawaited(_workspace.restore());
+    _connection.addListener(_onConnectionChanged);
+  }
+
+  void _onConnectionChanged() {
+    setState(() {});
+    if (_connected) unawaited(_perf.refresh());
   }
 
   @override
   void dispose() {
+    _connection.removeListener(_onConnectionChanged);
+    _connection.dispose();
+    _perf.dispose();
     _workspace.dispose();
     _android.dispose();
     super.dispose();
@@ -59,6 +83,9 @@ class _DesktopShellState extends State<DesktopShell> {
     // ANDROID NATIVE is its own offline workspace, so it is never clamped.
     if (!_connected && !v.isMemory && !v.isAndroid) return;
     setState(() => _view = v);
+    // Fetch fresh data once per navigation into a perf/stability view, not
+    // on every rebuild.
+    if (v.isPerf || v.isStability) unawaited(_perf.refresh());
   }
 
   Widget _content() {
@@ -80,17 +107,13 @@ class _DesktopShellState extends State<DesktopShell> {
       case DesktopView.trends:
         return TrendsScreen(workspace: _workspace);
       case DesktopView.traces:
+        return TracesView(controller: _perf);
       case DesktopView.frames:
+        return FramesView(controller: _perf);
       case DesktopView.errors:
+        return ErrorsView(controller: _perf);
       case DesktopView.stalls:
-        // Locked offline; unreachable via the clamped rail, but render a
-        // stub in case it is ever reached directly.
-        return Center(
-          child: Text(
-            '${_view.label} — connect a VM service (Phase 3)',
-            style: RadarTypography.body,
-          ),
-        );
+        return StallsView(controller: _perf);
       case DesktopView.androidSession:
         return AndroidSessionScreen(controller: _android);
       case DesktopView.androidNative:
@@ -113,6 +136,7 @@ class _DesktopShellState extends State<DesktopShell> {
         body: Column(
           children: [
             const DesktopWindowChrome(workspaceName: 'untitled workspace'),
+            ConnectBar(connection: _connection),
             Expanded(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
