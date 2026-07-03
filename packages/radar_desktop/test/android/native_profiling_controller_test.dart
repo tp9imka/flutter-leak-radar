@@ -679,6 +679,32 @@ void main() {
       expect(controller.errorMessage, contains('Symbolization tool failed'));
     });
 
+    test('an unexpected IO failure (e.g. FileSystemException) sets an honest '
+        'error state instead of leaving state stuck loading', () async {
+      final soPath = '${soDir.path}/libapp.so';
+      File(soPath)
+        ..createSync(recursive: true)
+        ..writeAsStringSync('marker');
+      final controller = NativeProfilingController(
+        _FakeImporter(profilesByLabel: {'before': _beforeProfile()}),
+        symbolStoreBuilder: SymbolStoreBuilder(
+          // A FileSystemException is neither ProcessException nor
+          // SymbolizeToolException — it must still be caught by the fallback
+          // (e.g. a permission-denied subdir while scanning the .so tree),
+          // never left as an unhandled rejection with state stuck loading.
+          buildIdReader: _ThrowingBuildIdReader(
+            const FileSystemException('permission denied'),
+          ),
+          symbolizer: _FakeSymbolizer(const {}),
+        ),
+      );
+      await controller.importTrace('before.pftrace', label: 'before');
+
+      await controller.resolveSymbolsFromSoDir(soDir.path);
+
+      expect(controller.state, NativeImportState.error);
+    });
+
     test('throws StateError when no SymbolStoreBuilder was injected', () async {
       final controller = NativeProfilingController(
         _FakeImporter(profilesByLabel: {'before': _beforeProfile()}),

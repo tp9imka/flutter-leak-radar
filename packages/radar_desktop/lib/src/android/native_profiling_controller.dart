@@ -247,6 +247,11 @@ final class NativeProfilingController extends ChangeNotifier {
       );
     } on SymbolizeToolException catch (error) {
       _failImport('Symbolization tool failed: ${error.message}');
+    } catch (error) {
+      // e.g. a FileSystemException while scanning the .so directory
+      // (permission-denied subdir, symlink loop) — route through the same
+      // error path as every other import, never leaving state stuck loading.
+      _failImport(error);
     }
   }
 
