@@ -256,6 +256,21 @@ void main() {
       },
     );
 
+    test('a genuine tool failure from the symbolizer propagates', () async {
+      final profile = _profile([
+        _callsite([_frame('0x1000', buildId: 'buildA', module: 'libA.so')]),
+      ]);
+      final builder = SymbolStoreBuilder(
+        buildIdReader: _FakeBuildIdReader({'/so/libA.so': 'buildA'}),
+        symbolizer: _ThrowingSymbolizer(),
+      );
+
+      expect(
+        () => builder.build(profile, soPaths: ['/so/libA.so']),
+        throwsA(isA<SymbolizeToolException>()),
+      );
+    });
+
     test('same inputs produce an identical store (deterministic)', () async {
       final profile = _profile([
         _callsite([
@@ -289,4 +304,13 @@ class _ThrowingBuildIdReader implements BuildIdReader {
   @override
   Future<String?> readBuildId(String soPath) async =>
       throw const SymbolizeToolException('boom', stderr: 'no such file');
+}
+
+class _ThrowingSymbolizer implements Symbolizer {
+  @override
+  Future<String?> symbolize({
+    required String soPath,
+    required int address,
+  }) async =>
+      throw const SymbolizeToolException('boom', stderr: 'symbolizer crashed');
 }
