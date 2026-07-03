@@ -25,6 +25,12 @@ final class VmServiceUriConnection extends ChangeNotifier
   IsolateRef? _isolateRef;
   String? _lastError;
 
+  /// Bumped on every [connect], [disconnect], and [dispose] so an in-flight
+  /// [connect] can tell whether it is still the current attempt once its
+  /// awaits resolve — a disconnect or dispose that raced ahead of it wins.
+  int _generation = 0;
+  bool _disposed = false;
+
   @override
   RadarConnectionState get state => _state;
 
@@ -43,12 +49,17 @@ final class VmServiceUriConnection extends ChangeNotifier
   /// including a VM with no isolates — sets [lastError] and notifies
   /// `disconnected` instead. A no-op while already connecting or connected;
   /// call [disconnect] first to retry against a different URI.
+  ///
+  /// If [disconnect] or [dispose] runs while this call is still awaiting the
+  /// underlying connect, the newly-opened [VmService] is disposed instead of
+  /// being adopted, so a stale socket can never resurrect a torn-down state.
   Future<void> connect(String wsUri) async {
     if (_state.phase != RadarConnectionPhase.disconnected) return;
 
     _lastError = null;
     _state = const RadarConnectionState(phase: RadarConnectionPhase.connecting);
-    notifyListeners();
+    _notify();
+    final gen = ++_generation;
 
     try {
       final svc = await _connectFn(wsUri);
@@ -61,6 +72,11 @@ final class VmServiceUriConnection extends ChangeNotifier
             : throw StateError('VM at $wsUri has no isolates'),
       );
 
+      if (gen != _generation || _disposed) {
+        await svc.dispose();
+        return;
+      }
+
       _vmService = svc;
       _isolateRef = isolate;
       _state = RadarConnectionState(
@@ -68,21 +84,43 @@ final class VmServiceUriConnection extends ChangeNotifier
         vmName: vm.name,
         isolateName: isolate.name,
       );
-      notifyListeners();
+      _notify();
 
-      unawaited(svc.onDone.then((_) => _applyDisconnected()));
+      unawaited(
+        svc.onDone.then((_) {
+          if (gen == _generation) _applyDisconnected();
+        }),
+      );
     } catch (e) {
-      _lastError = e.toString();
-      _applyDisconnected();
+      if (gen == _generation) {
+        _lastError = e.toString();
+        _applyDisconnected();
+      }
     }
   }
 
   /// Tears down a live connection: disposes the VM service, clears the
   /// handles, and notifies `disconnected`. Safe to call when already
   /// disconnected.
+  ///
+  /// Bumps the generation first, so the outgoing [VmService]'s `onDone`
+  /// continuation (registered under the old generation) becomes a no-op and
+  /// this method's own [_applyDisconnected] call is the only notification.
   Future<void> disconnect() async {
-    await _vmService?.dispose();
+    ++_generation;
+    final svc = _vmService;
     _applyDisconnected();
+    await svc?.dispose();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    ++_generation;
+    unawaited(_vmService?.dispose());
+    _vmService = null;
+    _isolateRef = null;
+    super.dispose();
   }
 
   void _applyDisconnected() {
@@ -91,6 +129,10 @@ final class VmServiceUriConnection extends ChangeNotifier
     _state = const RadarConnectionState(
       phase: RadarConnectionPhase.disconnected,
     );
-    notifyListeners();
+    _notify();
+  }
+
+  void _notify() {
+    if (!_disposed) notifyListeners();
   }
 }

@@ -155,5 +155,85 @@ void main() {
 
       expect(connection.state.phase, RadarConnectionPhase.disconnected);
     });
+
+    test('disconnect during an in-flight connect wins the race: final phase '
+        'stays disconnected and the orphaned VmService is disposed', () async {
+      final fake = _FakeVmService();
+      final connectGate = Completer<void>();
+      final connection = VmServiceUriConnection(
+        connect: (_) async {
+          await connectGate.future;
+          return fake;
+        },
+      );
+
+      final connectFuture = connection.connect('ws://x');
+      await connection.disconnect();
+      connectGate.complete();
+      await connectFuture;
+
+      expect(connection.state.phase, RadarConnectionPhase.disconnected);
+      expect(connection.vmService, isNull);
+      expect(fake.disposeCalled, isTrue);
+    });
+
+    test(
+      'dispose() disposes the vm service and suppresses late notifies',
+      () async {
+        final fake = _FakeVmService();
+        final connection = VmServiceUriConnection(connect: (_) async => fake);
+        await connection.connect('ws://x');
+
+        connection.dispose();
+        expect(fake.disposeCalled, isTrue);
+
+        // Without the generation bump + `_disposed` guard, this onDone firing
+        // after dispose would call notifyListeners() on an already-disposed
+        // ChangeNotifier, which throws. Completing it here (and letting the
+        // microtask queue drain) must not raise or leave a pending exception.
+        fake.doneCompleter.complete();
+        await Future<void>.delayed(Duration.zero);
+      },
+    );
+
+    test(
+      'a manual disconnect fires exactly one disconnected notification',
+      () async {
+        final fake = _FakeVmService();
+        var notified = 0;
+        final connection = VmServiceUriConnection(connect: (_) async => fake)
+          ..addListener(() => notified++);
+
+        await connection.connect('ws://x');
+        final notifiedAfterConnect = notified;
+
+        await connection.disconnect();
+
+        expect(notified - notifiedAfterConnect, 1);
+
+        // onDone completing after a manual disconnect must not add another
+        // notification: the generation bump makes the old onDone a no-op.
+        fake.doneCompleter.complete();
+        await Future<void>.delayed(Duration.zero);
+        expect(notified - notifiedAfterConnect, 1);
+      },
+    );
+
+    test('connect() while already connected is a no-op', () async {
+      var callCount = 0;
+      final fake = _FakeVmService();
+      final connection = VmServiceUriConnection(
+        connect: (_) async {
+          callCount++;
+          return fake;
+        },
+      );
+
+      await connection.connect('ws://x');
+      await connection.connect('ws://x');
+
+      expect(callCount, 1);
+      expect(connection.state.phase, RadarConnectionPhase.connected);
+    });
   });
 }
