@@ -10,7 +10,12 @@ enum DesktopView {
   traces,
   frames,
   errors,
-  stalls;
+  stalls,
+  androidSession,
+  androidNative,
+  androidCompare,
+  androidFfi,
+  androidCapture;
 
   bool get isMemory =>
       this == dumps ||
@@ -20,6 +25,12 @@ enum DesktopView {
       this == trends;
   bool get isPerf => this == traces || this == frames;
   bool get isStability => this == errors || this == stalls;
+  bool get isAndroid =>
+      this == androidSession ||
+      this == androidNative ||
+      this == androidCompare ||
+      this == androidFfi ||
+      this == androidCapture;
 
   String get label => switch (this) {
     DesktopView.dumps => 'Dumps',
@@ -31,5 +42,10 @@ enum DesktopView {
     DesktopView.frames => 'Frames',
     DesktopView.errors => 'Errors',
     DesktopView.stalls => 'Stalls',
+    DesktopView.androidSession => 'Session',
+    DesktopView.androidNative => 'Native still-live',
+    DesktopView.androidCompare => 'Compare',
+    DesktopView.androidFfi => 'ffi allocations',
+    DesktopView.androidCapture => 'Capture / import',
   };
 }

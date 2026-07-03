@@ -28,11 +28,13 @@ void main() {
       'Dumps',
       'Class histogram',
       'Retaining paths',
-      'Compare',
       'Trends',
     ]) {
       expect(find.text(label), findsOneWidget);
     }
+    // 'Compare' appears twice: MEMORY's dump-diff view and ANDROID NATIVE's
+    // checkpoint-diff view share the label.
+    expect(find.text('Compare'), findsNWidgets(2));
     await tester.tap(find.text('Trends'));
     expect(tapped, DesktopView.trends);
   });

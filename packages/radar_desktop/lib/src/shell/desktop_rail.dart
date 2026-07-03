@@ -3,8 +3,9 @@ import 'package:radar_ui/radar_ui.dart';
 
 import '../app/desktop_view.dart';
 
-/// The 210px left navigation. MEMORY group is always active; PERFORMANCE and
-/// STABILITY are locked (dimmed, non-interactive) until [connected].
+/// The 210px left navigation. MEMORY and ANDROID NATIVE groups are always
+/// active (both are offline workspaces); PERFORMANCE and STABILITY are
+/// locked (dimmed, non-interactive) until [connected].
 class DesktopRail extends StatelessWidget {
   const DesktopRail({
     super.key,
@@ -25,27 +26,42 @@ class DesktopRail extends StatelessWidget {
       width: width,
       color: RadarColors.bgRail,
       padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _group('MEMORY'),
-          for (final v in const [
-            DesktopView.dumps,
-            DesktopView.histogram,
-            DesktopView.paths,
-            DesktopView.compare,
-            DesktopView.trends,
-          ])
-            _item(v, enabled: true),
-          const SizedBox(height: 14),
-          _group('PERFORMANCE', locked: !connected),
-          for (final v in const [DesktopView.traces, DesktopView.frames])
-            _item(v, enabled: connected),
-          const SizedBox(height: 14),
-          _group('STABILITY', locked: !connected),
-          for (final v in const [DesktopView.errors, DesktopView.stalls])
-            _item(v, enabled: connected),
-        ],
+      // Scrollable: the rail now holds four groups (MEMORY, PERFORMANCE,
+      // STABILITY, ANDROID NATIVE) and no longer reliably fits a short
+      // window/test surface without overflowing.
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _group('MEMORY'),
+            for (final v in const [
+              DesktopView.dumps,
+              DesktopView.histogram,
+              DesktopView.paths,
+              DesktopView.compare,
+              DesktopView.trends,
+            ])
+              _item(v, enabled: true),
+            const SizedBox(height: 14),
+            _group('PERFORMANCE', locked: !connected),
+            for (final v in const [DesktopView.traces, DesktopView.frames])
+              _item(v, enabled: connected),
+            const SizedBox(height: 14),
+            _group('STABILITY', locked: !connected),
+            for (final v in const [DesktopView.errors, DesktopView.stalls])
+              _item(v, enabled: connected),
+            const SizedBox(height: 14),
+            _group('ANDROID NATIVE'),
+            for (final v in const [
+              DesktopView.androidSession,
+              DesktopView.androidNative,
+              DesktopView.androidCompare,
+              DesktopView.androidFfi,
+              DesktopView.androidCapture,
+            ])
+              _item(v, enabled: true),
+          ],
+        ),
       ),
     );
   }
