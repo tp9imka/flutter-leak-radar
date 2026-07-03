@@ -1,8 +1,8 @@
 /// Flutter Radar shared design system.
 ///
 /// Import this library to access all tokens (colors, typography,
-/// density, severity) and reusable widgets (tags, sparklines,
-/// metric tiles, search fields, sort headers, filter chips,
+/// density, severity) and reusable widgets (tags, banners, module dots,
+/// sparklines, metric tiles, search fields, sort headers, filter chips,
 /// live pulse dot) for the Flutter Radar suite.
 library;
 
@@ -12,6 +12,8 @@ export 'src/tokens/typography.dart';
 export 'src/tokens/density.dart';
 export 'src/theme/radar_theme.dart';
 export 'src/widgets/radar_tag.dart';
+export 'src/widgets/radar_banner.dart';
+export 'src/widgets/radar_module_dot.dart';
 export 'src/widgets/radar_sparkline.dart';
 export 'src/widgets/radar_metric_tile.dart';
 export 'src/widgets/radar_search_field.dart';
