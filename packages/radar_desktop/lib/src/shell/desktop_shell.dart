@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:radar_native_host/radar_native_host.dart';
 import 'package:radar_ui/radar_ui.dart';
 
 import '../android/native_profiling_controller.dart';
@@ -34,6 +35,8 @@ class _DesktopShellState extends State<DesktopShell> {
   final WorkspaceController _workspace = WorkspaceController();
   final NativeProfilingController _android = NativeProfilingController(
     const PerfettoTraceImporter(),
+    deviceProbe: const AdbDeviceProbe(ProcessAdbRunner()),
+    capture: AdbHeapprofdCapture(const ProcessAdbRunner()),
   );
   DesktopView _view = DesktopView.dumps;
   final bool _connected = false; // Phase 3 flips this
