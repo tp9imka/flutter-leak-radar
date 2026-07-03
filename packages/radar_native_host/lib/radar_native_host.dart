@@ -5,3 +5,6 @@
 /// pure-Dart `radar_native` package, this package may use `dart:io`.
 /// Exports are added incrementally as each parser lands.
 library;
+
+export 'src/perfetto/perfetto_profile_mapper.dart';
+export 'src/perfetto/perfetto_row.dart';
