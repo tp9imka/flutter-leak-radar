@@ -167,7 +167,10 @@ class AndroidCaptureForm extends StatelessWidget {
               ),
               const SizedBox(height: 10),
             ],
-            if (onCapture == null && !capturing && ready.isEmpty) ...[
+            if (onCapture == null &&
+                !capturing &&
+                ready.isEmpty &&
+                devices.isNotEmpty) ...[
               Text(
                 'Connect an authorized device to capture',
                 style: RadarTypography.caption,

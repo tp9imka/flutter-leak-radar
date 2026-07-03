@@ -110,8 +110,8 @@ void main() {
     });
 
     testWidgets(
-      'no device at all: keeps the original empty-state caption, and the '
-      'disabled-capture hint still applies (no ready device)',
+      'no device at all: shows only the empty-state caption, not the '
+      'redundant disabled-capture hint',
       (tester) async {
         await _pumpForm(tester, devices: const []);
 
@@ -119,9 +119,12 @@ void main() {
           find.text('No device detected — connect one & enable USB debugging'),
           findsOneWidget,
         );
+        // The "connect an authorized device" hint is suppressed here — the
+        // empty-state caption already explains why Capture is disabled, so
+        // the two no longer render together.
         expect(
           find.text('Connect an authorized device to capture'),
-          findsOneWidget,
+          findsNothing,
         );
       },
     );
