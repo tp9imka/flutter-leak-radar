@@ -147,5 +147,32 @@ void main() {
         throwsA(isA<AdbException>()),
       );
     });
+
+    test(
+      'sanitizes an unsafe packageId out of the on-device cfg/trace paths',
+      () async {
+        final runner = _RecordingAdbRunner();
+        final capture = AdbHeapprofdCapture(runner, sleep: (_) async {});
+
+        await capture.capture(
+          const CaptureRequest(packageId: 'com.x/../y'),
+          outputPath: '/tmp/o.pftrace',
+        );
+
+        final configWrite = runner.calls[0];
+        expect(configWrite.args[1], contains('com.x_.._y.cfg'));
+        expect(configWrite.args[1], isNot(contains('/../')));
+
+        final perfetto = runner.calls[1];
+        expect(
+          perfetto.args,
+          contains('/data/misc/perfetto-traces/com.x_.._y.cfg'),
+        );
+        expect(perfetto.args, isNot(anyElement(contains('/../'))));
+
+        final pull = runner.calls[2];
+        expect(pull.args[1], '/data/misc/perfetto-traces/com.x_.._y.pftrace');
+      },
+    );
   });
 }
