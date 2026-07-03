@@ -29,6 +29,29 @@ NativeCallsite _mixedFidelityCallsite() => NativeCallsite(
   freeCount: 2,
 );
 
+/// A callsite whose LEAF frame is a symbolized allocator entry point
+/// (`malloc`) but whose attributed (allocator-skipped) caller frame is a raw,
+/// unsymbolized address. Regression coverage for a bug where gating the
+/// add-symbols banner on "does any frame have a resolved name" let the
+/// always-named allocator leaf hide the banner even though the real caller
+/// was never resolved — allocator leaves are named by heapprofd itself, with
+/// no symbol store involved.
+NativeCallsite _unsymbolizedCallerBehindSymbolizedAllocatorCallsite() =>
+    NativeCallsite(
+      frames: const [
+        NativeFrame(function: 'malloc', module: '/system/lib64/libc.so'),
+        NativeFrame(
+          function: '0x3000',
+          module: '/data/app/~~abc==/com.example.app-1/base.apk!libapp.so',
+          buildId: 'BUILD_APP',
+        ),
+      ],
+      allocBytes: 400,
+      allocCount: 4,
+      freeBytes: 0,
+      freeCount: 0,
+    );
+
 /// A callsite with no resolved function names anywhere in its stack — every
 /// frame is a raw `0x…` address, so the add-symbols banner must show.
 NativeCallsite _fullyUnsymbolizedCallsite() => NativeCallsite(
@@ -135,6 +158,28 @@ void main() {
       // caller frame carries no tag.
       expect(find.text('MODULE-ONLY'), findsOneWidget);
       expect(find.byType(RadarBanner), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a symbolized allocator leaf does not hide the add-symbols banner when '
+    'the attributed caller frame is unsymbolized',
+    (tester) async {
+      final controller = await _controllerWith(
+        _unsymbolizedCallerBehindSymbolizedAllocatorCallsite(),
+      );
+      final callsite = controller.selectedSymbolized!.callsites.single;
+
+      await _pump(
+        tester,
+        AndroidDetailScreen(controller: controller, callsite: callsite),
+      );
+
+      // An allocator-blind `any(isFrameSymbolized)` check would see `malloc`
+      // and hide the banner; the fix gates on the attributed (allocator-
+      // skipped) frame instead, which here is the unresolved `0x3000`.
+      expect(find.byType(RadarBanner), findsOneWidget);
+      expect(find.textContaining('Add symbols'), findsOneWidget);
     },
   );
 

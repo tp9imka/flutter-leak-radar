@@ -38,11 +38,20 @@ class AndroidDetailScreen extends StatelessWidget {
   /// in place because a frame's [NativeCallsite.signature] — its only
   /// stable cross-checkpoint identity — is itself derived from function
   /// names, so it changes the moment symbolization succeeds.
+  ///
+  /// A failed import (bad file, malformed JSON) never pops: it surfaces
+  /// [NativeProfilingController.errorMessage] via a [SnackBar] instead,
+  /// matching `dumps_screen.dart`'s import-failure handling.
   Future<void> _addSymbols(BuildContext context) async {
     final file = await openFile(acceptedTypeGroups: _symbolStoreTypes);
     if (file == null) return;
     await controller.importSymbolStore(file.path);
-    if (context.mounted) Navigator.of(context).pop();
+    if (!context.mounted) return;
+    if (controller.state == NativeImportState.error) {
+      _showError(context, 'Import failed: ${controller.errorMessage}');
+      return;
+    }
+    Navigator.of(context).pop();
   }
 
   /// Per-checkpoint still-live bytes for [module] across every imported
@@ -67,18 +76,29 @@ class AndroidDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final module = attributedModule(callsite);
-    final kind = moduleKind(attributedFrame(callsite)?.module ?? '');
-    final anySymbolized = callsite.frames.any(
-      (frame) => isFrameSymbolized(frame.function),
-    );
-    final showAddSymbolsBanner = !anySymbolized && !controller.isSymbolized;
-
     return Scaffold(
       appBar: AppBar(title: const Text('Callsite detail')),
       body: ListenableBuilder(
         listenable: controller,
         builder: (context, _) {
+          // Recomputed on every notify (not hoisted to the outer build) so
+          // the banner re-evaluates after a symbol-store import — see
+          // [_addSymbols].
+          final module = attributedModule(callsite);
+          final kind = moduleKind(attributedFrame(callsite)?.module ?? '');
+          final attributed = attributedFrame(callsite);
+          final anySymbolized = callsite.frames.any(
+            (frame) => isFrameSymbolized(frame.function),
+          );
+          // Allocator leaf frames (malloc/calloc/...) are named without any
+          // symbol store, so `anySymbolized` alone would stay true on real
+          // traces even when the callsite's actual caller is unresolved.
+          // Gate the banner on the attributed (allocator-skipped) frame
+          // instead, matching `AndroidNativeCallsiteRow`.
+          final attributedSymbolized =
+              attributed != null && isFrameSymbolized(attributed.function);
+          final showAddSymbolsBanner =
+              !attributedSymbolized && !controller.isSymbolized;
           final trend = _moduleTrend(module);
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
@@ -213,4 +233,16 @@ class _ModuleTrend extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Shows a failure [message] via the nearest [ScaffoldMessenger]. No-ops if
+/// [context] is no longer mounted (guards the async gap between the failing
+/// import and this callback) or if no messenger is present (e.g. a widget
+/// test that pumps the screen without one). Mirrors `dumps_screen.dart`'s
+/// `_showError`.
+void _showError(BuildContext context, String message) {
+  if (!context.mounted) return;
+  ScaffoldMessenger.maybeOf(
+    context,
+  )?.showSnackBar(SnackBar(content: Text(message)));
 }
