@@ -10,6 +10,7 @@ export 'src/analysis/native_module.dart';
 export 'src/analysis/native_module_diff.dart';
 export 'src/analysis/native_module_kind.dart';
 export 'src/analysis/native_module_summary.dart';
+export 'src/analysis/symbol_store.dart';
 export 'src/model/ffi_allocation_log.dart';
 export 'src/model/memory_session.dart';
 export 'src/model/native_allocation_diff.dart';
