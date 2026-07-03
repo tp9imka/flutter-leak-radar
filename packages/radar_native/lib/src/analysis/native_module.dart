@@ -32,17 +32,21 @@ bool _isAllocatorFrame(NativeFrame frame) =>
     moduleShortName(frame.module) == 'libc.so' ||
     _allocatorFunctionNames.contains(frame.function.toLowerCase());
 
-/// The module a callsite is attributed to: walks [callsite]'s frames
+/// The frame a callsite is attributed to: walks [callsite]'s frames
 /// leaf-first and skips the leading run of allocator frames (the
-/// malloc/calloc/... entry point in libc), returning [moduleShortName] of
-/// the first real caller. If every frame is an allocator frame, returns
-/// [moduleShortName] of the last frame instead. An empty stack attributes
-/// to `''`.
-String attributedModule(NativeCallsite callsite) {
+/// malloc/calloc/... entry point in libc), returning the first real
+/// caller frame. If every frame is an allocator frame, returns the last
+/// frame instead. An empty stack attributes to `null`.
+NativeFrame? attributedFrame(NativeCallsite callsite) {
   final frames = callsite.frames;
-  if (frames.isEmpty) return '';
+  if (frames.isEmpty) return null;
   for (final frame in frames) {
-    if (!_isAllocatorFrame(frame)) return moduleShortName(frame.module);
+    if (!_isAllocatorFrame(frame)) return frame;
   }
-  return moduleShortName(frames.last.module);
+  return frames.last;
 }
+
+/// The module a callsite is attributed to: [moduleShortName] of
+/// [attributedFrame]'s module, or `''` for an empty stack.
+String attributedModule(NativeCallsite callsite) =>
+    moduleShortName(attributedFrame(callsite)?.module ?? '');

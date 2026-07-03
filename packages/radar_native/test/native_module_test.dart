@@ -48,4 +48,25 @@ void main() {
       expect(attributedModule(c), 'libc.so');
     },
   );
+  test(
+    'attributedFrame returns the first non-allocator frame (full module)',
+    () {
+      final c = cs([
+        ['calloc', '/apex/com.android.runtime/lib64/bionic/libc.so'],
+        [
+          'flutter::Foo',
+          '/data/app/~~H==/com.katim.connect-H==/base.apk!libflutter.so',
+        ],
+      ]);
+      final f = attributedFrame(c)!;
+      expect(
+        f.module,
+        '/data/app/~~H==/com.katim.connect-H==/base.apk!libflutter.so',
+      ); // FULL path
+      expect(f.function, 'flutter::Foo');
+    },
+  );
+  test('attributedFrame on empty frames is null', () {
+    expect(attributedFrame(cs(const [])), isNull);
+  });
 }
