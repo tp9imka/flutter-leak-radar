@@ -14,6 +14,7 @@ final class PerfettoRow {
     required this.allocCount,
     required this.freeBytes,
     required this.freeCount,
+    this.relPc,
   });
 
   /// Identifies the callsite this frame belongs to (rows sharing the same
@@ -37,10 +38,16 @@ final class PerfettoRow {
   final int freeBytes;
   final int freeCount;
 
-  /// Parses one query result row from its 9 cells, in column order:
+  /// Relative PC of this frame within its module (Perfetto
+  /// `stack_profile_frame.rel_pc`), used to build the `0x<hex>`
+  /// unsymbolized address / feed the symbolizer; null when absent.
+  final int? relPc;
+
+  /// Parses one query result row from its 10 cells, in column order:
   /// `[callsiteId, depth, function, module, buildId, allocBytes, allocCount,
-  /// freeBytes, freeCount]`. An empty `buildId` cell maps to `null`; empty
-  /// `function`/`module` cells are kept as `''` (unsymbolized frame).
+  /// freeBytes, freeCount, relPc]`. An empty `buildId` cell maps to `null`;
+  /// empty `function`/`module` cells are kept as `''` (unsymbolized frame);
+  /// an empty `relPc` cell maps to `null`.
   factory PerfettoRow.fromCells(List<String> cells) => PerfettoRow(
     callsiteId: int.parse(cells[0]),
     depth: int.parse(cells[1]),
@@ -51,5 +58,6 @@ final class PerfettoRow {
     allocCount: int.parse(cells[6]),
     freeBytes: int.parse(cells[7]),
     freeCount: int.parse(cells[8]),
+    relPc: cells[9].isEmpty ? null : int.parse(cells[9]),
   );
 }

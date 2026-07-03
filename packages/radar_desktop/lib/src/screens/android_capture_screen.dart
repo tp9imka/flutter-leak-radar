@@ -87,6 +87,17 @@ class _AndroidCaptureScreenState extends State<AndroidCaptureScreen> {
     _reportIfFailed();
   }
 
+  /// Opens a directory picker and, once one is chosen, build-id-matches
+  /// every `.so` under it against the selected checkpoint and symbolizes
+  /// its module-only frames in-app. Only offered when
+  /// [NativeProfilingController.canResolveSymbols] is true.
+  Future<void> _resolveSymbolsFromSoDir() async {
+    final dirPath = await getDirectoryPath();
+    if (dirPath == null) return;
+    await _controller.resolveSymbolsFromSoDir(dirPath);
+    _reportResolveOutcome();
+  }
+
   /// Drag-drop nicety mirroring `dumps_screen.dart`: any dropped `.pftrace`
   /// file imports as a checkpoint, same as the browse button.
   Future<void> _onDrop(DropDoneDetails details) async {
@@ -101,7 +112,21 @@ class _AndroidCaptureScreenState extends State<AndroidCaptureScreen> {
   void _reportIfFailed() {
     if (!context.mounted) return;
     if (_controller.state != NativeImportState.error) return;
-    _showError(context, 'Import failed: ${_controller.errorMessage}');
+    _showSnackBar(context, 'Import failed: ${_controller.errorMessage}');
+  }
+
+  /// Surfaces the outcome of the most recent [_resolveSymbolsFromSoDir]
+  /// call via a [SnackBar]: a genuine failure (mirrors [_reportIfFailed]),
+  /// or — on success — the resolved-name count / honest "nothing
+  /// resolved" message from [NativeProfilingController.symbolizeMessage].
+  void _reportResolveOutcome() {
+    if (!context.mounted) return;
+    if (_controller.state == NativeImportState.error) {
+      _showSnackBar(context, 'Resolve failed: ${_controller.errorMessage}');
+      return;
+    }
+    final message = _controller.symbolizeMessage;
+    if (message != null) _showSnackBar(context, message);
   }
 
   /// Refreshes the connected-device list, then reports a failure if one
@@ -141,11 +166,11 @@ class _AndroidCaptureScreenState extends State<AndroidCaptureScreen> {
   void _reportCaptureIfFailed() {
     if (!context.mounted) return;
     if (_controller.captureState == CaptureState.error) {
-      _showError(context, 'Capture failed: ${_controller.captureError}');
+      _showSnackBar(context, 'Capture failed: ${_controller.captureError}');
       return;
     }
     if (_controller.state == NativeImportState.error) {
-      _showError(context, 'Import failed: ${_controller.errorMessage}');
+      _showSnackBar(context, 'Import failed: ${_controller.errorMessage}');
     }
   }
 
@@ -243,6 +268,17 @@ class _AndroidCaptureScreenState extends State<AndroidCaptureScreen> {
                   helper: '.json · unlocks function names in native stacks',
                   onPressed: _importSymbolStore,
                 ),
+                if (_controller.canResolveSymbols) ...[
+                  const SizedBox(height: 10),
+                  _ImportActionRow(
+                    icon: Icons.functions,
+                    label: 'Resolve from .so directory',
+                    helper:
+                        'unstripped .so files · build-id-matches native '
+                        'frames and resolves function names in-app',
+                    onPressed: _resolveSymbolsFromSoDir,
+                  ),
+                ],
                 const SizedBox(height: 10),
                 _ImportActionRow(
                   icon: Icons.memory,
@@ -331,11 +367,11 @@ class _ImportActionRow extends StatelessWidget {
   }
 }
 
-/// Shows a failure [message] via the nearest [ScaffoldMessenger]. No-ops if
-/// [context] is no longer mounted or if no messenger is present (e.g. a
-/// widget test that pumps the screen without one). Mirrors
-/// `dumps_screen.dart`'s `_showError`.
-void _showError(BuildContext context, String message) {
+/// Shows [message] via the nearest [ScaffoldMessenger] — a failure or a
+/// success report. No-ops if [context] is no longer mounted or if no
+/// messenger is present (e.g. a widget test that pumps the screen without
+/// one). Mirrors `dumps_screen.dart`'s `_showError`.
+void _showSnackBar(BuildContext context, String message) {
   if (!context.mounted) return;
   ScaffoldMessenger.maybeOf(
     context,

@@ -1,5 +1,6 @@
 /// The device-proven still-live-with-stack query. Emits ONE column named
-/// `row`: the 9 fields joined by U+001F, ordered by (callsiteId, depth).
+/// `row`: the 10 fields (including `rel_pc`) joined by U+001F, ordered by
+/// (callsiteId, depth).
 ///
 /// Verbatim — proven working on-device against a real heapprofd trace via
 /// `trace_processor_shell -q`. Do not reformat or "clean up" the SQL; even
@@ -29,7 +30,8 @@ select
   coalesce(spf.name,'') || char(31) || coalesce(spm.name,'') || char(31) ||
   coalesce(spm.build_id,'') || char(31) ||
   a.alloc_bytes || char(31) || a.alloc_count || char(31) ||
-  a.free_bytes  || char(31) || a.free_count as row
+  a.free_bytes  || char(31) || a.free_count || char(31) ||
+  coalesce(spf.rel_pc,'') as row
 from chain ch
 join agg a on a.callsite_id = ch.root_callsite
 join stack_profile_frame spf on ch.frame_id = spf.id

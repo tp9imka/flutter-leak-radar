@@ -151,6 +151,56 @@ class _FakeDeviceProbe implements DeviceProbe {
   ];
 }
 
+/// [BuildIdReader] stand-in keyed by exact `.so` path, so controller tests
+/// can drive [SymbolStoreBuilder] without a real `llvm-readelf`.
+class _FakeBuildIdReader implements BuildIdReader {
+  _FakeBuildIdReader(this._buildIdBySoPath);
+
+  final Map<String, String> _buildIdBySoPath;
+
+  @override
+  Future<String?> readBuildId(String soPath) async => _buildIdBySoPath[soPath];
+}
+
+/// [Symbolizer] stand-in keyed by address, so controller tests can drive
+/// [SymbolStoreBuilder] without a real `llvm-symbolizer`.
+class _FakeSymbolizer implements Symbolizer {
+  _FakeSymbolizer(this._nameByAddress);
+
+  final Map<int, String> _nameByAddress;
+
+  @override
+  Future<String?> symbolize({
+    required String soPath,
+    required int address,
+  }) async => _nameByAddress[address];
+}
+
+/// A [BuildIdReader] that always throws [_error] — stands in for a missing
+/// or misbehaving `llvm-readelf`.
+class _ThrowingBuildIdReader implements BuildIdReader {
+  _ThrowingBuildIdReader(this._error);
+
+  final Object _error;
+
+  @override
+  Future<String?> readBuildId(String soPath) async => throw _error;
+}
+
+/// A [Symbolizer] that always throws [_error] — stands in for a misbehaving
+/// `llvm-symbolizer` (a genuine tool failure, not "address unresolved").
+class _ThrowingSymbolizer implements Symbolizer {
+  _ThrowingSymbolizer(this._error);
+
+  final Object _error;
+
+  @override
+  Future<String?> symbolize({
+    required String soPath,
+    required int address,
+  }) async => throw _error;
+}
+
 /// Stands in for a real `adb`-driven capture: writes [bytes] dummy bytes
 /// to `outputPath` (or throws, if [throwing]), and records the last call
 /// so tests can assert the controller forwarded the right request.
@@ -472,6 +522,239 @@ void main() {
         ),
         throwsStateError,
       );
+    });
+  });
+
+  group('canResolveSymbols', () {
+    test('false when no SymbolStoreBuilder was injected', () async {
+      final controller = NativeProfilingController(
+        _FakeImporter(profilesByLabel: {'before': _beforeProfile()}),
+      );
+      await controller.importTrace('before.pftrace', label: 'before');
+
+      expect(controller.canResolveSymbols, isFalse);
+    });
+
+    test('false when a builder is injected but nothing is selected', () {
+      final controller = NativeProfilingController(
+        _FakeImporter(),
+        symbolStoreBuilder: SymbolStoreBuilder(
+          buildIdReader: _FakeBuildIdReader(const {}),
+          symbolizer: _FakeSymbolizer(const {}),
+        ),
+      );
+
+      expect(controller.selected, isNull);
+      expect(controller.canResolveSymbols, isFalse);
+    });
+
+    test(
+      'true once a builder is injected and a checkpoint is selected',
+      () async {
+        final controller = NativeProfilingController(
+          _FakeImporter(profilesByLabel: {'before': _beforeProfile()}),
+          symbolStoreBuilder: SymbolStoreBuilder(
+            buildIdReader: _FakeBuildIdReader(const {}),
+            symbolizer: _FakeSymbolizer(const {}),
+          ),
+        );
+        await controller.importTrace('before.pftrace', label: 'before');
+
+        expect(controller.canResolveSymbols, isTrue);
+      },
+    );
+  });
+
+  group('resolveSymbolsFromSoDir', () {
+    late Directory soDir;
+
+    setUp(() {
+      soDir = Directory.systemTemp.createTempSync('radar_so_dir_test');
+    });
+
+    tearDown(() {
+      if (soDir.existsSync()) soDir.deleteSync(recursive: true);
+    });
+
+    test('resolves a matched .so\'s addresses and applies the store', () async {
+      final soPath = '${soDir.path}/libapp.so';
+      File(soPath)
+        ..createSync(recursive: true)
+        ..writeAsStringSync('not a real elf, just a marker file');
+      final before = _beforeProfile();
+      final controller = NativeProfilingController(
+        _FakeImporter(profilesByLabel: {'before': before}),
+        symbolStoreBuilder: SymbolStoreBuilder(
+          buildIdReader: _FakeBuildIdReader({soPath: 'BUILD_APP'}),
+          symbolizer: _FakeSymbolizer({0xdeadbeef: 'MyApp::allocateBuffer'}),
+        ),
+      );
+      await controller.importTrace('before.pftrace', label: 'before');
+
+      await controller.resolveSymbolsFromSoDir(soDir.path);
+
+      expect(controller.state, NativeImportState.idle);
+      expect(controller.errorMessage, isNull);
+      expect(controller.isSymbolized, isTrue);
+      expect(
+        controller.selectedSymbolized!.callsites.first.frames[1].function,
+        'MyApp::allocateBuffer',
+      );
+      expect(controller.symbolizeMessage, contains('Resolved 1 function'));
+    });
+
+    test('a no-match run keeps a previously resolved symbol store instead of '
+        'clobbering it with an empty one', () async {
+      final soPath = '${soDir.path}/libapp.so';
+      File(soPath)
+        ..createSync(recursive: true)
+        ..writeAsStringSync('marker');
+      final controller = NativeProfilingController(
+        _FakeImporter(profilesByLabel: {'before': _beforeProfile()}),
+        symbolStoreBuilder: SymbolStoreBuilder(
+          buildIdReader: _FakeBuildIdReader({soPath: 'BUILD_APP'}),
+          symbolizer: _FakeSymbolizer({0xdeadbeef: 'MyApp::allocateBuffer'}),
+        ),
+      );
+      await controller.importTrace('before.pftrace', label: 'before');
+      await controller.resolveSymbolsFromSoDir(soDir.path);
+      expect(controller.isSymbolized, isTrue);
+
+      // A second run against an empty dir resolves nothing — the prior store
+      // must survive rather than be replaced by an empty one.
+      final emptyDir = Directory.systemTemp.createTempSync('radar_empty_so');
+      addTearDown(() => emptyDir.deleteSync(recursive: true));
+      await controller.resolveSymbolsFromSoDir(emptyDir.path);
+
+      expect(controller.isSymbolized, isTrue);
+      expect(
+        controller.selectedSymbolized!.callsites.first.frames[1].function,
+        'MyApp::allocateBuffer',
+      );
+      expect(controller.symbolizeMessage, contains('nothing resolved'));
+    });
+
+    test('an empty directory resolves nothing and sets an honest message, '
+        'without crashing', () async {
+      final before = _beforeProfile();
+      final controller = NativeProfilingController(
+        _FakeImporter(profilesByLabel: {'before': before}),
+        symbolStoreBuilder: SymbolStoreBuilder(
+          buildIdReader: _FakeBuildIdReader(const {}),
+          symbolizer: _FakeSymbolizer(const {}),
+        ),
+      );
+      await controller.importTrace('before.pftrace', label: 'before');
+
+      await controller.resolveSymbolsFromSoDir(soDir.path);
+
+      expect(controller.state, NativeImportState.idle);
+      expect(controller.isSymbolized, isFalse);
+      expect(controller.symbolizeMessage, contains('nothing resolved'));
+      // Raw checkpoint untouched, still module-only.
+      expect(
+        controller.selectedSymbolized!.callsites.first.frames[1].function,
+        '0xdeadbeef',
+      );
+    });
+
+    test('a ProcessException (tool missing from PATH) sets an honest error '
+        'state, without crashing', () async {
+      final soPath = '${soDir.path}/libapp.so';
+      File(soPath)
+        ..createSync(recursive: true)
+        ..writeAsStringSync('marker');
+      final before = _beforeProfile();
+      final controller = NativeProfilingController(
+        _FakeImporter(profilesByLabel: {'before': before}),
+        symbolStoreBuilder: SymbolStoreBuilder(
+          buildIdReader: _ThrowingBuildIdReader(
+            ProcessException('llvm-readelf', const []),
+          ),
+          symbolizer: _FakeSymbolizer(const {}),
+        ),
+      );
+      await controller.importTrace('before.pftrace', label: 'before');
+
+      await controller.resolveSymbolsFromSoDir(soDir.path);
+
+      expect(controller.state, NativeImportState.error);
+      expect(controller.errorMessage, contains('llvm-readelf'));
+      expect(controller.errorMessage, contains('not found'));
+    });
+
+    test('a SymbolizeToolException (tool exited non-zero) sets an honest '
+        'error state, without crashing', () async {
+      final soPath = '${soDir.path}/libapp.so';
+      File(soPath)
+        ..createSync(recursive: true)
+        ..writeAsStringSync('marker');
+      final before = _beforeProfile();
+      final controller = NativeProfilingController(
+        _FakeImporter(profilesByLabel: {'before': before}),
+        symbolStoreBuilder: SymbolStoreBuilder(
+          buildIdReader: _FakeBuildIdReader({soPath: 'BUILD_APP'}),
+          symbolizer: _ThrowingSymbolizer(
+            const SymbolizeToolException(
+              'llvm-symbolizer exited with code 1',
+              stderr: 'boom',
+            ),
+          ),
+        ),
+      );
+      await controller.importTrace('before.pftrace', label: 'before');
+
+      await controller.resolveSymbolsFromSoDir(soDir.path);
+
+      expect(controller.state, NativeImportState.error);
+      expect(controller.errorMessage, contains('Symbolization tool failed'));
+    });
+
+    test('an unexpected IO failure (e.g. FileSystemException) sets an honest '
+        'error state instead of leaving state stuck loading', () async {
+      final soPath = '${soDir.path}/libapp.so';
+      File(soPath)
+        ..createSync(recursive: true)
+        ..writeAsStringSync('marker');
+      final controller = NativeProfilingController(
+        _FakeImporter(profilesByLabel: {'before': _beforeProfile()}),
+        symbolStoreBuilder: SymbolStoreBuilder(
+          // A FileSystemException is neither ProcessException nor
+          // SymbolizeToolException — it must still be caught by the fallback
+          // (e.g. a permission-denied subdir while scanning the .so tree),
+          // never left as an unhandled rejection with state stuck loading.
+          buildIdReader: _ThrowingBuildIdReader(
+            const FileSystemException('permission denied'),
+          ),
+          symbolizer: _FakeSymbolizer(const {}),
+        ),
+      );
+      await controller.importTrace('before.pftrace', label: 'before');
+
+      await controller.resolveSymbolsFromSoDir(soDir.path);
+
+      expect(controller.state, NativeImportState.error);
+    });
+
+    test('throws StateError when no SymbolStoreBuilder was injected', () async {
+      final controller = NativeProfilingController(
+        _FakeImporter(profilesByLabel: {'before': _beforeProfile()}),
+      );
+      await controller.importTrace('before.pftrace', label: 'before');
+
+      expect(controller.resolveSymbolsFromSoDir(soDir.path), throwsStateError);
+    });
+
+    test('throws StateError when no checkpoint is selected', () {
+      final controller = NativeProfilingController(
+        _FakeImporter(),
+        symbolStoreBuilder: SymbolStoreBuilder(
+          buildIdReader: _FakeBuildIdReader(const {}),
+          symbolizer: _FakeSymbolizer(const {}),
+        ),
+      );
+
+      expect(controller.resolveSymbolsFromSoDir(soDir.path), throwsStateError);
     });
   });
 }

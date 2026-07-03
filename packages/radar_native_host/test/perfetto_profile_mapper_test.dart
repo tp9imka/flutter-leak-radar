@@ -12,6 +12,7 @@ PerfettoRow row(
   int ac = 0,
   int fb = 0,
   int fc = 0,
+  int? relPc,
 }) => PerfettoRow(
   callsiteId: cid,
   depth: depth,
@@ -22,6 +23,7 @@ PerfettoRow row(
   allocCount: ac,
   freeBytes: fb,
   freeCount: fc,
+  relPc: relPc,
 );
 
 void main() {
@@ -96,7 +98,7 @@ void main() {
   });
 
   group('PerfettoRow.fromCells', () {
-    test('parses all 9 cells in column order', () {
+    test('parses all 10 cells in column order', () {
       final r = PerfettoRow.fromCells([
         '7',
         '1',
@@ -107,6 +109,7 @@ void main() {
         '2',
         '512',
         '1',
+        '6699',
       ]);
       expect(r.callsiteId, 7);
       expect(r.depth, 1);
@@ -117,6 +120,7 @@ void main() {
       expect(r.allocCount, 2);
       expect(r.freeBytes, 512);
       expect(r.freeCount, 1);
+      expect(r.relPc, 6699);
     });
 
     test('empty buildId cell maps to null', () {
@@ -130,6 +134,7 @@ void main() {
         '1',
         '0',
         '0',
+        '',
       ]);
       expect(r.buildId, isNull);
     });
@@ -145,9 +150,49 @@ void main() {
         '0',
         '0',
         '0',
+        '',
       ]);
       expect(r.function, '');
       expect(r.module, '');
+    });
+
+    test('empty relPc cell maps to null', () {
+      final r = PerfettoRow.fromCells([
+        '1',
+        '0',
+        'malloc',
+        'libc.so',
+        '',
+        '10',
+        '1',
+        '0',
+        '0',
+        '',
+      ]);
+      expect(r.relPc, isNull);
+    });
+  });
+
+  group('mapper synthesizes 0x<hex> from relPc', () {
+    test('name-less frame with relPc gets a 0x<hex> function', () {
+      final c = PerfettoProfileMapper(
+        capturedAt: when,
+      ).parse([row(1, 0, '', 'libflutter.so', relPc: 0x1a2b)]).callsites.single;
+      expect(c.frames.single.function, '0x1a2b');
+    });
+
+    test('named frame keeps its name even when relPc is present', () {
+      final c = PerfettoProfileMapper(
+        capturedAt: when,
+      ).parse([row(1, 0, 'malloc', 'libc.so', relPc: 5)]).callsites.single;
+      expect(c.frames.single.function, 'malloc');
+    });
+
+    test('name-less frame with no relPc stays empty', () {
+      final c = PerfettoProfileMapper(
+        capturedAt: when,
+      ).parse([row(1, 0, '', 'base.apk')]).callsites.single;
+      expect(c.frames.single.function, '');
     });
   });
 }

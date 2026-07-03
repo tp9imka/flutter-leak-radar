@@ -45,6 +45,10 @@ class _DesktopShellState extends State<DesktopShell> {
     const PerfettoTraceImporter(),
     deviceProbe: const AdbDeviceProbe(ProcessAdbRunner()),
     capture: AdbHeapprofdCapture(const ProcessAdbRunner()),
+    symbolStoreBuilder: SymbolStoreBuilder(
+      buildIdReader: const LlvmReadelfBuildIdReader(),
+      symbolizer: const LlvmSymbolizer(),
+    ),
   );
   late final VmServiceUriConnection _connection =
       widget.connection ?? VmServiceUriConnection();
