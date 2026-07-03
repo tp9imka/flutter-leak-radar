@@ -64,14 +64,23 @@ class _DesktopShellState extends State<DesktopShell> {
   }
 
   void _onConnectionChanged() {
-    setState(() {});
+    setState(() {
+      // Dropped connection while a locked (perf/stability) view was
+      // showing: fall back to a MEMORY view so no stale perf view lingers
+      // behind the re-locked rail.
+      if (!_connected && (_view.isPerf || _view.isStability)) {
+        _view = DesktopView.dumps;
+      }
+    });
     if (_connected) unawaited(_perf.refresh());
   }
 
   @override
   void dispose() {
     _connection.removeListener(_onConnectionChanged);
-    _connection.dispose();
+    // Only dispose a connection we created; an injected one belongs to the
+    // caller.
+    if (widget.connection == null) _connection.dispose();
     _perf.dispose();
     _workspace.dispose();
     _android.dispose();

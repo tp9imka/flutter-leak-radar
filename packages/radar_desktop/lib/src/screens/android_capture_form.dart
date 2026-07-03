@@ -95,6 +95,8 @@ class AndroidCaptureForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ready = devices.where((d) => d.isReady).toList();
+    final unready = devices.where((d) => !d.isReady).toList();
     return DecoratedBox(
       decoration: BoxDecoration(
         color: RadarColors.bgSurface,
@@ -131,30 +133,7 @@ class AndroidCaptureForm extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            if (devices.isEmpty)
-              Text(
-                'No device detected — connect one & enable USB debugging',
-                style: RadarTypography.caption,
-              )
-            else
-              DropdownButton<String>(
-                value: selectedSerial,
-                isExpanded: true,
-                dropdownColor: RadarColors.bgSurface,
-                style: RadarTypography.monoBody,
-                items: [
-                  for (final device in devices)
-                    DropdownMenuItem(
-                      value: device.serial,
-                      child: Text(device.label),
-                    ),
-                ],
-                onChanged: _busy
-                    ? null
-                    : (serial) {
-                        if (serial != null) onSelectDevice(serial);
-                      },
-              ),
+            ..._deviceSection(ready, unready),
             const SizedBox(height: 12),
             TextField(
               enabled: !_busy,
@@ -188,6 +167,16 @@ class AndroidCaptureForm extends StatelessWidget {
               ),
               const SizedBox(height: 10),
             ],
+            if (onCapture == null &&
+                !capturing &&
+                ready.isEmpty &&
+                devices.isNotEmpty) ...[
+              Text(
+                'Connect an authorized device to capture',
+                style: RadarTypography.caption,
+              ),
+              const SizedBox(height: 8),
+            ],
             FilledButton.icon(
               onPressed: onCapture,
               icon: const Icon(Icons.fiber_manual_record, size: 14),
@@ -206,6 +195,62 @@ class AndroidCaptureForm extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// The device row: an always-visible caption when [devices] is empty or
+  /// no device is ready, else the ready-only dropdown plus a caption
+  /// noting any not-ready devices left out of it.
+  List<Widget> _deviceSection(
+    List<AndroidDevice> ready,
+    List<AndroidDevice> unready,
+  ) {
+    if (devices.isEmpty) {
+      return [
+        Text(
+          'No device detected — connect one & enable USB debugging',
+          style: RadarTypography.caption,
+        ),
+      ];
+    }
+
+    if (ready.isEmpty) {
+      final anyUnauthorized = unready.any((d) => d.state == 'unauthorized');
+      return [
+        Text(
+          anyUnauthorized
+              ? 'Device unauthorized — accept the USB-debugging prompt on '
+                    'the device, then refresh'
+              : 'Device offline — reconnect it, then refresh',
+          style: RadarTypography.caption,
+        ),
+      ];
+    }
+
+    return [
+      DropdownButton<String>(
+        value: selectedSerial,
+        isExpanded: true,
+        dropdownColor: RadarColors.bgSurface,
+        style: RadarTypography.monoBody,
+        items: [
+          for (final device in ready)
+            DropdownMenuItem(value: device.serial, child: Text(device.label)),
+        ],
+        onChanged: _busy
+            ? null
+            : (serial) {
+                if (serial != null) onSelectDevice(serial);
+              },
+      ),
+      if (unready.isNotEmpty) ...[
+        const SizedBox(height: 4),
+        Text(
+          '${unready.length} other device(s) not ready '
+          '(unauthorized/offline)',
+          style: RadarTypography.caption,
+        ),
+      ],
+    ];
   }
 }
 

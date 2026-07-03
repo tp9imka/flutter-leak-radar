@@ -54,6 +54,37 @@ class _FakeDeviceProbe implements DeviceProbe {
   Future<List<AndroidDevice>> probe() async => const [device];
 }
 
+/// A ready device sorting *after* an unauthorized one, so resolution logic
+/// (Fix 3) is actually exercised rather than trivially picking the first
+/// entry.
+class _MixedDeviceProbe implements DeviceProbe {
+  const _MixedDeviceProbe();
+
+  static const unauthorized = AndroidDevice(
+    serial: 'UNAUTH',
+    state: 'unauthorized',
+  );
+  static const ready = AndroidDevice(
+    serial: 'READY',
+    state: 'device',
+    model: 'KATIM X4',
+    androidRelease: '15',
+  );
+
+  @override
+  Future<List<AndroidDevice>> probe() async => const [unauthorized, ready];
+}
+
+/// Only an unauthorized device — no ready device exists at all.
+class _UnauthorizedOnlyDeviceProbe implements DeviceProbe {
+  const _UnauthorizedOnlyDeviceProbe();
+
+  @override
+  Future<List<AndroidDevice>> probe() async => const [
+    AndroidDevice(serial: 'UNAUTH', state: 'unauthorized'),
+  ];
+}
+
 /// Stands in for a real `adb`-driven capture: writes dummy bytes to
 /// `outputPath` and records the last request so tests can assert the
 /// screen forwarded the right values, without ever shelling out to `adb`.
@@ -220,6 +251,54 @@ void main() {
 
       expect(find.textContaining('No device detected'), findsOneWidget);
       expect(find.byType(DropdownButton<String>), findsNothing);
+    });
+  });
+
+  group('device readiness (Fix 3)', () {
+    testWidgets(
+      'resolves the ready device even when it does not sort first, and '
+      'Capture enables once a package is entered',
+      (tester) async {
+        final controller = NativeProfilingController(
+          _FakeImporter(),
+          deviceProbe: const _MixedDeviceProbe(),
+          capture: _FakeCapture(),
+        );
+
+        await _pump(tester, controller);
+
+        final dropdown = tester.widget<DropdownButton<String>>(
+          find.byType(DropdownButton<String>),
+        );
+        expect(dropdown.value, _MixedDeviceProbe.ready.serial);
+
+        await tester.enterText(find.byType(TextField), 'com.katim.leak_lab');
+        await tester.pump();
+
+        final captureButton = tester.widget<FilledButton>(
+          _buttonLabeled('Capture'),
+        );
+        expect(captureButton.onPressed, isNotNull);
+      },
+    );
+
+    testWidgets('Capture stays disabled with only an unauthorized device, even '
+        'with a package entered', (tester) async {
+      final controller = NativeProfilingController(
+        _FakeImporter(),
+        deviceProbe: const _UnauthorizedOnlyDeviceProbe(),
+        capture: _FakeCapture(),
+      );
+
+      await _pump(tester, controller);
+
+      await tester.enterText(find.byType(TextField), 'com.katim.leak_lab');
+      await tester.pump();
+
+      final captureButton = tester.widget<FilledButton>(
+        _buttonLabeled('Capture'),
+      );
+      expect(captureButton.onPressed, isNull);
     });
   });
 }

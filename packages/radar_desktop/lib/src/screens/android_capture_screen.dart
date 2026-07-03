@@ -150,13 +150,15 @@ class _AndroidCaptureScreenState extends State<AndroidCaptureScreen> {
   }
 
   /// The serial that should be shown as selected: the user's pick if it is
-  /// still present in [devices], else the first device, else `null`.
+  /// still present AND ready, else the first ready device, else `null`
+  /// (no ready device → capture stays disabled).
   String? _resolveSerial(List<AndroidDevice> devices) {
+    final ready = devices.where((d) => d.isReady).toList();
     final selected = _selectedSerial;
-    if (selected != null && devices.any((d) => d.serial == selected)) {
+    if (selected != null && ready.any((d) => d.serial == selected)) {
       return selected;
     }
-    return devices.isEmpty ? null : devices.first.serial;
+    return ready.isEmpty ? null : ready.first.serial;
   }
 
   Widget _deviceCaptureSection() {
