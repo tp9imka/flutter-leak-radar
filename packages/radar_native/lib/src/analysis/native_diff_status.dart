@@ -19,20 +19,24 @@ enum NativeDiffStatus {
   flat,
 }
 
+/// Classifies a before/after still-live byte pair. Shared by
+/// [NativeAllocationDiff.status] (per-callsite) and `NativeModuleDiff.status`
+/// (per-module) so the two rollups never drift apart. Checked in order:
+/// `added` (new site), `gone` (removed site), then by the sign of the
+/// after-minus-before delta.
+NativeDiffStatus nativeDiffStatus(int beforeBytes, int afterBytes) {
+  if (beforeBytes == 0 && afterBytes > 0) return NativeDiffStatus.added;
+  if (afterBytes == 0 && beforeBytes > 0) return NativeDiffStatus.gone;
+  final growth = afterBytes - beforeBytes;
+  if (growth > 0) return NativeDiffStatus.grew;
+  if (growth < 0) return NativeDiffStatus.shrank;
+  return NativeDiffStatus.flat;
+}
+
 /// Derives a [NativeDiffStatus] from a [NativeAllocationDiff]'s still-live
 /// byte counts.
 extension NativeAllocationDiffStatus on NativeAllocationDiff {
-  /// Classifies this row. Checked in order: `added` (new site), `gone`
-  /// (removed site), then by the sign of [NativeAllocationDiff.growthBytes].
-  NativeDiffStatus get status {
-    if (beforeStillLiveBytes == 0 && afterStillLiveBytes > 0) {
-      return NativeDiffStatus.added;
-    }
-    if (afterStillLiveBytes == 0 && beforeStillLiveBytes > 0) {
-      return NativeDiffStatus.gone;
-    }
-    if (growthBytes > 0) return NativeDiffStatus.grew;
-    if (growthBytes < 0) return NativeDiffStatus.shrank;
-    return NativeDiffStatus.flat;
-  }
+  /// Classifies this row via [nativeDiffStatus].
+  NativeDiffStatus get status =>
+      nativeDiffStatus(beforeStillLiveBytes, afterStillLiveBytes);
 }
