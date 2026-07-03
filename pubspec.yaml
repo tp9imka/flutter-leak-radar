@@ -12,6 +12,7 @@ workspace:
   - packages/flutter_leak_radar_devtools
   - packages/radar_workbench
   - packages/radar_native
+  - packages/radar_native_host
   - packages/radar_desktop
   - packages/radarscope
   - packages/radar_ui
