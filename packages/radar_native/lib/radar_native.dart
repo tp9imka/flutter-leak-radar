@@ -8,6 +8,7 @@ export 'src/analysis/native_diff.dart';
 export 'src/analysis/native_diff_status.dart';
 export 'src/analysis/native_module.dart';
 export 'src/analysis/native_module_kind.dart';
+export 'src/analysis/native_module_summary.dart';
 export 'src/model/memory_session.dart';
 export 'src/model/native_allocation_diff.dart';
 export 'src/model/native_callsite.dart';
