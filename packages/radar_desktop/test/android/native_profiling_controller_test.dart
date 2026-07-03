@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radar_desktop/src/android/native_profiling_controller.dart';
 import 'package:radar_native/radar_native.dart';
+import 'package:radar_native_host/radar_native_host.dart';
 
 /// Canned "before" checkpoint: two callsites, each an allocator leaf frame
 /// (index 0, skipped by attribution) followed by the real caller frame.
@@ -136,6 +139,42 @@ class _FakeImporter implements NativeTraceImporter {
     final log = ffiLog;
     if (log == null) throw StateError('_FakeImporter has no ffi log');
     return log;
+  }
+}
+
+/// Fixed one-device probe result, enough to exercise [refreshDevices]
+/// without touching real `adb`.
+class _FakeDeviceProbe implements DeviceProbe {
+  @override
+  Future<List<AndroidDevice>> probe() async => const [
+    AndroidDevice(serial: 'DEV', state: 'device', model: 'KATIM X3M'),
+  ];
+}
+
+/// Stands in for a real `adb`-driven capture: writes [bytes] dummy bytes
+/// to `outputPath` (or throws, if [throwing]), and records the last call
+/// so tests can assert the controller forwarded the right request.
+class _FakeCapture implements NativeHeapCapture {
+  _FakeCapture({this.bytes = 2048, this.throwing = false});
+
+  final int bytes;
+  final bool throwing;
+
+  CaptureRequest? lastRequest;
+  String? lastOutputPath;
+
+  @override
+  Future<String> capture(
+    CaptureRequest request, {
+    required String outputPath,
+  }) async {
+    lastRequest = request;
+    lastOutputPath = outputPath;
+    if (throwing) throw Exception('adb capture failed');
+    File(outputPath)
+      ..createSync(recursive: true)
+      ..writeAsBytesSync(List.filled(bytes, 0));
+    return outputPath;
   }
 }
 
@@ -299,6 +338,140 @@ void main() {
 
       expect(controller.ffiLog, log);
       expect(controller.state, NativeImportState.idle);
+    });
+  });
+
+  group('canCapture', () {
+    test('true when both capture seams are injected', () {
+      final controller = NativeProfilingController(
+        _FakeImporter(),
+        deviceProbe: _FakeDeviceProbe(),
+        capture: _FakeCapture(),
+      );
+
+      expect(controller.canCapture, isTrue);
+    });
+
+    test('false when neither capture seam is injected', () {
+      final controller = NativeProfilingController(_FakeImporter());
+
+      expect(controller.canCapture, isFalse);
+    });
+  });
+
+  group('refreshDevices', () {
+    test('populates devices, ends idle, and notifies', () async {
+      final controller = NativeProfilingController(
+        _FakeImporter(),
+        deviceProbe: _FakeDeviceProbe(),
+        capture: _FakeCapture(),
+      );
+      var notifications = 0;
+      controller.addListener(() => notifications++);
+
+      await controller.refreshDevices();
+
+      expect(controller.devices, hasLength(1));
+      expect(controller.devices.single.serial, 'DEV');
+      expect(controller.captureState, CaptureState.idle);
+      expect(notifications, greaterThanOrEqualTo(1));
+    });
+
+    test('throws StateError when no device probe was injected', () {
+      final controller = NativeProfilingController(_FakeImporter());
+
+      expect(controller.refreshDevices(), throwsStateError);
+    });
+
+    test('clears a stale captureError after a successful refresh', () async {
+      final controller = NativeProfilingController(
+        _FakeImporter(),
+        deviceProbe: _FakeDeviceProbe(),
+        capture: _FakeCapture(throwing: true),
+      );
+
+      // Drive the controller into a captureError state first.
+      await controller.captureAndImport(
+        const CaptureRequest(packageId: 'com.example.app'),
+      );
+      expect(controller.captureError, isNotNull);
+
+      await controller.refreshDevices();
+
+      expect(controller.captureError, isNull);
+      expect(controller.captureState, CaptureState.idle);
+    });
+  });
+
+  group('captureAndImport', () {
+    test('appends and selects a checkpoint on a successful capture', () async {
+      final before = _beforeProfile();
+      final fakeCapture = _FakeCapture(bytes: 4096);
+      final controller = NativeProfilingController(
+        _FakeImporter(profilesByLabel: {'com.katim.leak_lab': before}),
+        deviceProbe: _FakeDeviceProbe(),
+        capture: fakeCapture,
+      );
+      const request = CaptureRequest(
+        packageId: 'com.katim.leak_lab',
+        mode: CaptureMode.startup,
+        durationMs: 12000,
+        serial: 'DEV',
+      );
+
+      await controller.captureAndImport(request);
+
+      expect(controller.checkpoints, [before]);
+      expect(controller.selectedIndex, 0);
+      expect(controller.captureState, CaptureState.idle);
+      expect(fakeCapture.lastRequest, same(request));
+      expect(fakeCapture.lastOutputPath, isNotEmpty);
+    });
+
+    test(
+      'rejects a too-small capture without importing a checkpoint',
+      () async {
+        final controller = NativeProfilingController(
+          _FakeImporter(),
+          deviceProbe: _FakeDeviceProbe(),
+          capture: _FakeCapture(bytes: 10),
+        );
+
+        await controller.captureAndImport(
+          const CaptureRequest(packageId: 'com.example.app'),
+        );
+
+        expect(controller.captureState, CaptureState.error);
+        expect(controller.captureError, contains('no data'));
+        expect(controller.checkpoints, isEmpty);
+      },
+    );
+
+    test('surfaces a thrown capture error without importing', () async {
+      final controller = NativeProfilingController(
+        _FakeImporter(),
+        deviceProbe: _FakeDeviceProbe(),
+        capture: _FakeCapture(throwing: true),
+      );
+
+      await controller.captureAndImport(
+        const CaptureRequest(packageId: 'com.example.app'),
+      );
+
+      expect(controller.captureState, CaptureState.error);
+      expect(controller.captureError, isNotNull);
+      expect(controller.checkpoints, isEmpty);
+    });
+
+    test('throws StateError when no capture seam was injected', () {
+      final controller = NativeProfilingController(_FakeImporter());
+
+      expect(
+        controller.captureAndImport(
+          const CaptureRequest(packageId: 'com.example.app'),
+        ),
+        throwsStateError,
+      );
     });
   });
 }

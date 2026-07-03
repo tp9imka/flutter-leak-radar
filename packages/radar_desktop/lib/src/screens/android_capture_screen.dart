@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:radar_native_host/radar_native_host.dart';
 import 'package:radar_ui/radar_ui.dart';
 
 import '../android/native_profiling_controller.dart';
+import 'android_capture_form.dart';
 
 /// File types accepted by each import action.
 const List<XTypeGroup> _traceTypes = [
@@ -20,10 +23,11 @@ const List<XTypeGroup> _ffiLogTypes = [
 
 /// Entry point for capturing a new heapprofd trace and importing on-disk
 /// traces, symbol stores, and FFI allocation logs into the workspace (see
-/// `docs/flutter_radar_android_profiling` §4.6). Everything here runs
-/// offline against already-captured files; driving `adb` + heapprofd
-/// against a connected device is Phase 4 — the "Run device capture" action
-/// is rendered disabled until then.
+/// `docs/flutter_radar_android_profiling` §4.6). Import actions always run
+/// offline against already-captured files; the device-capture flow drives
+/// `adb` + heapprofd against a connected device and is only offered when
+/// [NativeProfilingController.canCapture] is true (i.e. both capture seams
+/// were injected for this build/host).
 class AndroidCaptureScreen extends StatefulWidget {
   const AndroidCaptureScreen({super.key, required this.controller});
 
@@ -36,8 +40,24 @@ class AndroidCaptureScreen extends StatefulWidget {
 class _AndroidCaptureScreenState extends State<AndroidCaptureScreen> {
   NativeProfilingController get _controller => widget.controller;
 
+  String? _selectedSerial;
+  String _packageId = '';
+  CaptureMode _mode = CaptureMode.startup;
+  int _durationMs = 30000;
+  bool _justCaptured = false;
+
   static String _labelFor(String path) =>
       path.split(Platform.pathSeparator).last;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_controller.canCapture) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_refreshDevices());
+      });
+    }
+  }
 
   /// Imports the Perfetto trace at [path], or opens a file picker for one
   /// when [path] is omitted (the button path vs. the drag-drop path).
@@ -84,6 +104,108 @@ class _AndroidCaptureScreenState extends State<AndroidCaptureScreen> {
     _showError(context, 'Import failed: ${_controller.errorMessage}');
   }
 
+  /// Refreshes the connected-device list, then reports a failure if one
+  /// occurred. Called once on first build and again from the refresh
+  /// button.
+  Future<void> _refreshDevices() async {
+    await _controller.refreshDevices();
+    _reportCaptureIfFailed();
+  }
+
+  /// Runs a device capture against [serial] with the form's current
+  /// package/mode/duration, then reports success (an inline note) or
+  /// failure (a [SnackBar]).
+  Future<void> _runCapture(String serial) async {
+    setState(() => _justCaptured = false);
+    final request = CaptureRequest(
+      packageId: _packageId.trim(),
+      mode: _mode,
+      durationMs: _durationMs,
+      serial: serial,
+    );
+    await _controller.captureAndImport(request);
+    if (!mounted) return;
+    if (_controller.captureState == CaptureState.error ||
+        _controller.state == NativeImportState.error) {
+      _reportCaptureIfFailed();
+      return;
+    }
+    setState(() => _justCaptured = true);
+  }
+
+  /// Surfaces the most recent capture-flow failure via a [SnackBar]: either
+  /// the probe/capture layer (`captureState`) or a downstream trace-parse
+  /// failure surfaced through the shared import `state` — a successful
+  /// capture is funneled into `importTrace`, which never rethrows on its
+  /// own.
+  void _reportCaptureIfFailed() {
+    if (!context.mounted) return;
+    if (_controller.captureState == CaptureState.error) {
+      _showError(context, 'Capture failed: ${_controller.captureError}');
+      return;
+    }
+    if (_controller.state == NativeImportState.error) {
+      _showError(context, 'Import failed: ${_controller.errorMessage}');
+    }
+  }
+
+  /// The serial that should be shown as selected: the user's pick if it is
+  /// still present in [devices], else the first device, else `null`.
+  String? _resolveSerial(List<AndroidDevice> devices) {
+    final selected = _selectedSerial;
+    if (selected != null && devices.any((d) => d.serial == selected)) {
+      return selected;
+    }
+    return devices.isEmpty ? null : devices.first.serial;
+  }
+
+  Widget _deviceCaptureSection() {
+    if (!_controller.canCapture) return const NoCaptureDeviceHint();
+
+    final devices = _controller.devices;
+    final resolvedSerial = _resolveSerial(devices);
+    final captureState = _controller.captureState;
+    final busy =
+        captureState == CaptureState.capturing ||
+        captureState == CaptureState.probing;
+
+    VoidCallback? onCapture;
+    if (!busy && _packageId.trim().isNotEmpty) {
+      final serial = resolvedSerial;
+      if (serial != null) {
+        onCapture = () => unawaited(_runCapture(serial));
+      }
+    }
+
+    return AndroidCaptureForm(
+      devices: devices,
+      selectedSerial: resolvedSerial,
+      probing: captureState == CaptureState.probing,
+      capturing: captureState == CaptureState.capturing,
+      mode: _mode,
+      durationMs: _durationMs,
+      justCaptured: _justCaptured,
+      onSelectDevice: (serial) => setState(() {
+        _selectedSerial = serial;
+        _justCaptured = false;
+      }),
+      onRefreshDevices: busy ? null : () => unawaited(_refreshDevices()),
+      onPackageChanged: (value) => setState(() {
+        _packageId = value;
+        _justCaptured = false;
+      }),
+      onModeChanged: (mode) => setState(() {
+        _mode = mode;
+        _justCaptured = false;
+      }),
+      onDurationChanged: (ms) => setState(() {
+        _durationMs = ms;
+        _justCaptured = false;
+      }),
+      onCapture: onCapture,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -109,13 +231,7 @@ class _AndroidCaptureScreenState extends State<AndroidCaptureScreen> {
                   onPressed: _importTrace,
                 ),
                 const SizedBox(height: 10),
-                _ImportActionRow(
-                  icon: Icons.phone_android,
-                  label: 'Run device capture',
-                  helper: '(Phase 4)',
-                  onPressed: null,
-                  tooltip: 'adb + heapprofd device capture lands in Phase 4',
-                ),
+                _deviceCaptureSection(),
                 const SizedBox(height: 20),
                 Text('Optional inputs', style: RadarTypography.monoLabel),
                 const SizedBox(height: 8),
@@ -168,23 +284,19 @@ class _PrerequisitesNote extends StatelessWidget {
   }
 }
 
-/// One import action: a button plus its always-visible helper text,
-/// optionally wrapped in a [Tooltip] (used for the disabled device-capture
-/// action).
+/// One import action: a button plus its always-visible helper text.
 class _ImportActionRow extends StatelessWidget {
   const _ImportActionRow({
     required this.icon,
     required this.label,
     required this.helper,
     required this.onPressed,
-    this.tooltip,
   });
 
   final IconData icon;
   final String label;
   final String helper;
   final Future<void> Function()? onPressed;
-  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -207,9 +319,7 @@ class _ImportActionRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
-            tooltip == null
-                ? button
-                : Tooltip(message: tooltip!, child: button),
+            button,
             const SizedBox(width: 12),
             Expanded(child: Text(helper, style: RadarTypography.monoLabel)),
           ],

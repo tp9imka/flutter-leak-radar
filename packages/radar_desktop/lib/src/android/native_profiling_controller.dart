@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:radar_native/radar_native.dart';
+import 'package:radar_native_host/radar_native_host.dart';
 
 /// Seam for turning on-disk native-profiling artifacts into `radar_native`
 /// models: heapprofd `.pftrace` checkpoints, symbol-store JSON, and FFI
@@ -29,6 +32,26 @@ enum NativeImportState {
   error,
 }
 
+/// Lifecycle of the most recent on-device capture action. Kept separate
+/// from [NativeImportState]: a capture spans probing for devices and
+/// running heapprofd on the device before an import ever starts, so it
+/// needs its own idle/probing/capturing/error states.
+enum CaptureState {
+  /// No capture or device probe in flight.
+  idle,
+
+  /// [NativeProfilingController.refreshDevices] is awaiting [DeviceProbe].
+  probing,
+
+  /// [NativeProfilingController.captureAndImport] is awaiting
+  /// [NativeHeapCapture].
+  capturing,
+
+  /// The last probe or capture failed; see
+  /// [NativeProfilingController.captureError].
+  error,
+}
+
 /// Owns the offline Android native-profiling workspace: imported heapprofd
 /// checkpoints, an optional symbol store to resolve them, and an optional
 /// FFI allocation log — the state behind the still-live table, compare, and
@@ -38,9 +61,21 @@ enum NativeImportState {
 /// read via [selectedSymbolized] so re-importing a symbol store instantly
 /// re-resolves every checkpoint without re-parsing traces.
 final class NativeProfilingController extends ChangeNotifier {
-  NativeProfilingController(this._importer);
+  NativeProfilingController(
+    this._importer, {
+    DeviceProbe? deviceProbe,
+    NativeHeapCapture? capture,
+  }) : _deviceProbe = deviceProbe,
+       _capture = capture;
 
   final NativeTraceImporter _importer;
+
+  /// `null` in builds/environments without on-device capture support
+  /// (e.g. no `adb` on this host); see [canCapture].
+  final DeviceProbe? _deviceProbe;
+
+  /// `null` alongside [_deviceProbe]; see [canCapture].
+  final NativeHeapCapture? _capture;
 
   List<NativeHeapProfile> _checkpoints = const [];
   SymbolStore? _symbolStore;
@@ -48,6 +83,14 @@ final class NativeProfilingController extends ChangeNotifier {
   int _selectedIndex = 0;
   NativeImportState _state = NativeImportState.idle;
   String? _errorMessage;
+
+  List<AndroidDevice> _devices = const [];
+  CaptureState _captureState = CaptureState.idle;
+  String? _captureError;
+
+  /// A `.pftrace` this small is almost certainly an empty/failed capture
+  /// (e.g. wrong package id) rather than a real heap profile.
+  static const _minCaptureBytes = 1024;
 
   /// Imported checkpoints in import order.
   List<NativeHeapProfile> get checkpoints => List.unmodifiable(_checkpoints);
@@ -69,6 +112,22 @@ final class NativeProfilingController extends ChangeNotifier {
 
   /// True once a non-empty [symbolStore] has been imported.
   bool get isSymbolized => _symbolStore != null && !_symbolStore!.isEmpty;
+
+  /// True when both capture seams were injected, i.e. on-device capture
+  /// is available in this build/environment. Callers should gate
+  /// capture UI on this rather than calling [refreshDevices] or
+  /// [captureAndImport] speculatively.
+  bool get canCapture => _deviceProbe != null && _capture != null;
+
+  /// Devices found by the most recent [refreshDevices] call, or `const
+  /// []` before the first probe.
+  List<AndroidDevice> get devices => List.unmodifiable(_devices);
+
+  /// Lifecycle of the most recent device probe or capture action.
+  CaptureState get captureState => _captureState;
+
+  /// Message from the most recent probe or capture failure, or `null`.
+  String? get captureError => _captureError;
 
   /// The raw checkpoint at [selectedIndex], or `null` before any import.
   NativeHeapProfile? get selected =>
@@ -135,6 +194,63 @@ final class NativeProfilingController extends ChangeNotifier {
     }
   }
 
+  /// Probes for connected Android devices, populating [devices]. Throws
+  /// [StateError] if no [DeviceProbe] was injected — callers should gate
+  /// on [canCapture] before offering this in the UI, so hitting this path
+  /// means a programmer error, not a runtime condition to swallow.
+  Future<void> refreshDevices() async {
+    final probe = _deviceProbe;
+    if (probe == null) {
+      throw StateError('NativeProfilingController has no DeviceProbe');
+    }
+    _captureError = null;
+    _captureState = CaptureState.probing;
+    notifyListeners();
+    try {
+      _devices = await probe.probe();
+      _captureState = CaptureState.idle;
+      notifyListeners();
+    } catch (error) {
+      _failCapture(error);
+    }
+  }
+
+  /// Runs an on-device heapprofd capture per [request], then imports the
+  /// resulting trace via [importTrace] and selects it — the one-tap path
+  /// from "device plugged in" to "checkpoint on screen". Throws
+  /// [StateError] if no [NativeHeapCapture] was injected; see
+  /// [refreshDevices] for why that's a throw rather than a no-op.
+  Future<void> captureAndImport(CaptureRequest request) async {
+    final capture = _capture;
+    if (capture == null) {
+      throw StateError('NativeProfilingController has no NativeHeapCapture');
+    }
+    _captureState = CaptureState.capturing;
+    _captureError = null;
+    notifyListeners();
+    Directory? tempDir;
+    try {
+      tempDir = Directory.systemTemp.createTempSync('radar_capture');
+      final outputPath = '${tempDir.path}/capture.pftrace';
+      final path = await capture.capture(request, outputPath: outputPath);
+      if (File(path).lengthSync() <= _minCaptureBytes) {
+        _captureState = CaptureState.error;
+        _captureError =
+            'Capture produced no data — is ${request.packageId} installed '
+            'and correct?';
+        notifyListeners();
+        return;
+      }
+      await importTrace(path, label: request.packageId);
+      _captureState = CaptureState.idle;
+      notifyListeners();
+    } catch (error) {
+      _failCapture(error);
+    } finally {
+      tempDir?.deleteSync(recursive: true);
+    }
+  }
+
   /// Makes [index] the active checkpoint for [selected]/[selectedSummaries].
   /// Out-of-range indexes are ignored.
   void selectCheckpoint(int index) {
@@ -163,6 +279,12 @@ final class NativeProfilingController extends ChangeNotifier {
   void _failImport(Object error) {
     _state = NativeImportState.error;
     _errorMessage = error.toString();
+    notifyListeners();
+  }
+
+  void _failCapture(Object error) {
+    _captureState = CaptureState.error;
+    _captureError = error.toString();
     notifyListeners();
   }
 }
