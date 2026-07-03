@@ -382,6 +382,25 @@ void main() {
 
       expect(controller.refreshDevices(), throwsStateError);
     });
+
+    test('clears a stale captureError after a successful refresh', () async {
+      final controller = NativeProfilingController(
+        _FakeImporter(),
+        deviceProbe: _FakeDeviceProbe(),
+        capture: _FakeCapture(throwing: true),
+      );
+
+      // Drive the controller into a captureError state first.
+      await controller.captureAndImport(
+        const CaptureRequest(packageId: 'com.example.app'),
+      );
+      expect(controller.captureError, isNotNull);
+
+      await controller.refreshDevices();
+
+      expect(controller.captureError, isNull);
+      expect(controller.captureState, CaptureState.idle);
+    });
   });
 
   group('captureAndImport', () {

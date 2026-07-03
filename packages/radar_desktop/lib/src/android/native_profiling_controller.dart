@@ -203,6 +203,7 @@ final class NativeProfilingController extends ChangeNotifier {
     if (probe == null) {
       throw StateError('NativeProfilingController has no DeviceProbe');
     }
+    _captureError = null;
     _captureState = CaptureState.probing;
     notifyListeners();
     try {
@@ -227,10 +228,10 @@ final class NativeProfilingController extends ChangeNotifier {
     _captureState = CaptureState.capturing;
     _captureError = null;
     notifyListeners();
+    Directory? tempDir;
     try {
-      final outputPath =
-          '${Directory.systemTemp.createTempSync('radar_capture').path}'
-          '/capture.pftrace';
+      tempDir = Directory.systemTemp.createTempSync('radar_capture');
+      final outputPath = '${tempDir.path}/capture.pftrace';
       final path = await capture.capture(request, outputPath: outputPath);
       if (File(path).lengthSync() <= _minCaptureBytes) {
         _captureState = CaptureState.error;
@@ -245,6 +246,8 @@ final class NativeProfilingController extends ChangeNotifier {
       notifyListeners();
     } catch (error) {
       _failCapture(error);
+    } finally {
+      tempDir?.deleteSync(recursive: true);
     }
   }
 
