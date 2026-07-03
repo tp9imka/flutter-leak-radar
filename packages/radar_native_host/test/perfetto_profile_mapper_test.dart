@@ -28,10 +28,10 @@ void main() {
   final when = DateTime.utc(2026, 7, 3);
   test('one callsite, multi-frame stack ordered leaf-first', () {
     final rows = [
+      row(7, 2, '', 'base.apk', ab: 1024, ac: 2),
       row(7, 0, 'malloc', 'libc.so', ab: 1024, ac: 2, fb: 0, fc: 0),
       row(7, 1, 'flutter::Foo', 'libflutter.so', build: 'abc', ab: 1024, ac: 2),
-      row(7, 2, '', 'base.apk', ab: 1024, ac: 2),
-    ];
+    ]; // fed out of depth order; mapper must sort leaf-first itself
     final p = PerfettoProfileMapper(
       capturedAt: when,
     ).parse(rows, label: 'after');
@@ -92,5 +92,62 @@ void main() {
     ).parse(<PerfettoRow>[]);
     expect(p.meta.pid, 42);
     expect(p.meta.package, 'com.x');
+    expect(p.meta.samplingIntervalBytes, 4096);
+  });
+
+  group('PerfettoRow.fromCells', () {
+    test('parses all 9 cells in column order', () {
+      final r = PerfettoRow.fromCells([
+        '7',
+        '1',
+        'flutter::Foo',
+        'libflutter.so',
+        'abc123',
+        '1024',
+        '2',
+        '512',
+        '1',
+      ]);
+      expect(r.callsiteId, 7);
+      expect(r.depth, 1);
+      expect(r.function, 'flutter::Foo');
+      expect(r.module, 'libflutter.so');
+      expect(r.buildId, 'abc123');
+      expect(r.allocBytes, 1024);
+      expect(r.allocCount, 2);
+      expect(r.freeBytes, 512);
+      expect(r.freeCount, 1);
+    });
+
+    test('empty buildId cell maps to null', () {
+      final r = PerfettoRow.fromCells([
+        '1',
+        '0',
+        'malloc',
+        'libc.so',
+        '',
+        '10',
+        '1',
+        '0',
+        '0',
+      ]);
+      expect(r.buildId, isNull);
+    });
+
+    test('empty function/module cells pass through as empty strings', () {
+      final r = PerfettoRow.fromCells([
+        '1',
+        '0',
+        '',
+        '',
+        '',
+        '0',
+        '0',
+        '0',
+        '0',
+      ]);
+      expect(r.function, '');
+      expect(r.module, '');
+    });
   });
 }
