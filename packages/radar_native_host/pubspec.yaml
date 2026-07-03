@@ -2,6 +2,7 @@ name: radar_native_host
 description: >-
   Host-side parser turning heapprofd .pftrace captures into radar_native
   NativeHeapProfile checkpoints.
+version: 0.1.0
 publish_to: none
 
 environment:
