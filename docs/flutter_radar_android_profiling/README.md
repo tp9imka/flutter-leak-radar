@@ -45,12 +45,12 @@ What's imported + fidelity state + quick totals + entry points. States (all in t
 Ranked table, **primary grouping by module**, each row **expandable to its call sites**. Density and scannability matter most here.
 - Columns: **module ▸ call site · still-live bytes · alloc count · Δ vs previous checkpoint**. **Sortable** (still-live / growth / allocs).
 - A **checkpoint picker** (which snapshot to view).
-- Modules are color-tagged by kind — **app** (cyan), **GPU driver** (amber, always also text-labelled "GPU driver" so it's never colour-only), **engine** (grey), **plugin** (green). GPU/driver modules are **first-class rows in this lane** — there is deliberately **no separate images/textures tracker** in v1.
-- Expanded call-site rows show the top frame at the **current fidelity** (module-only vs function name) with a micro state-tag, still-live, allocs, and a `›` into detail.
+- Modules are color-tagged by kind — **app** (cyan `#5ad1e6`), **GPU driver** (amber `#f5b54a`, always also text-labelled "GPU driver" so it's never colour-only), **engine** (grey `#8fa0a6`), **plugin** (green `#2fe39b`), **runtime/system** (grey `#5f7178`). All five appear in the legend, and each row's mini-bar matches its dot colour. GPU/driver modules are **first-class rows in this lane** — there is deliberately **no separate images/textures tracker** in v1.
+- Expanded call-site rows show the top frame at the **current fidelity** (module-only vs function name) with a micro state-tag, still-live, allocs, and a `›` into detail. Call-site totals are **per-checkpoint** — a module's sites always sum to the module's own displayed number at the selected checkpoint.
 - Growth colour: red = grew, green = shrank.
 
 ### 4.3 Checkpoint compare (diff)
-Two-picker (A → B), mirroring the existing Dart-heap compare. Per module: **status = ADDED / GREW / SHRANK / GONE** (added & grew red; shrank & gone green), plus A bytes, B bytes, Δ bytes. Sorted by |Δ|. Header shows total native Δ. This is where "is it getting worse" is answered. (The seed data includes an *added* module — a new WebRTC leak — and a *gone* one — a freed tflite buffer — so all four statuses are visible.)
+Two-picker (A → B), mirroring the existing Dart-heap compare. Per module: **status = ADDED / GREW / SHRANK / GONE** (added & grew red; shrank & gone green), plus A bytes, B bytes, Δ bytes (Δ also carries the red/green semantic colour). Sorted by |Δ|. Header shows total native Δ. This is where "is it getting worse" is answered. Zero-delta / 0→0 rows are **suppressed** (no undocumented FLAT state). Seed data makes all four statuses reachable at the default 00h→24h: *added* (WebRTC), *grew* (base.apk, GPU, engine), *shrank* (libimage_plugin — a released cache), *gone* (tflite buffer).
 
 ### 4.4 Callsite / module detail (drill-down)
 - Module + kind; **still-live** and **live allocations** tiles (both *measured*).

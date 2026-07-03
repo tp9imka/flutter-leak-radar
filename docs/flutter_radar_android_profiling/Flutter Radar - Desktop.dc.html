@@ -463,7 +463,7 @@
             <span style="font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px;">Native still-live</span>
             <select onChange="{{ setACp }}" value="{{ aCp }}" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#e7eef0; background:#11171a; border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:5px 9px;"><sc-for list="{{ cpOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.id }}">{{ o.name }}</option></sc-for></select>
             <div style="display:flex; align-items:center; gap:5px; margin-left:4px;"><span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#5f7178;">sort</span><sc-for list="{{ nSortChips }}" as="c" hint-placeholder-count="3"><button type="button" onClick="{{ c.set }}" style="{{ c.style }}">{{ c.label }}</button></sc-for></div>
-            <span style="margin-left:auto; display:flex; align-items:center; gap:10px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#5f7178;"><span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:8px; height:8px; border-radius:2px; background:#5ad1e6;"></span>app</span><span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:8px; height:8px; border-radius:2px; background:#f5b54a;"></span>GPU</span><span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:8px; height:8px; border-radius:2px; background:#8fa0a6;"></span>engine</span><span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:8px; height:8px; border-radius:2px; background:#2fe39b;"></span>plugin</span></span>
+            <span style="margin-left:auto; display:flex; align-items:center; gap:10px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#5f7178;"><span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:8px; height:8px; border-radius:2px; background:#5ad1e6;"></span>app</span><span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:8px; height:8px; border-radius:2px; background:#f5b54a;"></span>GPU</span><span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:8px; height:8px; border-radius:2px; background:#8fa0a6;"></span>engine</span><span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:8px; height:8px; border-radius:2px; background:#2fe39b;"></span>plugin</span><span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:8px; height:8px; border-radius:2px; background:#5f7178;"></span>runtime</span></span>
           </div>
           <div style="display:grid; grid-template-columns:2.6fr 1.1fr 0.9fr 1.1fr; gap:10px; padding:8px 16px; background:#0b0f11; border-bottom:1px solid rgba(255,255,255,0.08); font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#5f7178;">
             <span>module ▸ call site</span><span style="text-align:right;">still-live</span><span style="text-align:right;">allocs</span><span style="text-align:right;">Δ prev cp</span>
@@ -746,29 +746,32 @@ class Component extends DCLogic {
     { id:1, name:'trace_06h.pftrace', ts:'Jun 24 · 15:00', dev:'Pixel 8 · android 14' },
     { id:2, name:'trace_24h.pftrace', ts:'Jun 25 · 09:00', dev:'Pixel 8 · android 14' },
   ];
-  // live = still-live bytes (allocated − freed) per checkpoint [cp0,cp1,cp2]; fr = [module, function|null]
+  // live = still-live bytes (allocated − freed) per checkpoint [cp0,cp1,cp2]; call-site live/allocs are ALSO per-checkpoint arrays so a module's sites sum to the module at every checkpoint. fr = [module, function|null]
   NATIVE = [
     { mod:'base.apk', kind:'app', klabel:'App', live:[12.6e6,28.4e6,68.2e6], allocs:[820,1240,3180], cs:[
-      { id:'cs1', live:41.0e6, allocs:1920, fr:[['base.apk','ChatImageCache::store'],['base.apk','MessageRepo::cacheAttachment'],['libflutter.so','flutter::PlatformChannel::Dispatch']] },
-      { id:'cs2', live:19.4e6, allocs:880, fr:[['base.apk','AudioBuffer::allocate'],['base.apk','CallSession::start']] },
-      { id:'cs3', live:7.8e6, allocs:380, fr:[['base.apk','JniString::toNative']] },
+      { id:'cs1', live:[7.6e6,17.0e6,41.0e6], allocs:[400,700,1920], fr:[['base.apk','ChatImageCache::store'],['base.apk','MessageRepo::cacheAttachment'],['libflutter.so','flutter::PlatformChannel::Dispatch']] },
+      { id:'cs2', live:[3.6e6,8.4e6,19.4e6], allocs:[280,400,880], fr:[['base.apk','AudioBuffer::allocate'],['base.apk','CallSession::start']] },
+      { id:'cs3', live:[1.4e6,3.0e6,7.8e6], allocs:[140,140,380], fr:[['base.apk','JniString::toNative']] },
     ]},
     { mod:'vulkan.adreno.so', kind:'gpu', klabel:'GPU driver', live:[22.1e6,24.0e6,30.5e6], allocs:[410,440,560], cs:[
-      { id:'g1', live:24.0e6, allocs:410, fr:[['vulkan.adreno.so',null]] },
-      { id:'g2', live:6.5e6, allocs:150, fr:[['vulkan.adreno.so',null]] },
+      { id:'g1', live:[17.0e6,18.5e6,24.0e6], allocs:[300,320,410], fr:[['vulkan.adreno.so',null]] },
+      { id:'g2', live:[5.1e6,5.5e6,6.5e6], allocs:[110,120,150], fr:[['vulkan.adreno.so',null]] },
     ]},
     { mod:'libflutter.so', kind:'engine', klabel:'Engine', live:[40.2e6,43.8e6,46.1e6], allocs:[2600,2700,2760], cs:[
-      { id:'f1', live:28.0e6, allocs:1800, fr:[['libflutter.so','tonic::DartState::Current'],['libflutter.so','flutter::UIDartState::Current']] },
-      { id:'f2', live:18.1e6, allocs:960, fr:[['libflutter.so',null]] },
+      { id:'f1', live:[24.0e6,26.0e6,28.0e6], allocs:[1700,1750,1800], fr:[['libflutter.so','tonic::DartState::Current'],['libflutter.so','flutter::UIDartState::Current']] },
+      { id:'f2', live:[16.2e6,17.8e6,18.1e6], allocs:[900,950,960], fr:[['libflutter.so',null]] },
     ]},
     { mod:'libwebrtc.so', kind:'plugin', klabel:'Plugin', live:[0,0,14.0e6], allocs:[0,0,610], cs:[
-      { id:'w1', live:14.0e6, allocs:610, fr:[['libwebrtc.so','webrtc::VideoFrameBuffer::Create'],['libwebrtc.so',null]] },
+      { id:'w1', live:[0,0,14.0e6], allocs:[0,0,610], fr:[['libwebrtc.so','webrtc::VideoFrameBuffer::Create'],['libwebrtc.so',null]] },
+    ]},
+    { mod:'libimage_plugin.so', kind:'plugin', klabel:'Plugin', live:[16.0e6,10.0e6,8.0e6], allocs:[300,200,160], cs:[
+      { id:'p1', live:[16.0e6,10.0e6,8.0e6], allocs:[300,200,160], fr:[['libimage_plugin.so','ImagePool::retain'],['libimage_plugin.so',null]] },
     ]},
     { mod:'libc++_shared.so', kind:'system', klabel:'Runtime', live:[6.1e6,6.3e6,7.0e6], allocs:[520,530,560], cs:[
-      { id:'r1', live:7.0e6, allocs:560, fr:[['libc++_shared.so','std::__ndk1::__libcpp_allocate']] },
+      { id:'r1', live:[6.1e6,6.3e6,7.0e6], allocs:[520,530,560], fr:[['libc++_shared.so','std::__ndk1::__libcpp_allocate']] },
     ]},
     { mod:'libtflite.so', kind:'plugin', klabel:'Plugin', live:[5.0e6,5.0e6,0], allocs:[120,120,0], cs:[
-      { id:'t1', live:0, allocs:0, fr:[['libtflite.so','tflite::Interpreter::AllocateTensors']] },
+      { id:'t1', live:[5.0e6,5.0e6,0], allocs:[120,120,0], fr:[['libtflite.so','tflite::Interpreter::AllocateTensors']] },
     ]},
   ];
   // ffi lane — only when an ffi allocation log is imported. Each block carries a real Dart stack.
@@ -891,10 +894,10 @@ class Component extends DCLogic {
     const frameBars=fr.map(v=>({h:Math.max(8,Math.round(v/frMx*100))+'%', bg:v>16?'#ff5d6c':v>10?'#f5b54a':'rgba(47,227,155,0.45)'}));
 
     // ===================== ANDROID NATIVE PROFILING =====================
-    const kColor=(k)=> k==='app'?'#5ad1e6' : k==='gpu'?'#f5b54a' : k==='plugin'?'#2fe39b' : k==='engine'?'#8fa0a6' : '#7d8e94';
-    // fidelity of a frame given whether a symbol store is loaded
+    const kColor=(k)=> k==='app'?'#5ad1e6' : k==='gpu'?'#f5b54a' : k==='plugin'?'#2fe39b' : k==='engine'?'#8fa0a6' : k==='system'?'#5f7178' : '#8fa0a6';
+    // fidelity of a frame given whether a symbol store is loaded — module-only & vendor-unresolved are BOTH amber (not-fully-symbolized); only fully-resolved is green
     const frameLabel=(f)=> !s.aSymbols ? f[0] : (f[1] ? f[1] : f[0]+' · vendor');
-    const fnState=(f)=> !s.aSymbols ? {t:'module-only', c:'#5f7178'} : (f[1] ? {t:'symbolized', c:'#2fe39b'} : {t:'unsymbolized', c:'#f5b54a'});
+    const fnState=(f)=> !s.aSymbols ? {t:'module-only', c:'#f5b54a'} : (f[1] ? {t:'symbolized', c:'#2fe39b'} : {t:'unsymbolized', c:'#f5b54a'});
     const cpi=s.aCp;
     // native still-live overview rows for active checkpoint
     const liveModules=this.NATIVE.filter(m=>m.live[cpi]>0);
@@ -904,10 +907,10 @@ class Component extends DCLogic {
       return { mod:m.mod, kind:m.kind, klabel:m.klabel, kc:kColor(m.kind), isGpu:m.kind==='gpu',
         live:this._bytes(live), liveRaw:live, allocs:this._n(m.allocs[cpi]), allocsRaw:m.allocs[cpi],
         growth:this._bytesD(g), gRaw:g, gColor:g>0?'#ff5d6c':g<0?'#2fe39b':'#5f7178',
-        barW:Math.round(live/maxLive*100)+'%', barBg:m.kind==='gpu'?'#f5b54a':m.kind==='app'?'#5ad1e6':'rgba(47,227,155,0.35)',
+        barW:Math.round(live/maxLive*100)+'%', barBg:kColor(m.kind),
         expanded:s.aExpand===m.mod, caret:s.aExpand===m.mod?'▾':'▸',
         toggle:()=>this.setState(p=>({aExpand:p.aExpand===m.mod?null:m.mod})),
-        cs:m.cs.filter(c=>c.live>0).map(c=>{ const st=fnState(c.fr[0]); return { id:c.id, live:this._bytes(c.live), allocs:this._n(c.allocs),
+        cs:m.cs.filter(c=>c.live[cpi]>0).map(c=>{ const st=fnState(c.fr[0]); return { id:c.id, live:this._bytes(c.live[cpi]), allocs:this._n(c.allocs[cpi]),
           top:frameLabel(c.fr[0]), stateLabel:st.t, stateColor:st.c, open:()=>this.setState({aView:'detail', aCallsite:c.id}) }; }) };
     });
     nativeRows.sort((a,b)=> s.aNSort==='growth'?b.gRaw-a.gRaw : s.aNSort==='allocs'?b.allocsRaw-a.allocsRaw : b.liveRaw-a.liveRaw);
@@ -918,7 +921,7 @@ class Component extends DCLogic {
     // detail (callsite)
     let aDet=null;
     if(s.aCallsite){ for(const m of this.NATIVE){ const c=m.cs.find(x=>x.id===s.aCallsite); if(c){ const mx=Math.max(...m.live,1);
-      aDet={ mod:m.mod, klabel:m.klabel, kc:kColor(m.kind), isGpu:m.kind==='gpu', live:this._bytes(c.live), allocs:this._n(c.allocs), symbolized:s.aSymbols,
+      aDet={ mod:m.mod, klabel:m.klabel, kc:kColor(m.kind), isGpu:m.kind==='gpu', live:this._bytes(c.live[cpi]), allocs:this._n(c.allocs[cpi]), symbolized:s.aSymbols,
         frames:c.fr.map((f,i)=>{ const st=fnState(f); return { idx:'#'+i, label:frameLabel(f), mod:f[0], stateLabel:st.t, stateColor:st.c }; }),
         needsSymbols:!s.aSymbols, stackState:s.aSymbols?'symbolized':'module-only', stackStateColor:s.aSymbols?'#2fe39b':'#f5b54a',
         trend:m.live.map((v,i)=>({ h:Math.max(6,Math.round(v/mx*100))+'%', ts:(this.NCHECK[i].ts.split('· ')[1]||''), val:this._bytes(v), barBg:i===cpi?'#f5b54a':'rgba(245,181,74,0.35)' })) };
@@ -931,6 +934,7 @@ class Component extends DCLogic {
       const sc={added:'#ff5d6c',grew:'#ff5d6c',shrank:'#2fe39b',gone:'#2fe39b',flat:'#5f7178'}[status];
       return { mod:m.mod, klabel:m.klabel, kc:kColor(m.kind), a:this._bytes(a), b:this._bytes(b), d:this._bytesD(d), dRaw:d,
         status, sLabel:status.toUpperCase(), sColor:sc, sBg:sc+'1f', dColor:d>0?'#ff5d6c':d<0?'#2fe39b':'#5f7178' }; });
+    aCmp=aCmp.filter(r=>r.status!=='flat');  // suppress zero-delta / 0→0 rows (no undocumented FLAT state)
     aCmp.sort((x,y)=>Math.abs(y.dRaw)-Math.abs(x.dRaw));
     const aCmpTotal=this._bytesD(this.NATIVE.reduce((t,m)=>t+m.live[B],0)-this.NATIVE.reduce((t,m)=>t+m.live[A],0));
     const setADiffA=(e)=>this.setState({aDiffA:+e.target.value}); const setADiffB=(e)=>this.setState({aDiffB:+e.target.value});
