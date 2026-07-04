@@ -267,36 +267,42 @@ class _TipBox extends StatelessWidget {
   }
 }
 
-class _WarningNote extends StatelessWidget {
-  const _WarningNote({required this.text});
+/// A spotlight callout's note, tinted and iconed per [tone]: accent for
+/// a positive/informational note (step 1), warning for a locked-feature
+/// or missing-tool note (steps 3 and 5). See spec §3.
+class _SpotlightNote extends StatelessWidget {
+  const _SpotlightNote({required this.text, required this.tone});
 
   final String text;
+  final NoteTone tone;
 
   @override
   Widget build(BuildContext context) {
+    final color = switch (tone) {
+      NoteTone.accent => RadarColors.accent,
+      NoteTone.warning => RadarColors.warning,
+    };
+    final icon = switch (tone) {
+      NoteTone.accent => Icons.bolt,
+      NoteTone.warning => Icons.warning_amber_rounded,
+    };
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: RadarColors.warning.withValues(alpha: 0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: RadarColors.warning.withValues(alpha: 0.35)),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
-              Icons.warning_amber_rounded,
-              size: 14,
-              color: RadarColors.warning,
-            ),
+            Icon(icon, size: 14, color: color),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 text,
-                style: RadarTypography.caption.copyWith(
-                  color: RadarColors.warning,
-                ),
+                style: RadarTypography.caption.copyWith(color: color),
               ),
             ),
           ],
@@ -344,8 +350,8 @@ class _ProgressDot extends StatelessWidget {
 }
 
 /// A step-1..5 spotlight's callout card: kicker, "N / 5" counter, title,
-/// body, an optional warning-toned note, progress dots, and the
-/// Skip/Back/Next (or Finish) actions.
+/// body, an optional accent- or warning-toned note, progress dots, and
+/// the Skip/Back/Next (or Finish) actions.
 class GuideSpotlightCallout extends StatelessWidget {
   const GuideSpotlightCallout({
     super.key,
@@ -401,7 +407,7 @@ class GuideSpotlightCallout extends StatelessWidget {
             Text(copy.body, style: RadarTypography.body),
             if (copy.note case final note?) ...[
               const SizedBox(height: 12),
-              _WarningNote(text: note),
+              _SpotlightNote(text: note, tone: copy.noteTone),
             ],
             const SizedBox(height: 14),
             _ProgressDots(current: step),

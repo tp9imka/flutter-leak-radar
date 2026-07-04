@@ -1,17 +1,28 @@
+/// The visual treatment for a spotlight step's optional note, per the
+/// design spec (§3): `accent` for a positive/informational callout
+/// (step 1), `warning` for a locked-feature or missing-tool callout
+/// (steps 3 and 5).
+enum NoteTone { accent, warning }
+
 /// Copy for one spotlight step: kicker, title, body, and an optional
-/// warning-toned note (steps 3 and 5 per the design spec).
+/// note whose [noteTone] selects its rendering (steps 1, 3, and 5 per
+/// the design spec).
 class GuideSpotlightCopy {
   const GuideSpotlightCopy({
     required this.kicker,
     required this.title,
     required this.body,
     this.note,
+    this.noteTone = NoteTone.warning,
   });
 
   final String kicker;
   final String title;
   final String body;
   final String? note;
+
+  /// Ignored when [note] is null.
+  final NoteTone noteTone;
 }
 
 /// Spotlight copy verbatim from `docs/flutter_radar_first_run_guide` §3,
@@ -27,6 +38,7 @@ const Map<int, GuideSpotlightCopy> guideSpotlightCopy = {
     note:
         'Connecting unlocks Performance & Stability, live heap '
         'capture, and Force GC.',
+    noteTone: NoteTone.accent,
   ),
   2: GuideSpotlightCopy(
     kicker: 'MEMORY · OFFLINE',

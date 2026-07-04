@@ -187,6 +187,11 @@ class _FirstRunGuideState extends State<FirstRunGuide>
     // (welcome/finish, or a spotlight anchor not yet measured) has
     // nothing to tween towards, so paint it directly with no ring.
     if (rect == null) return _paintBackdrop(null);
+    // `begin` and `end` both equal `rect` here, but this isn't a no-op:
+    // `TweenAnimationBuilder` only honors a tween's `end` after the
+    // first frame — on every later rebuild it animates from the
+    // previous `end` towards the new one — so this is what drives the
+    // ring's position sweep between spotlight steps.
     return TweenAnimationBuilder<Rect?>(
       tween: RectTween(begin: rect, end: rect),
       duration: _reduceMotion

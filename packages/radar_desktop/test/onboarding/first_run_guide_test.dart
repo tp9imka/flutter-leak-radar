@@ -287,6 +287,24 @@ void main() {
     );
   });
 
+  testWidgets("step 1's note is accent-toned, not warning-toned (spec §3)", (
+    tester,
+  ) async {
+    await pumpGuide(tester);
+    await tester.tap(find.text('Take the tour →'));
+    await tester.pump();
+
+    expect(find.textContaining('unlocks Performance'), findsOneWidget);
+    expect(find.byIcon(Icons.warning_amber_rounded), findsNothing);
+
+    controller
+      ..next()
+      ..next();
+    await tester.pump();
+
+    expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
+  });
+
   testWidgets('renders every step without throwing under reduced motion', (
     tester,
   ) async {
