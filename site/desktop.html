@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Radar Desktop — Flutter Radar</title>
+  <meta name="description" content="Radar Desktop: a standalone macOS-first desktop app for the Radar suite. Offline heap-dump and Perfetto-trace analysis, a live Dart VM Service connection, and Android native-heap profiling with symbolization.">
+  <meta name="color-scheme" content="dark">
+  <link rel="preload" href="fonts/SpaceGrotesk.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { margin: 0; background: #07090a; color: #e7eef0; font-family: 'Hanken Grotesk', system-ui, sans-serif; }
+    .nav { position: sticky; top: 0; z-index: 50; background: rgba(7,9,10,0.72); border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .pillar-hero__title { font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="bg-glow" aria-hidden="true"></div>
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <div class="page">
+    <!-- NAV -->
+    <nav class="nav" aria-label="Primary">
+      <div class="nav__inner">
+        <a class="nav__brand" href="index.html" aria-label="Flutter Radar home">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="7" stroke="rgba(47,227,155,0.55)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+          <span class="nav__brand-name">Flutter Radar</span>
+        </a>
+        <div class="nav__links">
+          <a class="nav__link" href="memory.html">Memory</a>
+          <a class="nav__link" href="performance.html">Performance</a>
+          <a class="nav__link" href="stability.html">Stability</a>
+          <a class="nav__link" href="desktop.html" aria-current="page">Desktop</a>
+          <a class="nav__link" href="packages.html">Packages</a>
+          <a class="nav__link" href="index.html#install">Install</a>
+          <a class="nav__cta" href="https://github.com/tp9imka/flutter-leak-radar">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+            GitHub
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- BREADCRUMB -->
+    <nav class="breadcrumb breadcrumb--desktop" aria-label="Breadcrumb">
+      <a href="index.html">Flutter Radar</a>
+      <span class="breadcrumb__sep" aria-hidden="true">/</span>
+      <span class="breadcrumb__current--desktop">Desktop</span>
+    </nav>
+
+    <!-- HERO -->
+    <header class="pillar-hero">
+      <div class="pillar-hero__grid">
+        <div class="pillar-hero__copy">
+          <div class="pillar-badge pillar-badge--desktop" data-reveal>Radar Desktop &middot; macOS-first</div>
+          <h1 class="pillar-hero__title" data-reveal>Everything the suite captures &mdash; <span class="accent-memory">on your desktop</span>.</h1>
+          <p class="pillar-hero__lead pillar-hero__lead--narrow" data-reveal>Import heap dumps and Perfetto traces for fully offline analysis, attach to a running app's Dart VM Service for a live connected mode, or capture Android native-heap allocations over <code class="icode">adb</code>. <span class="strong">One macOS-first app, dump-first, connection optional.</span></p>
+        </div>
+
+        <!-- Modes readout -->
+        <div class="pillar-hero__mock" data-reveal>
+          <div class="instrument__legend">
+            <div class="legend__row">
+              <span class="legend__dot legend__dot--green" aria-hidden="true"></span>
+              <span class="legend__name">Offline</span>
+              <span class="legend__metric nums">.dartheap / .pftrace</span>
+            </div>
+            <div class="legend__row">
+              <span class="legend__dot legend__dot--cyan" aria-hidden="true"></span>
+              <span class="legend__name">Connected</span>
+              <span class="legend__metric nums">ws:// VM Service</span>
+            </div>
+            <div class="legend__row">
+              <span class="legend__dot legend__dot--amber" aria-hidden="true"></span>
+              <span class="legend__name">Android Native</span>
+              <span class="legend__metric nums">adb + heapprofd</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- THREE MODES OVERVIEW -->
+      <section class="section" id="modes" aria-labelledby="modes-heading">
+        <div class="pillars-head" data-reveal>
+          <h2 id="modes-heading">Three modes, one app.</h2>
+          <span class="pillars-head__note">pick up wherever you are</span>
+        </div>
+        <div class="pillar-grid">
+          <a class="pillar-card pillar-card--desktop" href="#offline" data-reveal>
+            <span class="pillar-card__ring" aria-hidden="true"></span>
+            <span class="pillar-card__icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v10m0 0-4-4m4 4 4-4"/><path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg></span>
+            <span class="pillar-card__kicker">OFFLINE</span>
+            <h3 class="pillar-card__title">Import &amp; analyze</h3>
+            <p class="pillar-card__desc">Load heap-snapshot dumps or Perfetto <code>.pftrace</code> captures from disk. No running app, no device attached.</p>
+            <ul class="pillar-card__list">
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Class histograms, retaining paths</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Compare any two dumps</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Trends across a soak test</li>
+            </ul>
+            <span class="pillar-card__cta">Jump to Offline &rarr;</span>
+          </a>
+
+          <a class="pillar-card pillar-card--desktop" href="#connected" data-reveal>
+            <span class="pillar-card__ring" aria-hidden="true"></span>
+            <span class="pillar-card__icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15l6-6"/><path d="M8 12a4 4 0 0 1 0-6l1.5-1.5a4 4 0 0 1 6 6L14 12"/><path d="M16 12a4 4 0 0 1 0 6l-1.5 1.5a4 4 0 0 1-6-6L10 12"/></svg></span>
+            <span class="pillar-card__kicker">CONNECTED</span>
+            <h3 class="pillar-card__title">Attach &amp; go live</h3>
+            <p class="pillar-card__desc">Point at the <code>ws://</code> URI <code>flutter run</code> prints. Offline analysis keeps working &mdash; connecting only adds capability.</p>
+            <ul class="pillar-card__list">
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Live heap capture + Force GC</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Live Performance &amp; Stability tabs</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Honest "not detected" when unsupported</li>
+            </ul>
+            <span class="pillar-card__cta">Jump to Connected &rarr;</span>
+          </a>
+
+          <a class="pillar-card pillar-card--desktop" href="#android-native" data-reveal>
+            <span class="pillar-card__ring" aria-hidden="true"></span>
+            <span class="pillar-card__icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg></span>
+            <span class="pillar-card__kicker">ANDROID NATIVE</span>
+            <h3 class="pillar-card__title">Below the Dart heap</h3>
+            <p class="pillar-card__desc">Capture native-heap allocations from a device via <code>adb</code> + <code>heapprofd</code> + Perfetto, then work with it entirely on desktop.</p>
+            <ul class="pillar-card__list">
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Per-module still-live analysis</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Checkpoint compare/diff</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Native symbolization</li>
+            </ul>
+            <span class="pillar-card__cta">Jump to Android Native &rarr;</span>
+          </a>
+        </div>
+      </section>
+
+      <!-- OFFLINE -->
+      <section class="section section--ruled" id="offline" aria-labelledby="offline-heading">
+        <div class="section-head" data-reveal>
+          <p class="eyebrow eyebrow--green">Offline &middot; no connection needed</p>
+          <h2 class="section-title" id="offline-heading">Dump-first. Everything works without a running app.</h2>
+          <p class="section-intro">Drop in a <code>.dartheap</code> snapshot or a Perfetto <code>.pftrace</code> capture and the full memory-analysis workflow is available immediately &mdash; the same analysis the DevTools companion offers, built for keeping many captures side by side across a long soak test.</p>
+        </div>
+        <div class="feature-grid">
+          <div class="feature" data-reveal>
+            <div class="feature__title">A workspace of dumps</div>
+            <p class="feature__desc">Every imported dump in one place &mdash; file or capture, size, class count, retained bytes. Pick up exactly where you left off.</p>
+          </div>
+          <div class="feature" data-reveal>
+            <div class="feature__title">Class histogram</div>
+            <p class="feature__desc">Per-class instance counts and shallow bytes for a single dump, sortable and searchable, tagged by dominant root kind.</p>
+          </div>
+          <div class="feature" data-reveal>
+            <div class="feature__title">Retaining paths</div>
+            <p class="feature__desc">Grouped by dominant root kind, with the full <code>gc-root &rarr; field &rarr; &hellip; &rarr; object</code> hop list on drill-down.</p>
+          </div>
+          <div class="feature" data-reveal>
+            <div class="feature__title">Compare &amp; diff</div>
+            <p class="feature__desc">Pick two dumps and rank per-class growth by instances and bytes &mdash; the same diff the DevTools companion does, on desktop.</p>
+          </div>
+          <div class="feature" data-reveal>
+            <div class="feature__title">Trends</div>
+            <p class="feature__desc">Plot one class's instance or byte count across every dump in the workspace &mdash; the tool for a class that never returns to baseline.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- CONNECTED -->
+      <section class="section section--ruled" id="connected" aria-labelledby="connected-heading">
+        <div class="section-head" data-reveal>
+          <p class="eyebrow eyebrow--cyan">Connected &middot; optional</p>
+          <h2 class="section-title" id="connected-heading">Attach to a running app. More appears &mdash; nothing switches off.</h2>
+          <p class="section-intro">Point Radar Desktop at the <code>ws://</code> URI <code>flutter run</code> prints and it attaches to that app's Dart VM Service. Offline analysis keeps working exactly as before; connecting only adds capability.</p>
+        </div>
+        <div class="feature-grid">
+          <div class="feature" data-reveal>
+            <div class="feature__title">Live heap capture</div>
+            <p class="feature__desc">Capture a snapshot straight from the attached app into the workspace &mdash; identical downstream analysis to an imported dump. <code>Force GC</code> first.</p>
+          </div>
+          <div class="feature" data-reveal>
+            <div class="feature__title">Performance, live</div>
+            <p class="feature__desc">Traces (count, avg, p95/p99, total, rate) and frame/jank timing &mdash; the same tables the DevTools companion and on-device inspector show.</p>
+          </div>
+          <div class="feature" data-reveal>
+            <div class="feature__title">Stability, live</div>
+            <p class="feature__desc">Uncaught errors with repeat counts, and main-thread stalls correlated to the trace that blocked the isolate.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- CONNECTED — HONEST DEGRADATION -->
+      <section class="section" aria-labelledby="connected-honest-heading">
+        <div class="safe" data-reveal>
+          <div class="safe__copy">
+            <div class="safe__head">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5ad1e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              <h2 id="connected-honest-heading" style="font-size:var(--text-h2-sm);letter-spacing:-0.02em;">Honest when it can't see something.</h2>
+            </div>
+            <p class="safe__p">Live Performance and Stability need the target app to embed the Radar runtime. Attach to a plain Flutter app instead, and those tabs report a clear "not detected" state &mdash; never a fabricated reading.</p>
+          </div>
+          <div class="safe__tags">
+            <span class="chip chip--neutral">no runtime &rarr; not detected</span>
+            <span class="chip chip--neutral">never a guessed number</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ANDROID NATIVE -->
+      <section class="section section--ruled" id="android-native" aria-labelledby="android-heading">
+        <div class="split split--top">
+          <div class="split__copy" data-reveal>
+            <p class="eyebrow eyebrow--amber">Android native profiling</p>
+            <h2 class="split__title" id="android-heading">The memory below the Dart heap.</h2>
+            <p class="split__p">Capture native-heap allocations from a device via <code class="icode">adb</code> + <code class="icode">heapprofd</code> + Perfetto, then work with the trace entirely on desktop &mdash; per-module still-live analysis, checkpoint compare/diff, and an FFI-allocations lane for blocks tied to a real Dart <code class="icode">file:line</code>.</p>
+            <ul class="checklist">
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Ranked by module &mdash; app, plugin, engine, GPU driver</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Checkpoint compare: added / grew / shrank / gone</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> FFI-allocations lane, grouped by Dart call site, once a log is imported</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Native symbolization via build-id-matched <code>.so</code> files</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Guided on-device capture over <code>adb</code> (profile/release builds)</li>
+            </ul>
+          </div>
+          <div class="split__media" data-reveal>
+            <div class="retain">
+              <div><span class="t-cyan">libapp.so</span> <span class="t-tree">&middot; app</span></div>
+              <div class="indent-1"><span class="t-tree">&#9492;&#9472;</span> ImageDecoderCache::alloc <span class="t-dim">still-live 4.2 MB &middot; &Delta; +1.1 MB</span></div>
+              <div><span class="t-cyan">libwebrtc.so</span> <span class="t-tree">&middot; plugin</span></div>
+              <div class="indent-1"><span class="t-tree">&#9492;&#9472;</span> module-only <span class="t-dim">still-live 2.8 MB &middot; add symbols to resolve</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- GET IT RUNNING -->
+      <section class="section section--ruled" id="run" aria-labelledby="run-heading">
+        <div class="install">
+          <div class="install__copy" data-reveal>
+            <p class="eyebrow eyebrow--green">Get it running</p>
+            <h2 id="run-heading">One Flutter app, no separate install.</h2>
+            <p>Radar Desktop lives in this repo as a Flutter desktop app, built on the shared <code>radar_workbench</code> analysis engine and the <code>radar_ui</code> design system &mdash; the same two foundations behind the DevTools companion.</p>
+            <a class="btn-primary" href="https://github.com/tp9imka/flutter-leak-radar/tree/main/packages/radar_desktop">View packages/radar_desktop <span class="arrow" aria-hidden="true">&rarr;</span></a>
+          </div>
+          <div class="install__steps" data-reveal>
+            <div class="codewin">
+              <div class="codewin__bar"><span>packages/radar_desktop</span><span class="codewin__step">run</span></div>
+              <pre><code><span class="tt">flutter</span> run -d macos</code></pre>
+            </div>
+            <div class="codewin">
+              <div class="codewin__bar"><span>packages/radar_desktop</span><span class="codewin__step">build</span></div>
+              <pre><code><span class="tt">flutter</span> build macos</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- HONEST FRAMING -->
+      <section class="section section--ruled" aria-labelledby="honest-heading">
+        <div class="safe" data-reveal>
+          <div class="safe__copy">
+            <div class="safe__head">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5z"/><path d="M9 12l2 2 4-4"/></svg>
+              <h2 id="honest-heading">An app, not a pub.dev package.</h2>
+            </div>
+            <p class="safe__p">Radar Desktop ships as a Flutter desktop app (<code>publish_to: none</code>), not a dependency you add to a project. Android profiling and native symbolization shell out to a few external tools; each is auto-detected, and without one, the feature it powers reports a clear "not available" state instead of guessing.</p>
+          </div>
+          <div class="safe__tags">
+            <span class="chip chip--green">auto-detected</span>
+            <span class="chip chip--neutral">trace_processor</span>
+            <span class="chip chip--neutral">llvm-symbolizer</span>
+            <span class="chip chip--neutral">llvm-readelf</span>
+            <span class="chip chip--neutral">adb</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- CROSS LINKS -->
+      <section class="section section--ruled" aria-label="More on the suite">
+        <div class="crosslinks">
+          <a class="crosslink crosslink--desktop" href="packages.html" data-reveal>
+            <span class="crosslink__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+            <span>
+              <span class="crosslink__kicker">THE FULL SUITE</span>
+              <span class="crosslink__title">Package matrix &rarr;</span>
+            </span>
+          </a>
+          <a class="crosslink crosslink--neutral" href="https://github.com/tp9imka/flutter-leak-radar/tree/main/packages/radar_desktop" data-reveal>
+            <span class="crosslink__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#8fa0a6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 10l3 2-3 2M13 14h3"/></svg></span>
+            <span>
+              <span class="crosslink__kicker">SOURCE</span>
+              <span class="crosslink__title">packages/radar_desktop &rarr;</span>
+            </span>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer footer--compact">
+      <div class="footer__inner">
+        <a class="footer__brand-link" href="index.html">
+          <svg width="22" height="22" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+          <span class="footer__brand-name">Flutter Radar</span>
+        </a>
+        <nav class="footer__quicklinks" aria-label="More">
+          <a class="footer__link" href="desktop.html">Desktop</a>
+          <a class="footer__link" href="packages.html">Packages</a>
+        </nav>
+        <span class="footer__meta">MIT licensed &middot; Radar Desktop is a standalone app, not a pub.dev package</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="main.js" defer></script>
+</body>
+</html>

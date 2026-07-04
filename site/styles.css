@@ -176,6 +176,11 @@ p {
 code,
 pre {
   font-family: var(--font-mono);
+  /* Long identifiers (StreamSubscription, radar_native_host, custom_lint...)
+     have no natural break point; let them wrap rather than force the page
+     wide. No-op for <pre> blocks, which stay `white-space: pre` and scroll
+     via their own overflow-x instead. */
+  overflow-wrap: anywhere;
 }
 
 .nums {
@@ -342,9 +347,11 @@ button:focus-visible {
 .breadcrumb--memory a:hover { color: var(--accent); }
 .breadcrumb--performance a:hover { color: var(--amber); }
 .breadcrumb--stability a:hover { color: var(--cyan); }
+.breadcrumb--desktop a:hover { color: var(--accent); }
 .breadcrumb__current--memory { color: var(--accent); }
 .breadcrumb__current--performance { color: var(--amber); }
 .breadcrumb__current--stability { color: var(--cyan); }
+.breadcrumb__current--desktop { color: var(--accent); }
 
 /* ---- Section scaffolding ------------------------------------------------ */
 .section {
@@ -477,7 +484,7 @@ button:focus-visible {
 }
 .hero__copy {
   flex: 1 1 480px;
-  min-width: 300px;
+  min-width: 0;
 }
 .hero__badge {
   display: inline-flex;
@@ -552,7 +559,7 @@ button:focus-visible {
 /* Radar instrument */
 .instrument {
   flex: 1 1 380px;
-  min-width: 300px;
+  min-width: 0;
   position: relative;
   display: flex;
   justify-content: center;
@@ -566,6 +573,12 @@ button:focus-visible {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  /* .instrument__sweep is a circle rotating around its own center — visually
+     identical at any angle, but its rotated axis-aligned bounding box still
+     inflates document.scrollWidth on narrow viewports. Clip it here (no
+     visible effect) so that phantom overflow can't leak past body's
+     overflow-x:hidden guard. */
+  overflow: hidden;
 }
 .instrument__ring {
   position: absolute;
@@ -723,6 +736,10 @@ button:focus-visible {
   color: var(--cyan);
   border: 1px solid rgba(90, 209, 230, 0.3);
 }
+.delivery__tag--amber {
+  color: var(--amber);
+  border: 1px solid rgba(245, 181, 74, 0.3);
+}
 .delivery__text {
   margin: 0;
   font-size: 14.5px;
@@ -732,6 +749,19 @@ button:focus-visible {
 .delivery__text .strong {
   color: var(--color-text);
   font-weight: 600;
+}
+/* Three-cell variant (adds ON DESKTOP) — grid instead of flex-basis so all
+   three hold equal width at desktop. Collapses straight to one column below
+   900px (paired with the nav's own wrap point) rather than an in-between
+   2-up-plus-orphan state. */
+.delivery--three {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+@media (max-width: 900px) {
+  .delivery--three {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Problem section */
@@ -777,7 +807,9 @@ button:focus-visible {
 }
 .pillar-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  /* min() caps the track floor at 100% of the container so a viewport
+     narrower than 290px shrinks the column instead of overflowing it. */
+  grid-template-columns: repeat(auto-fit, minmax(min(290px, 100%), 1fr));
   gap: clamp(14px, 1.8vw, 20px);
 }
 .pillar-card {
@@ -809,6 +841,11 @@ button:focus-visible {
   border: 1px solid rgba(90, 209, 230, 0.2);
 }
 .pillar-card--stability:hover { border-color: rgba(90, 209, 230, 0.45); }
+.pillar-card--desktop {
+  background: linear-gradient(180deg, #0c1413, #090d0c);
+  border: 1px solid rgba(47, 227, 155, 0.2);
+}
+.pillar-card--desktop:hover { border-color: rgba(47, 227, 155, 0.45); }
 .pillar-card__ring {
   position: absolute;
   right: -40px;
@@ -820,6 +857,7 @@ button:focus-visible {
 .pillar-card--memory .pillar-card__ring { border: 1px solid rgba(47, 227, 155, 0.13); }
 .pillar-card--performance .pillar-card__ring { border: 1px solid rgba(245, 181, 74, 0.13); }
 .pillar-card--stability .pillar-card__ring { border: 1px solid rgba(90, 209, 230, 0.13); }
+.pillar-card--desktop .pillar-card__ring { border: 1px solid rgba(47, 227, 155, 0.13); }
 .pillar-card__icon {
   width: 40px;
   height: 40px;
@@ -841,6 +879,10 @@ button:focus-visible {
   background: rgba(90, 209, 230, 0.1);
   border: 1px solid var(--cyan-28);
 }
+.pillar-card--desktop .pillar-card__icon {
+  background: rgba(47, 227, 155, 0.1);
+  border: 1px solid var(--accent-28);
+}
 .pillar-card__kicker {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -850,6 +892,7 @@ button:focus-visible {
 .pillar-card--memory .pillar-card__kicker { color: var(--accent); }
 .pillar-card--performance .pillar-card__kicker { color: var(--amber); }
 .pillar-card--stability .pillar-card__kicker { color: var(--cyan); }
+.pillar-card--desktop .pillar-card__kicker { color: var(--accent); }
 .pillar-card__title {
   font-size: var(--text-h3);
   margin: 0 0 10px;
@@ -872,6 +915,7 @@ button:focus-visible {
   gap: 9px;
   font-size: 13px;
   color: #c4d0d4;
+  min-width: 0;
 }
 .pillar-card__list .marker {
   font-family: var(--font-mono);
@@ -879,6 +923,7 @@ button:focus-visible {
 .pillar-card--memory .marker { color: var(--accent); }
 .pillar-card--performance .marker { color: var(--amber); }
 .pillar-card--stability .marker { color: var(--cyan); }
+.pillar-card--desktop .marker { color: var(--accent); }
 .pillar-card__cta {
   margin-top: auto;
   font-family: var(--font-mono);
@@ -887,6 +932,7 @@ button:focus-visible {
 .pillar-card--memory .pillar-card__cta { color: var(--accent); }
 .pillar-card--performance .pillar-card__cta { color: var(--amber); }
 .pillar-card--stability .pillar-card__cta { color: var(--cyan); }
+.pillar-card--desktop .pillar-card__cta { color: var(--accent); }
 
 /* How it works */
 .how-head {
@@ -901,7 +947,7 @@ button:focus-visible {
 }
 .steps {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
   gap: clamp(16px, 2.2vw, 24px);
 }
 .step {
@@ -949,7 +995,7 @@ button:focus-visible {
 }
 .safe__copy {
   flex: 1 1 360px;
-  min-width: 280px;
+  min-width: 0;
 }
 .safe__head {
   display: flex;
@@ -999,7 +1045,7 @@ button:focus-visible {
 }
 .install__copy {
   flex: 1 1 300px;
-  min-width: 280px;
+  min-width: 0;
 }
 .install__copy h2 {
   font-size: var(--text-h2-xl);
@@ -1020,7 +1066,7 @@ button:focus-visible {
 }
 .install__steps {
   flex: 1 1 440px;
-  min-width: 300px;
+  min-width: 0;
   display: grid;
   gap: 14px;
 }
@@ -1140,12 +1186,22 @@ button:focus-visible {
   padding: 22px 24px;
   transition: border-color 0.25s;
 }
+/* The un-classed wrapping <span> around kicker+title is blockified as a flex
+   item here; it needs min-width:0 so a long unbroken title (e.g.
+   "packages/radar_desktop") can shrink instead of pushing the card wide. */
+.crosslink > span:last-child {
+  min-width: 0;
+}
 .crosslink--memory { border: 1px solid rgba(47, 227, 155, 0.2); }
 .crosslink--memory:hover { border-color: rgba(47, 227, 155, 0.45); }
 .crosslink--performance { border: 1px solid rgba(245, 181, 74, 0.2); }
 .crosslink--performance:hover { border-color: rgba(245, 181, 74, 0.45); }
 .crosslink--stability { border: 1px solid rgba(90, 209, 230, 0.2); }
 .crosslink--stability:hover { border-color: rgba(90, 209, 230, 0.45); }
+.crosslink--desktop { border: 1px solid rgba(47, 227, 155, 0.2); }
+.crosslink--desktop:hover { border-color: rgba(47, 227, 155, 0.45); }
+.crosslink--neutral { border: 1px solid var(--line-strong); }
+.crosslink--neutral:hover { border-color: var(--line-stronger); }
 .crosslink__icon {
   width: 40px;
   height: 40px;
@@ -1157,6 +1213,8 @@ button:focus-visible {
 .crosslink--memory .crosslink__icon { background: rgba(47, 227, 155, 0.1); border: 1px solid var(--accent-28); }
 .crosslink--performance .crosslink__icon { background: rgba(245, 181, 74, 0.1); border: 1px solid var(--amber-28); }
 .crosslink--stability .crosslink__icon { background: rgba(90, 209, 230, 0.1); border: 1px solid var(--cyan-28); }
+.crosslink--desktop .crosslink__icon { background: rgba(47, 227, 155, 0.1); border: 1px solid var(--accent-28); }
+.crosslink--neutral .crosslink__icon { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line-strong); }
 .crosslink__kicker {
   font-family: var(--font-mono);
   font-size: 10.5px;
@@ -1164,11 +1222,14 @@ button:focus-visible {
 .crosslink--memory .crosslink__kicker { color: var(--accent); }
 .crosslink--performance .crosslink__kicker { color: var(--amber); }
 .crosslink--stability .crosslink__kicker { color: var(--cyan); }
+.crosslink--desktop .crosslink__kicker { color: var(--accent); }
+.crosslink--neutral .crosslink__kicker { color: var(--color-text-faint); }
 .crosslink__title {
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 18px;
   color: var(--color-text);
+  overflow-wrap: anywhere;
 }
 
 /* ---- Footer ------------------------------------------------------------- */
@@ -1190,7 +1251,7 @@ button:focus-visible {
 }
 .footer__brand {
   flex: 1 1 280px;
-  min-width: 260px;
+  min-width: 0;
 }
 .footer__brand-row {
   display: flex;
@@ -1269,6 +1330,14 @@ button:focus-visible {
   text-decoration: none;
   color: inherit;
 }
+/* Inline link row for the compact footer (Desktop / Packages) — .footer__links
+   is a vertical grid for the full multi-column footer, this is its one-row
+   sibling for the compact layout. */
+.footer__quicklinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
 
 /* ===========================================================================
    PILLAR PAGES — shared
@@ -1287,7 +1356,7 @@ button:focus-visible {
 }
 .pillar-hero__copy {
   flex: 1 1 460px;
-  min-width: 300px;
+  min-width: 0;
 }
 .pillar-hero__copy--full {
   max-width: 760px;
@@ -1318,6 +1387,11 @@ button:focus-visible {
   color: var(--cyan);
   border: 1px solid var(--cyan-28);
   background: rgba(90, 209, 230, 0.06);
+}
+.pillar-badge--desktop {
+  color: var(--accent);
+  border: 1px solid var(--accent-28);
+  background: var(--accent-06);
 }
 .pillar-hero__title {
   font-size: var(--text-h1-pillar);
@@ -1362,7 +1436,7 @@ button:focus-visible {
 /* Findings device mock (Memory hero) */
 .pillar-hero__mock {
   flex: 1 1 320px;
-  min-width: 280px;
+  min-width: 0;
   display: flex;
   justify-content: center;
 }
@@ -1466,7 +1540,7 @@ button:focus-visible {
 /* Feature card grid (3 across) */
 .feature-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
   gap: clamp(14px, 1.8vw, 18px);
 }
 .feature {
@@ -1502,11 +1576,18 @@ button:focus-visible {
 .split--top { align-items: flex-start; }
 .split__copy {
   flex: 1 1 380px;
-  min-width: 290px;
+  min-width: 0;
 }
 .split__media {
   flex: 1 1 380px;
-  min-width: 300px;
+  min-width: 0;
+}
+/* For media content that should stay content-sized and centered (e.g. the
+   .instrument__legend readout) rather than stretch full-width like the
+   codewin/difftable panels .split__media otherwise hosts. */
+.split__media--center {
+  display: flex;
+  justify-content: center;
 }
 .split__title {
   font-size: var(--text-h2-md);
@@ -1536,9 +1617,11 @@ button:focus-visible {
   gap: 10px;
   font-size: 14px;
   color: #c4d0d4;
+  min-width: 0;
 }
 .checklist .marker { font-family: var(--font-mono); }
 .checklist--cyan .marker { color: var(--cyan); }
+.checklist--green .marker { color: var(--accent); }
 .checklist code {
   font-size: 12.5px;
   color: var(--color-text);
@@ -2013,7 +2096,7 @@ button:focus-visible {
 }
 .startup__phases {
   flex: 1 1 300px;
-  min-width: 260px;
+  min-width: 0;
 }
 .startup__meter {
   display: flex;
@@ -2259,6 +2342,100 @@ button:focus-visible {
 .code--narrow { max-width: 680px; }
 
 /* ===========================================================================
+   PACKAGES
+   =========================================================================== */
+
+.pkgwin {
+  background: var(--color-panel-window);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 30px 70px -34px rgba(0, 0, 0, 0.7);
+}
+.pkgwin__bar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.pkgwin__bar-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13.5px;
+}
+.pkgwin__bar-tag {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-faint);
+}
+.pkgwin__scroll {
+  overflow-x: auto;
+}
+.pkgtable {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+}
+.pkgtable th,
+.pkgtable td {
+  text-align: left;
+  padding: 12px 16px;
+  vertical-align: top;
+}
+.pkgtable thead th {
+  background: #0b0f11;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+.pkgtable tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.pkgtable tbody tr:last-child {
+  border-bottom: 0;
+}
+.pkgtable__name {
+  white-space: nowrap;
+}
+.pkgtable__name a {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+  text-decoration: none;
+}
+.pkgtable__name a:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+.pkgtable__role {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-text-body);
+}
+.pkgtable__role code {
+  font-size: 12.5px;
+  color: var(--color-text);
+}
+/* Internal (unpublished) packages reuse .feature-grid / .feature; only the
+   linked package name needs its own rule. */
+.feature__title a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px dashed var(--line-stronger);
+  overflow-wrap: break-word;
+}
+.feature__title a:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ===========================================================================
    RESPONSIVE — collapse multi-column grids on small viewports
    =========================================================================== */
 @media (max-width: 720px) {
@@ -2280,8 +2457,10 @@ button:focus-visible {
   }
 }
 
-@media (max-width: 560px) {
-  /* Let the nav wrap: brand on top, links below, both centered, no overflow. */
+@media (max-width: 900px) {
+  /* Let the nav wrap: brand on top, links below, both centered, no overflow.
+     Raised from 560px once the nav grew to 7 items (Memory…Packages, Install,
+     GitHub) — a single row no longer fits a tablet-width viewport. */
   .nav__inner {
     flex-wrap: wrap;
     gap: 10px;

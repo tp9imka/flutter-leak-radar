@@ -41,6 +41,8 @@
           <a class="nav__link" href="memory.html">Memory</a>
           <a class="nav__link" href="performance.html">Performance</a>
           <a class="nav__link" href="stability.html">Stability</a>
+          <a class="nav__link" href="desktop.html">Desktop</a>
+          <a class="nav__link" href="packages.html">Packages</a>
           <a class="nav__link" href="#install">Install</a>
           <a class="nav__cta" href="https://github.com/tp9imka/flutter-leak-radar">
             <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
@@ -62,7 +64,7 @@
             Memory, performance, and stability &mdash; <span class="accent">on one radar</span>.
           </h1>
           <p class="hero__lead" data-reveal>
-            The signal comes to you. A draggable on-device badge surfaces leaks, jank, and crashes as they happen &mdash; and a DevTools companion goes deep when you need it. <span class="strong">Zero-config. No base classes. A complete no-op in release.</span>
+            The signal comes to you. A draggable on-device badge surfaces leaks, jank, and crashes as they happen &mdash; a DevTools companion goes deep when you need it, and <a href="desktop.html">Radar Desktop</a> takes it further still: offline heap &amp; trace analysis, a live connection, and Android native profiling. <span class="strong">Zero-config. No base classes. A complete no-op in release.</span>
           </p>
           <div class="hero__actions" data-reveal>
             <a class="btn-primary" href="#install">Get started <span class="arrow" aria-hidden="true">&rarr;</span></a>
@@ -114,8 +116,8 @@
         </div>
       </div>
 
-      <!-- Delivery strip: on-device vs in-DevTools. -->
-      <div class="delivery" data-reveal>
+      <!-- Delivery strip: on-device vs in-DevTools vs on-desktop. -->
+      <div class="delivery delivery--three" data-reveal>
         <div class="delivery__cell">
           <span class="delivery__tag delivery__tag--green">ON DEVICE</span>
           <p class="delivery__text"><span class="strong">A badge that comes to you.</span> Draggable overlay + full-screen inspector, right in the running app.</p>
@@ -123,6 +125,10 @@
         <div class="delivery__cell">
           <span class="delivery__tag delivery__tag--cyan">IN DEVTOOLS</span>
           <p class="delivery__text"><span class="strong">A companion that goes deep.</span> Capture and diff any two heap snapshots, dense trace tables, retaining paths.</p>
+        </div>
+        <div class="delivery__cell">
+          <span class="delivery__tag delivery__tag--amber">ON DESKTOP</span>
+          <p class="delivery__text"><span class="strong">A standalone analyzer.</span> Offline heap/trace analysis, a live VM-Service connection, and Android native profiling with symbolization.</p>
         </div>
       </div>
     </header>
@@ -215,6 +221,42 @@
         </div>
       </section>
 
+      <!-- BEYOND THE APP -->
+      <section class="section section--ruled" aria-labelledby="desktop-heading">
+        <div class="split">
+          <div class="split__copy" data-reveal>
+            <p class="eyebrow eyebrow--green">Beyond the app</p>
+            <h2 class="split__title split__title--lg" id="desktop-heading">One suite, now with a desktop home.</h2>
+            <p class="split__p"><a href="desktop.html">Radar Desktop</a> is a standalone macOS-first analyzer for everything the suite captures &mdash; heap dumps, Perfetto traces, and a live VM-Service connection &mdash; plus an Android native-profiling workflow for the memory that lives below the Dart heap.</p>
+            <ul class="checklist checklist--green">
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Offline: import &amp; analyze, no running app required</li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Connected: live Performance + Stability over <code class="icode">ws://</code></li>
+              <li><span class="marker" aria-hidden="true">&rsaquo;</span> Android native: heapprofd capture, checkpoint diff, symbolization</li>
+            </ul>
+            <a class="btn-primary" href="desktop.html" style="margin-top:22px;">Explore Radar Desktop <span class="arrow" aria-hidden="true">&rarr;</span></a>
+          </div>
+          <div class="split__media split__media--center" data-reveal>
+            <div class="instrument__legend">
+              <div class="legend__row">
+                <span class="legend__dot legend__dot--green" aria-hidden="true"></span>
+                <span class="legend__name">Offline</span>
+                <span class="legend__metric nums">import &amp; analyze</span>
+              </div>
+              <div class="legend__row">
+                <span class="legend__dot legend__dot--cyan" aria-hidden="true"></span>
+                <span class="legend__name">Connected</span>
+                <span class="legend__metric nums">ws:// VM Service</span>
+              </div>
+              <div class="legend__row">
+                <span class="legend__dot legend__dot--amber" aria-hidden="true"></span>
+                <span class="legend__name">Android Native</span>
+                <span class="legend__metric nums">adb + heapprofd</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- SAFE BY CONSTRUCTION -->
       <section class="section" aria-labelledby="safe-heading">
         <div class="safe" data-reveal>
@@ -283,6 +325,13 @@
                 <a class="footer__link" href="memory.html">Memory</a>
                 <a class="footer__link footer__link--amber" href="performance.html">Performance</a>
                 <a class="footer__link footer__link--cyan" href="stability.html">Stability</a>
+              </div>
+            </nav>
+            <nav class="footer__nav" aria-label="More">
+              <div class="footer__col-head">More</div>
+              <div class="footer__links">
+                <a class="footer__link" href="desktop.html">Desktop</a>
+                <a class="footer__link" href="packages.html">Packages</a>
               </div>
             </nav>
             <nav class="footer__nav" aria-label="Project">

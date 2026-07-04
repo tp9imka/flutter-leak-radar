@@ -3,15 +3,17 @@ name: Publish
 # Automated publishing to pub.dev via OIDC — no long-lived tokens.
 #
 # Release one package by pushing a package-prefixed tag, e.g.:
-#   git tag leak_graph-v0.1.0 && git push origin leak_graph-v0.1.0
+#   git tag leak_graph-v0.2.2 && git push origin leak_graph-v0.2.2
 #
-# RELEASE ORDER:
-#   1. leak_graph          (no inter-package deps)
-#   2. radar_trace         (no inter-package deps; pure Dart)
-#   3. flutter_leak_radar  (depends on leak_graph: ^0.1.0)
-#   4. flutter_leak_radar_lint (standalone lints)
-#   5. flutter_perf_radar  (depends on radar_trace: ^0.1.0)
-#   6. radar               (depends on flutter_leak_radar + flutter_perf_radar)
+# RELEASE ORDER (tiers — publish a tier and wait until it is live on pub.dev
+# before the next; see docs/PUBLISHING.md for the full procedure):
+#   Tier 0 (no inter-package deps): leak_graph, radar_trace, radar_ui
+#   Tier 1 (needs tier 0): flutter_leak_radar (depends on leak_graph: ^0.2.2,
+#     radar_ui: ^0.2.0), flutter_perf_radar (depends on radar_trace: ^0.1.2,
+#     radar_ui: ^0.2.0)
+#   Tier 2 (needs tier 1): radarscope (depends on flutter_leak_radar,
+#     flutter_perf_radar, radar_trace, radar_ui)
+#   Independent (own cadence): flutter_leak_radar_lint
 #
 # Each job runs tool/publish.sh, which strips `resolution: workspace` before
 # publishing: the repo keeps that line for local dev (the lint tests need the
