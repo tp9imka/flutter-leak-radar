@@ -176,6 +176,11 @@ p {
 code,
 pre {
   font-family: var(--font-mono);
+  /* Long identifiers (StreamSubscription, radar_native_host, custom_lint...)
+     have no natural break point; let them wrap rather than force the page
+     wide. No-op for <pre> blocks, which stay `white-space: pre` and scroll
+     via their own overflow-x instead. */
+  overflow-wrap: anywhere;
 }
 
 .nums {
@@ -479,7 +484,7 @@ button:focus-visible {
 }
 .hero__copy {
   flex: 1 1 480px;
-  min-width: 300px;
+  min-width: 0;
 }
 .hero__badge {
   display: inline-flex;
@@ -554,7 +559,7 @@ button:focus-visible {
 /* Radar instrument */
 .instrument {
   flex: 1 1 380px;
-  min-width: 300px;
+  min-width: 0;
   position: relative;
   display: flex;
   justify-content: center;
@@ -568,6 +573,12 @@ button:focus-visible {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  /* .instrument__sweep is a circle rotating around its own center — visually
+     identical at any angle, but its rotated axis-aligned bounding box still
+     inflates document.scrollWidth on narrow viewports. Clip it here (no
+     visible effect) so that phantom overflow can't leak past body's
+     overflow-x:hidden guard. */
+  overflow: hidden;
 }
 .instrument__ring {
   position: absolute;
@@ -796,7 +807,9 @@ button:focus-visible {
 }
 .pillar-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  /* min() caps the track floor at 100% of the container so a viewport
+     narrower than 290px shrinks the column instead of overflowing it. */
+  grid-template-columns: repeat(auto-fit, minmax(min(290px, 100%), 1fr));
   gap: clamp(14px, 1.8vw, 20px);
 }
 .pillar-card {
@@ -902,6 +915,7 @@ button:focus-visible {
   gap: 9px;
   font-size: 13px;
   color: #c4d0d4;
+  min-width: 0;
 }
 .pillar-card__list .marker {
   font-family: var(--font-mono);
@@ -933,7 +947,7 @@ button:focus-visible {
 }
 .steps {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
   gap: clamp(16px, 2.2vw, 24px);
 }
 .step {
@@ -981,7 +995,7 @@ button:focus-visible {
 }
 .safe__copy {
   flex: 1 1 360px;
-  min-width: 280px;
+  min-width: 0;
 }
 .safe__head {
   display: flex;
@@ -1031,7 +1045,7 @@ button:focus-visible {
 }
 .install__copy {
   flex: 1 1 300px;
-  min-width: 280px;
+  min-width: 0;
 }
 .install__copy h2 {
   font-size: var(--text-h2-xl);
@@ -1052,7 +1066,7 @@ button:focus-visible {
 }
 .install__steps {
   flex: 1 1 440px;
-  min-width: 300px;
+  min-width: 0;
   display: grid;
   gap: 14px;
 }
@@ -1172,6 +1186,12 @@ button:focus-visible {
   padding: 22px 24px;
   transition: border-color 0.25s;
 }
+/* The un-classed wrapping <span> around kicker+title is blockified as a flex
+   item here; it needs min-width:0 so a long unbroken title (e.g.
+   "packages/radar_desktop") can shrink instead of pushing the card wide. */
+.crosslink > span:last-child {
+  min-width: 0;
+}
 .crosslink--memory { border: 1px solid rgba(47, 227, 155, 0.2); }
 .crosslink--memory:hover { border-color: rgba(47, 227, 155, 0.45); }
 .crosslink--performance { border: 1px solid rgba(245, 181, 74, 0.2); }
@@ -1209,6 +1229,7 @@ button:focus-visible {
   font-weight: 600;
   font-size: 18px;
   color: var(--color-text);
+  overflow-wrap: anywhere;
 }
 
 /* ---- Footer ------------------------------------------------------------- */
@@ -1230,7 +1251,7 @@ button:focus-visible {
 }
 .footer__brand {
   flex: 1 1 280px;
-  min-width: 260px;
+  min-width: 0;
 }
 .footer__brand-row {
   display: flex;
@@ -1335,7 +1356,7 @@ button:focus-visible {
 }
 .pillar-hero__copy {
   flex: 1 1 460px;
-  min-width: 300px;
+  min-width: 0;
 }
 .pillar-hero__copy--full {
   max-width: 760px;
@@ -1415,7 +1436,7 @@ button:focus-visible {
 /* Findings device mock (Memory hero) */
 .pillar-hero__mock {
   flex: 1 1 320px;
-  min-width: 280px;
+  min-width: 0;
   display: flex;
   justify-content: center;
 }
@@ -1519,7 +1540,7 @@ button:focus-visible {
 /* Feature card grid (3 across) */
 .feature-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
   gap: clamp(14px, 1.8vw, 18px);
 }
 .feature {
@@ -1555,11 +1576,11 @@ button:focus-visible {
 .split--top { align-items: flex-start; }
 .split__copy {
   flex: 1 1 380px;
-  min-width: 290px;
+  min-width: 0;
 }
 .split__media {
   flex: 1 1 380px;
-  min-width: 300px;
+  min-width: 0;
 }
 /* For media content that should stay content-sized and centered (e.g. the
    .instrument__legend readout) rather than stretch full-width like the
@@ -1596,6 +1617,7 @@ button:focus-visible {
   gap: 10px;
   font-size: 14px;
   color: #c4d0d4;
+  min-width: 0;
 }
 .checklist .marker { font-family: var(--font-mono); }
 .checklist--cyan .marker { color: var(--cyan); }
@@ -2074,7 +2096,7 @@ button:focus-visible {
 }
 .startup__phases {
   flex: 1 1 300px;
-  min-width: 260px;
+  min-width: 0;
 }
 .startup__meter {
   display: flex;
