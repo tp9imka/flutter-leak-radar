@@ -22,3 +22,6 @@ export 'src/symbolize/build_id_reader.dart';
 export 'src/symbolize/symbol_store_builder.dart';
 export 'src/symbolize/symbolize_cli.dart';
 export 'src/symbolize/symbolizer.dart';
+export 'src/tools/external_tool.dart';
+export 'src/tools/tool_probe.dart';
+export 'src/tools/trace_processor_installer.dart';

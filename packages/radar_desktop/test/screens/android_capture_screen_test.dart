@@ -4,9 +4,45 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radar_desktop/src/android/native_profiling_controller.dart';
 import 'package:radar_desktop/src/screens/android_capture_screen.dart';
+import 'package:radar_desktop/src/tools/tools_controller.dart';
 import 'package:radar_native/radar_native.dart';
 import 'package:radar_native_host/radar_native_host.dart';
 import 'package:radar_ui/radar_ui.dart';
+
+/// In-memory [ToolConfigStore] fake — no real fs/path_provider.
+class _FakeToolConfigStore implements ToolConfigStore {
+  @override
+  Future<ToolConfig> read() async => const ToolConfig({});
+
+  @override
+  Future<void> write(ToolConfig config) async {}
+}
+
+/// A [ToolProbe] whose bare-name (PATH-tier) candidate verifies only for
+/// tool ids in [workingIds] — never touches the real filesystem or
+/// spawns a process.
+ToolProbe _fakeProbe(Set<String> workingIds) => ToolProbe(
+  exists: (_) => false,
+  run: (exe, args) async => workingIds.contains(exe)
+      ? (exitCode: 0, stdout: '$exe v1', stderr: '')
+      : (exitCode: 1, stdout: '', stderr: 'not found'),
+  commonLocations: (_) => const [],
+);
+
+/// A loaded [ToolsController] reporting every [ExternalTool] present
+/// except those in [missing].
+Future<ToolsController> _toolsWithMissing(Set<ExternalTool> missing) async {
+  final present = {
+    for (final tool in ExternalTool.values)
+      if (!missing.contains(tool)) tool.id,
+  };
+  final controller = ToolsController(
+    probe: _fakeProbe(present),
+    store: _FakeToolConfigStore(),
+  );
+  await controller.load();
+  return controller;
+}
 
 /// No file-pick platform-channel calls are driven by these tests (matching
 /// `dumps_screen.dart`'s untested `_browse` pattern) — this fake is never
@@ -123,12 +159,20 @@ NativeHeapProfile _profile(String label) => NativeHeapProfile(
 
 Future<void> _pump(
   WidgetTester tester,
-  NativeProfilingController controller,
-) async {
+  NativeProfilingController controller, {
+  ToolsController? tools,
+  VoidCallback? onOpenTools,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
       theme: radarDarkTheme(),
-      home: Scaffold(body: AndroidCaptureScreen(controller: controller)),
+      home: Scaffold(
+        body: AndroidCaptureScreen(
+          controller: controller,
+          tools: tools,
+          onOpenTools: onOpenTools,
+        ),
+      ),
     ),
   );
   // Flush the post-frame `refreshDevices()` call so a real device-capture
@@ -369,6 +413,87 @@ void main() {
         _buttonLabeled('Capture'),
       );
       expect(captureButton.onPressed, isNull);
+    });
+  });
+
+  group('missing-tool banners', () {
+    testWidgets(
+      'shows the missing trace_processor banner and its action opens Tools',
+      (tester) async {
+        final tools = await _toolsWithMissing({ExternalTool.traceProcessor});
+        var opened = 0;
+        await _pump(
+          tester,
+          NativeProfilingController(_FakeImporter()),
+          tools: tools,
+          onOpenTools: () => opened++,
+        );
+
+        expect(
+          find.textContaining('trace_processor not found'),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.text('Open Tools'));
+        expect(opened, 1);
+      },
+    );
+
+    testWidgets('hides the banner when trace_processor is present', (
+      tester,
+    ) async {
+      final tools = await _toolsWithMissing(const {});
+      await _pump(
+        tester,
+        NativeProfilingController(_FakeImporter()),
+        tools: tools,
+      );
+
+      expect(find.textContaining('trace_processor not found'), findsNothing);
+    });
+
+    testWidgets('hides the banner when tools is null', (tester) async {
+      await _pump(tester, NativeProfilingController(_FakeImporter()));
+
+      expect(find.textContaining('trace_processor not found'), findsNothing);
+    });
+
+    testWidgets(
+      'hints missing llvm binaries near the Resolve from .so directory '
+      'action',
+      (tester) async {
+        final tools = await _toolsWithMissing({ExternalTool.llvmSymbolizer});
+        final controller = NativeProfilingController(
+          _FakeImporter(profilesByLabel: {'before': _profile('before')}),
+          symbolStoreBuilder: const SymbolStoreBuilder(
+            buildIdReader: _NoopBuildIdReader(),
+            symbolizer: _NoopSymbolizer(),
+          ),
+        );
+        await controller.importTrace('before.pftrace', label: 'before');
+
+        await _pump(tester, controller, tools: tools);
+
+        expect(
+          find.textContaining('llvm-symbolizer/llvm-readelf not found'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('no llvm hint when the Resolve action is not shown (no builder '
+        'injected), even if llvm is missing', (tester) async {
+      final tools = await _toolsWithMissing({ExternalTool.llvmSymbolizer});
+      await _pump(
+        tester,
+        NativeProfilingController(_FakeImporter()),
+        tools: tools,
+      );
+
+      expect(
+        find.textContaining('llvm-symbolizer/llvm-readelf not found'),
+        findsNothing,
+      );
     });
   });
 }

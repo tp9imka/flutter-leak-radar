@@ -4,14 +4,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radar_desktop/src/app/desktop_view.dart';
 import 'package:radar_desktop/src/screens/dumps_screen.dart';
+import 'package:radar_desktop/src/screens/tools_screen.dart';
 import 'package:radar_desktop/src/screens/trends_screen.dart';
 import 'package:radar_desktop/src/seams/vm_service_uri_connection.dart';
 import 'package:radar_desktop/src/shell/connect_bar.dart';
 import 'package:radar_desktop/src/shell/desktop_rail.dart';
 import 'package:radar_desktop/src/shell/desktop_shell.dart';
+import 'package:radar_desktop/src/tools/tools_controller.dart';
+import 'package:radar_native_host/radar_native_host.dart';
 import 'package:radar_ui/radar_ui.dart';
 import 'package:radar_workbench/radar_workbench.dart';
 import 'package:vm_service/vm_service.dart';
+
+/// In-memory [ToolConfigStore] fake — no real fs/path_provider.
+class _FakeToolConfigStore implements ToolConfigStore {
+  @override
+  Future<ToolConfig> read() async => const ToolConfig({});
+
+  @override
+  Future<void> write(ToolConfig config) async {}
+}
+
+/// A [ToolsController] whose probe never touches the real filesystem or
+/// spawns a real process — every tool reports missing, instantly. These
+/// shell tests don't exercise Tools-screen behavior; this just keeps
+/// `DesktopShell`'s `unawaited(_tools.load())` in `initState` fast and
+/// deterministic instead of racing real `Process.run` calls.
+ToolsController _fakeTools() => ToolsController(
+  probe: ToolProbe(
+    exists: (_) => false,
+    run: (_, __) async => (exitCode: 1, stdout: '', stderr: 'not found'),
+    commonLocations: (_) => const [],
+  ),
+  store: _FakeToolConfigStore(),
+);
 
 /// Minimal fake covering only the surface [VmServiceUriConnection] and
 /// [PerfDataController] touch; mirrors the fake in
@@ -89,9 +115,36 @@ void main() {
     expect(tapped, isNull);
   });
 
+  testWidgets('the SETUP/Tools rail item is shown and selectable offline', (
+    tester,
+  ) async {
+    DesktopView? tapped;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: radarDarkTheme(),
+        home: Scaffold(
+          body: DesktopRail(
+            current: DesktopView.dumps,
+            connected: false,
+            onSelect: (v) => tapped = v,
+          ),
+        ),
+      ),
+    );
+    expect(find.text('SETUP'), findsOneWidget);
+    // SETUP sits below four other groups, off-screen at the default test
+    // surface height — scroll it into view before tapping.
+    await tester.ensureVisible(find.text('Tools'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tools'));
+    expect(tapped, DesktopView.tools);
+  });
+
   testWidgets('shell routes memory views to real screens; '
       'opening a dump goes to histogram', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: DesktopShell()));
+    await tester.pumpWidget(
+      MaterialApp(home: DesktopShell(tools: _fakeTools())),
+    );
     // Default view = dumps → DumpsScreen present.
     expect(find.byType(DumpsScreen), findsOneWidget);
     // Navigate to Trends via the rail.
@@ -99,6 +152,24 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(TrendsScreen), findsOneWidget);
   });
+
+  testWidgets(
+    'the Tools destination routes to ToolsScreen even while offline',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: DesktopShell(tools: _fakeTools())),
+      );
+
+      // SETUP sits below four other groups, off-screen at the default
+      // test surface height — scroll it into view before tapping.
+      await tester.ensureVisible(find.text('Tools'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Tools'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ToolsScreen), findsOneWidget);
+    },
+  );
 
   group('connected mode', () {
     testWidgets(
@@ -109,7 +180,9 @@ void main() {
         );
 
         await tester.pumpWidget(
-          MaterialApp(home: DesktopShell(connection: connection)),
+          MaterialApp(
+            home: DesktopShell(connection: connection, tools: _fakeTools()),
+          ),
         );
 
         expect(find.byType(ConnectBar), findsOneWidget);
@@ -133,7 +206,9 @@ void main() {
         );
 
         await tester.pumpWidget(
-          MaterialApp(home: DesktopShell(connection: connection)),
+          MaterialApp(
+            home: DesktopShell(connection: connection, tools: _fakeTools()),
+          ),
         );
 
         await connection.connect('ws://x');
@@ -156,7 +231,9 @@ void main() {
         );
 
         await tester.pumpWidget(
-          MaterialApp(home: DesktopShell(connection: connection)),
+          MaterialApp(
+            home: DesktopShell(connection: connection, tools: _fakeTools()),
+          ),
         );
 
         await connection.connect('ws://x');
@@ -194,5 +271,22 @@ void main() {
       // ("A disposed ChangeNotifier was used") in debug mode.
       expect(() => connection.addListener(() {}), returnsNormally);
     });
+
+    testWidgets(
+      'disposing the shell does not dispose an injected tools controller',
+      (tester) async {
+        final tools = _fakeTools();
+
+        await tester.pumpWidget(MaterialApp(home: DesktopShell(tools: tools)));
+
+        // Replace the tree so DesktopShell.dispose() runs.
+        await tester.pumpWidget(const SizedBox.shrink());
+
+        // An injected ToolsController belongs to the caller — the shell
+        // must remove its own listener but leave the controller itself
+        // usable, same contract as an injected connection above.
+        expect(() => tools.addListener(() {}), returnsNormally);
+      },
+    );
   });
 }

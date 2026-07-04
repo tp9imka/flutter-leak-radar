@@ -9,6 +9,7 @@ import 'package:radar_ui/radar_ui.dart';
 
 import '../android/native_profiling_controller.dart';
 import '../app/error_toast.dart';
+import '../tools/tools_controller.dart';
 import 'android_capture_form.dart';
 
 /// File types accepted by each import action.
@@ -30,9 +31,24 @@ const List<XTypeGroup> _ffiLogTypes = [
 /// [NativeProfilingController.canCapture] is true (i.e. both capture seams
 /// were injected for this build/host).
 class AndroidCaptureScreen extends StatefulWidget {
-  const AndroidCaptureScreen({super.key, required this.controller});
+  const AndroidCaptureScreen({
+    super.key,
+    required this.controller,
+    this.tools,
+    this.onOpenTools,
+  });
 
   final NativeProfilingController controller;
+
+  /// Reports whether `trace_processor`/`llvm-symbolizer`/`llvm-readelf`
+  /// are present, so this screen can hint a missing one inline. Optional
+  /// — when null (e.g. a test that doesn't need it), no tool banners or
+  /// hints render, matching this screen's prior behavior exactly.
+  final ToolsController? tools;
+
+  /// Invoked by the missing-`trace_processor` banner's action; the shell
+  /// wires this to select the Tools view.
+  final VoidCallback? onOpenTools;
 
   @override
   State<AndroidCaptureScreen> createState() => _AndroidCaptureScreenState();
@@ -40,6 +56,23 @@ class AndroidCaptureScreen extends StatefulWidget {
 
 class _AndroidCaptureScreenState extends State<AndroidCaptureScreen> {
   NativeProfilingController get _controller => widget.controller;
+
+  /// True only when [ToolsController.statusOf] reports `trace_processor`
+  /// missing; false (no banner) when [AndroidCaptureScreen.tools] is null.
+  bool get _traceProcessorMissing {
+    final tools = widget.tools;
+    if (tools == null) return false;
+    return !tools.statusOf(ExternalTool.traceProcessor).found;
+  }
+
+  /// True when either LLVM binary the symbolizer needs is missing; false
+  /// when [AndroidCaptureScreen.tools] is null.
+  bool get _llvmMissing {
+    final tools = widget.tools;
+    if (tools == null) return false;
+    return !tools.statusOf(ExternalTool.llvmSymbolizer).found ||
+        !tools.statusOf(ExternalTool.llvmReadelf).found;
+  }
 
   String? _selectedSerial;
   String _packageId = '';
@@ -236,8 +269,11 @@ class _AndroidCaptureScreenState extends State<AndroidCaptureScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tools = widget.tools;
     return ListenableBuilder(
-      listenable: _controller,
+      listenable: tools == null
+          ? _controller
+          : Listenable.merge([_controller, tools]),
       builder: (context, _) {
         return DropTarget(
           onDragDone: _onDrop,
@@ -250,6 +286,21 @@ class _AndroidCaptureScreenState extends State<AndroidCaptureScreen> {
                 const SizedBox(height: 12),
                 const _PrerequisitesNote(),
                 const SizedBox(height: 20),
+                if (_traceProcessorMissing) ...[
+                  RadarBanner(
+                    message:
+                        'Perfetto trace_processor not found — set it up '
+                        'in Tools',
+                    severity: RadarSeverity.warning,
+                    action: widget.onOpenTools == null
+                        ? null
+                        : TextButton(
+                            onPressed: widget.onOpenTools,
+                            child: const Text('Open Tools'),
+                          ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 _ImportActionRow(
                   icon: Icons.upload_file,
                   label: 'Import Perfetto trace',
@@ -279,6 +330,16 @@ class _AndroidCaptureScreenState extends State<AndroidCaptureScreen> {
                         'frames and resolves function names in-app',
                     onPressed: _resolveSymbolsFromSoDir,
                   ),
+                  if (_llvmMissing) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'llvm-symbolizer/llvm-readelf not found — resolved '
+                      'names may be incomplete. Set them up in Tools.',
+                      style: RadarTypography.caption.copyWith(
+                        color: RadarColors.warning,
+                      ),
+                    ),
+                  ],
                 ],
                 const SizedBox(height: 10),
                 _ImportActionRow(

@@ -60,6 +60,13 @@ class DesktopRail extends StatelessWidget {
               DesktopView.androidCapture,
             ])
               _item(v, enabled: true),
+            const SizedBox(height: 14),
+            _group('SETUP'),
+            // Always enabled, even offline: the Tools screen is how a
+            // user fixes a missing external tool in the first place, so
+            // it can never be behind the same connection gate it helps
+            // unblock.
+            _item(DesktopView.tools, enabled: true),
           ],
         ),
       ),
