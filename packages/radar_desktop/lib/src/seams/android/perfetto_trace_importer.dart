@@ -16,9 +16,13 @@ const String kTraceProcessorBinEnvVar = 'RADAR_TP_BIN';
 final class PerfettoTraceImporter implements NativeTraceImporter {
   const PerfettoTraceImporter({this.traceProcessorPath});
 
-  /// Explicit `trace_processor` binary path; falls back to
-  /// [resolveTraceProcessorBinary] (the `RADAR_TP_BIN` env var) when null.
-  final String? traceProcessorPath;
+  /// Resolves the current `trace_processor` binary path, called fresh at
+  /// the start of every [importTrace] — e.g. `ToolsController.resolvedPath`,
+  /// so a Locate/Install in the Tools screen takes effect on the very next
+  /// import with no need to rebuild this importer. Falls back to
+  /// [resolveTraceProcessorBinary] (the `RADAR_TP_BIN` env var) when this is
+  /// null, or when calling it returns null.
+  final String? Function()? traceProcessorPath;
 
   @override
   Future<NativeHeapProfile> importTrace(
@@ -26,7 +30,7 @@ final class PerfettoTraceImporter implements NativeTraceImporter {
     required String label,
   }) async {
     final binaryPath = resolveTraceProcessorBinary(
-      explicit: traceProcessorPath,
+      explicit: traceProcessorPath?.call(),
     );
     final parser = PerfettoTraceProcessorParser(
       ProcessTraceProcessorRunner(binaryPath: binaryPath),

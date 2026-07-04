@@ -28,7 +28,7 @@ void main() {
       }
 
       final controller = NativeProfilingController(
-        PerfettoTraceImporter(traceProcessorPath: tpBin),
+        PerfettoTraceImporter(traceProcessorPath: () => tpBin),
         deviceProbe: const AdbDeviceProbe(ProcessAdbRunner()),
         capture: AdbHeapprofdCapture(const ProcessAdbRunner()),
       );

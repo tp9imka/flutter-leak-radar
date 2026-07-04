@@ -88,6 +88,12 @@ class ToolsController extends ChangeNotifier {
       tool: ToolStatus(tool: tool, found: false, source: ToolSource.none),
   };
 
+  /// Guards [_notify] against firing after [dispose] — a probe/locate/
+  /// install call started before disposal can still complete afterward
+  /// (e.g. a widget torn down mid-request), and `ChangeNotifier` asserts
+  /// if `notifyListeners` runs post-dispose.
+  bool _disposed = false;
+
   /// Set when [installTraceProcessor] fails; cleared at the start of the
   /// next attempt. Null when there's nothing to show.
   String? installError;
@@ -133,7 +139,7 @@ class ToolsController extends ChangeNotifier {
         env: _env,
       );
     }
-    notifyListeners();
+    _notify();
   }
 
   /// Saves [path] as the user-set location for [tool], persists it, and
@@ -142,7 +148,7 @@ class ToolsController extends ChangeNotifier {
     _config = _config.withPath(tool.id, path);
     await _store.write(_config);
     _statuses[tool] = await _probe.probe(tool, configuredPath: path, env: _env);
-    notifyListeners();
+    _notify();
   }
 
   /// Downloads `trace_processor` to `<installDir>/trace_processor`
@@ -159,12 +165,25 @@ class ToolsController extends ChangeNotifier {
       await locate(ExternalTool.traceProcessor, path);
     } catch (e) {
       installError = e.toString();
-      notifyListeners();
+      _notify();
     }
   }
 
   Future<String> _defaultInstallDir() async {
     final dir = await getApplicationSupportDirectory();
     return p.join(dir.path, 'bin');
+  }
+
+  /// Marks this controller disposed so a probe/locate/install call still
+  /// in flight cannot [notifyListeners] afterward.
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _notify() {
+    if (_disposed) return;
+    notifyListeners();
   }
 }

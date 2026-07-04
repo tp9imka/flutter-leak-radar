@@ -17,9 +17,11 @@ import '../screens/dumps_screen.dart';
 import '../screens/histogram_screen.dart';
 import '../screens/paths_screen.dart';
 import '../screens/trends_screen.dart';
+import '../seams/android/lazy_tool_seams.dart';
 import '../seams/android/perfetto_trace_importer.dart';
 import '../seams/desktop_perf_call.dart';
 import '../seams/vm_service_uri_connection.dart';
+import '../tools/tools_controller.dart';
 import '../workspace/workspace_controller.dart';
 import 'connect_bar.dart';
 import 'desktop_rail.dart';
@@ -29,11 +31,17 @@ import 'desktop_window_chrome.dart';
 /// the right. Owns the workspace and routes the selected [DesktopView] to its
 /// real screen; locked (perf/stability) views never activate while offline.
 class DesktopShell extends StatefulWidget {
-  const DesktopShell({super.key, this.connection});
+  const DesktopShell({super.key, this.connection, this.tools});
 
   /// The live VM service connection driving PERFORMANCE/STABILITY. Injectable
   /// for tests; when null, the shell owns its own [VmServiceUriConnection].
   final VmServiceUriConnection? connection;
+
+  /// Discovers/persists the external tools (`trace_processor`, `adb`,
+  /// `llvm-symbolizer`, `llvm-readelf`) that ANDROID NATIVE's profiling
+  /// seams shell out to. Injectable for tests; when null, the shell owns
+  /// its own [ToolsController].
+  final ToolsController? tools;
 
   @override
   State<DesktopShell> createState() => _DesktopShellState();
@@ -41,13 +49,29 @@ class DesktopShell extends StatefulWidget {
 
 class _DesktopShellState extends State<DesktopShell> {
   final WorkspaceController _workspace = WorkspaceController();
-  final NativeProfilingController _android = NativeProfilingController(
-    const PerfettoTraceImporter(),
-    deviceProbe: const AdbDeviceProbe(ProcessAdbRunner()),
-    capture: AdbHeapprofdCapture(const ProcessAdbRunner()),
+  late final ToolsController _tools = widget.tools ?? ToolsController();
+
+  /// Seams read [_tools.resolvedPath] lazily on every call, so a Locate/
+  /// Install in the Tools screen takes effect on the next import/capture/
+  /// symbolize — no rebuild here, which would lose imported checkpoints.
+  late final NativeProfilingController _android = NativeProfilingController(
+    PerfettoTraceImporter(
+      traceProcessorPath: () =>
+          _tools.resolvedPath(ExternalTool.traceProcessor),
+    ),
+    deviceProbe: AdbDeviceProbe(
+      LazyAdbRunner(() => _tools.resolvedPath(ExternalTool.adb)),
+    ),
+    capture: AdbHeapprofdCapture(
+      LazyAdbRunner(() => _tools.resolvedPath(ExternalTool.adb)),
+    ),
     symbolStoreBuilder: SymbolStoreBuilder(
-      buildIdReader: const LlvmReadelfBuildIdReader(),
-      symbolizer: const LlvmSymbolizer(),
+      buildIdReader: LazyBuildIdReader(
+        () => _tools.resolvedPath(ExternalTool.llvmReadelf),
+      ),
+      symbolizer: LazySymbolizer(
+        () => _tools.resolvedPath(ExternalTool.llvmSymbolizer),
+      ),
     ),
   );
   late final VmServiceUriConnection _connection =
@@ -65,7 +89,14 @@ class _DesktopShellState extends State<DesktopShell> {
     super.initState();
     unawaited(_workspace.restore());
     _connection.addListener(_onConnectionChanged);
+    _tools.addListener(_onToolsChanged);
+    unawaited(_tools.load());
   }
+
+  // Rebuilds so the chrome health dot and any missing-tool banners (see the
+  // Tools screen work) reflect the latest probe/locate/install result. The
+  // profiling seams themselves need no rebuild — they read `_tools` lazily.
+  void _onToolsChanged() => setState(() {});
 
   void _onConnectionChanged() {
     setState(() {
@@ -82,9 +113,13 @@ class _DesktopShellState extends State<DesktopShell> {
   @override
   void dispose() {
     _connection.removeListener(_onConnectionChanged);
-    // Only dispose a connection we created; an injected one belongs to the
-    // caller.
+    // Only dispose a connection/tools controller we created; an injected
+    // one belongs to the caller.
     if (widget.connection == null) _connection.dispose();
+    // Remove the listener before disposing so a probe/locate/install call
+    // still in flight can't drive a setState after this State is gone.
+    _tools.removeListener(_onToolsChanged);
+    if (widget.tools == null) _tools.dispose();
     _perf.dispose();
     _workspace.dispose();
     _android.dispose();

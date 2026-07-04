@@ -26,7 +26,7 @@ void main() {
       }
 
       final controller = NativeProfilingController(
-        PerfettoTraceImporter(traceProcessorPath: bin),
+        PerfettoTraceImporter(traceProcessorPath: () => bin),
       );
       await controller.importTrace(trace, label: 'real');
 

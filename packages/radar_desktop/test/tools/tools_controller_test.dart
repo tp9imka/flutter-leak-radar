@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -215,6 +216,29 @@ void main() {
 
       expect(controller.installError, isNotNull);
       expect(controller.statusOf(ExternalTool.traceProcessor).found, isFalse);
+    });
+  });
+
+  group('ToolsController.dispose', () {
+    test('a probe that resolves after dispose does not throw notifying '
+        'listeners', () async {
+      final completer =
+          Completer<({int exitCode, String stdout, String stderr})>();
+      final probe = ToolProbe(
+        exists: (_) => true,
+        run: (exe, args) => completer.future,
+        commonLocations: (_) => const [],
+      );
+      final controller = ToolsController(
+        probe: probe,
+        store: _FakeToolConfigStore(),
+      );
+
+      final loadFuture = controller.load();
+      controller.dispose();
+      completer.complete((exitCode: 0, stdout: 'v1', stderr: ''));
+
+      await expectLater(loadFuture, completes);
     });
   });
 }
