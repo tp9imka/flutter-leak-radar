@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Packages — Flutter Radar</title>
+  <meta name="description" content="Every package in the Radar suite and the role each one plays — from the all-in-one radarscope umbrella to the standalone Radar Desktop app.">
+  <meta name="color-scheme" content="dark">
+  <link rel="preload" href="fonts/SpaceGrotesk.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { margin: 0; background: #07090a; color: #e7eef0; font-family: 'Hanken Grotesk', system-ui, sans-serif; }
+    .nav { position: sticky; top: 0; z-index: 50; background: rgba(7,9,10,0.72); border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .pillar-hero__title { font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="bg-glow" aria-hidden="true"></div>
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <div class="page">
+    <!-- NAV -->
+    <nav class="nav" aria-label="Primary">
+      <div class="nav__inner">
+        <a class="nav__brand" href="index.html" aria-label="Flutter Radar home">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="7" stroke="rgba(47,227,155,0.55)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+          <span class="nav__brand-name">Flutter Radar</span>
+        </a>
+        <div class="nav__links">
+          <a class="nav__link" href="memory.html">Memory</a>
+          <a class="nav__link" href="performance.html">Performance</a>
+          <a class="nav__link" href="stability.html">Stability</a>
+          <a class="nav__link" href="desktop.html">Desktop</a>
+          <a class="nav__link" href="packages.html" aria-current="page">Packages</a>
+          <a class="nav__link" href="index.html#install">Install</a>
+          <a class="nav__cta" href="https://github.com/tp9imka/flutter-leak-radar">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+            GitHub
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- BREADCRUMB -->
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="index.html">Flutter Radar</a>
+      <span class="breadcrumb__sep" aria-hidden="true">/</span>
+      <span>Packages</span>
+    </nav>
+
+    <!-- HERO -->
+    <header class="pillar-hero">
+      <div class="pillar-hero__copy pillar-hero__copy--full">
+        <p class="eyebrow eyebrow--green" data-reveal>The suite</p>
+        <h1 class="pillar-hero__title" data-reveal>Eleven packages. One suite.</h1>
+        <p class="pillar-hero__lead" data-reveal>Radar splits cleanly along its seams: an all-in-one umbrella for most apps, single-domain runtimes for the rest, and the analysis engines, design system, and apps everything else is built on. Seven packages are published to pub.dev; five more are internal and open on GitHub.</p>
+      </div>
+    </header>
+
+    <main>
+      <!-- PUBLISHED -->
+      <section class="section" aria-labelledby="published-heading">
+        <div class="section-head" data-reveal>
+          <p class="eyebrow eyebrow--green">Published to pub.dev</p>
+          <h2 class="section-title" id="published-heading">Add exactly the surface area you need.</h2>
+          <p class="section-intro">Most apps want one dependency. <code>radarscope</code> pulls in all three domains behind a single <code>init</code> call; the rest are here for anyone assembling a narrower dependency graph.</p>
+        </div>
+        <div class="pkgwin" data-reveal>
+          <div class="pkgwin__bar">
+            <span class="pkgwin__bar-title">Published packages</span>
+            <span class="pkgwin__bar-tag nums">7 on pub.dev</span>
+          </div>
+          <div class="pkgwin__scroll">
+            <table class="pkgtable" aria-label="Published packages and their role in the suite">
+              <thead>
+                <tr>
+                  <th scope="col">Package</th>
+                  <th scope="col">Role</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="pkgtable__name"><a href="https://pub.dev/packages/radarscope">radarscope</a></td>
+                  <td class="pkgtable__role">All-in-one umbrella &mdash; one dependency, one import (<code>Radar.init(...)</code>) for Memory + Performance + Stability, the overlay badge, and the unified Inspector.</td>
+                </tr>
+                <tr>
+                  <td class="pkgtable__name"><a href="https://pub.dev/packages/flutter_leak_radar">flutter_leak_radar</a></td>
+                  <td class="pkgtable__role">Memory runtime &mdash; heap sampling, precise object tracking, retaining paths, the Leaks inspector.</td>
+                </tr>
+                <tr>
+                  <td class="pkgtable__name"><a href="https://pub.dev/packages/flutter_perf_radar">flutter_perf_radar</a></td>
+                  <td class="pkgtable__role">Performance + Stability runtime &mdash; tracing, frame/jank timing, rebuild counts, startup, error/stall capture.</td>
+                </tr>
+                <tr>
+                  <td class="pkgtable__name"><a href="https://pub.dev/packages/flutter_leak_radar_lint">flutter_leak_radar_lint</a></td>
+                  <td class="pkgtable__role">Static analysis &mdash; <code>custom_lint</code> rules that catch undisposed controllers, uncancelled subscriptions, and similar patterns at edit time.</td>
+                </tr>
+                <tr>
+                  <td class="pkgtable__name"><a href="https://pub.dev/packages/radar_trace">radar_trace</a></td>
+                  <td class="pkgtable__role">Pure-Dart tracer core &mdash; spans, latency histograms, per-key stats (count / avg / p95 / total / inter-call interval).</td>
+                </tr>
+                <tr>
+                  <td class="pkgtable__name"><a href="https://pub.dev/packages/leak_graph">leak_graph</a></td>
+                  <td class="pkgtable__role">Pure-Dart heap-snapshot analysis &mdash; object graph, retaining paths, snapshot diffing (no live VM required).</td>
+                </tr>
+                <tr>
+                  <td class="pkgtable__name"><a href="https://pub.dev/packages/radar_ui">radar_ui</a></td>
+                  <td class="pkgtable__role">Shared design system &mdash; tokens, typography, and the dense dashboard widgets.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- INTERNAL -->
+      <section class="section section--ruled" aria-labelledby="internal-heading">
+        <div class="section-head" data-reveal>
+          <p class="eyebrow eyebrow--cyan">Internal packages &amp; apps &middot; not published</p>
+          <h2 class="section-title section-title--md" id="internal-heading">What the published packages are built on.</h2>
+          <p class="section-intro">Not on pub.dev &mdash; the shared analysis engine, host-side tooling, and the two apps (the DevTools extension and Radar Desktop) that consume it. All open source, all in this repo.</p>
+        </div>
+        <div class="feature-grid">
+          <div class="feature" data-reveal>
+            <div class="feature__title"><a href="https://github.com/tp9imka/flutter-leak-radar/tree/main/packages/flutter_leak_radar_devtools">flutter_leak_radar_devtools</a></div>
+            <p class="feature__desc">DevTools extension &mdash; host-side heap capture list (diff any two), class histogram, retaining paths grouped by closest root, composable filters.</p>
+          </div>
+          <div class="feature" data-reveal>
+            <div class="feature__title"><a href="https://github.com/tp9imka/flutter-leak-radar/tree/main/packages/radar_workbench">radar_workbench</a></div>
+            <p class="feature__desc">Shared portable analysis engine &mdash; snapshot models, memory/performance/stability views, and the controllers/interfaces both the DevTools extension and Radar Desktop build on.</p>
+          </div>
+          <div class="feature" data-reveal>
+            <div class="feature__title"><a href="https://github.com/tp9imka/flutter-leak-radar/tree/main/packages/radar_native">radar_native</a></div>
+            <p class="feature__desc">Pure-Dart native-heap model and analysis &mdash; a peer to <code>leak_graph</code> for the native (heapprofd/Perfetto) memory lane.</p>
+          </div>
+          <div class="feature" data-reveal>
+            <div class="feature__title"><a href="https://github.com/tp9imka/flutter-leak-radar/tree/main/packages/radar_native_host">radar_native_host</a></div>
+            <p class="feature__desc">Host-side tooling &mdash; Perfetto <code>trace_processor</code> parsing, <code>adb</code>/heapprofd capture control, and the native symbolization producer + <code>symbolize</code> CLI.</p>
+          </div>
+          <div class="feature" data-reveal>
+            <div class="feature__title"><a href="https://github.com/tp9imka/flutter-leak-radar/tree/main/packages/radar_desktop">radar_desktop</a></div>
+            <p class="feature__desc">Radar Desktop &mdash; the standalone macOS-first desktop analyzer app. <a href="desktop.html">See the full page &rarr;</a></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- CROSS LINKS -->
+      <section class="section section--ruled" aria-label="More on the suite">
+        <div class="crosslinks">
+          <a class="crosslink crosslink--desktop" href="desktop.html" data-reveal>
+            <span class="crosslink__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2fe39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg></span>
+            <span>
+              <span class="crosslink__kicker">STANDALONE APP</span>
+              <span class="crosslink__title">Radar Desktop &rarr;</span>
+            </span>
+          </a>
+          <a class="crosslink crosslink--neutral" href="https://github.com/tp9imka/flutter-leak-radar#readme" data-reveal>
+            <span class="crosslink__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#8fa0a6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"/><path d="M14 2v6h6"/></svg></span>
+            <span>
+              <span class="crosslink__kicker">DOCS</span>
+              <span class="crosslink__title">Root README &rarr;</span>
+            </span>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer footer--compact">
+      <div class="footer__inner">
+        <a class="footer__brand-link" href="index.html">
+          <svg width="22" height="22" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="11.5" stroke="rgba(47,227,155,0.35)" stroke-width="1"/><circle cx="13" cy="13" r="2.4" fill="#2fe39b"/></svg>
+          <span class="footer__brand-name">Flutter Radar</span>
+        </a>
+        <nav class="footer__quicklinks" aria-label="More">
+          <a class="footer__link" href="desktop.html">Desktop</a>
+          <a class="footer__link" href="packages.html">Packages</a>
+        </nav>
+        <span class="footer__meta">MIT licensed &middot; debug &amp; profile only &middot; no-op in release</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="main.js" defer></script>
+</body>
+</html>
