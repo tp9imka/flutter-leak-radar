@@ -106,7 +106,15 @@ final class ToolProbe {
         isBareName: false,
       );
     }
-    yield (path: tool.id, source: ToolSource.path, isBareName: true);
+    // Resolve the bare name against PATH to ABSOLUTE, existence-checked
+    // candidates. Never spawn a bare name: `posix_spawnp` of a name that
+    // isn't on PATH crashes the hardened macOS app natively (spawning an
+    // existing absolute path is safe), so we only ever run paths that exist.
+    for (final dir in (env['PATH'] ?? '').split(':')) {
+      if (dir.isEmpty) continue;
+      final path = dir.endsWith('/') ? '$dir${tool.id}' : '$dir/${tool.id}';
+      yield (path: path, source: ToolSource.path, isBareName: false);
+    }
   }
 
   List<String> _resolveCommonLocations(ExternalTool tool) {

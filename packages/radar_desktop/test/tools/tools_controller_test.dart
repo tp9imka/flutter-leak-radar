@@ -30,7 +30,10 @@ ToolProbe _fakeProbe(Set<String> workingPaths) => ToolProbe(
   run: (exe, args) async => workingPaths.contains(exe)
       ? (exitCode: 0, stdout: '$exe v1', stderr: '')
       : (exitCode: 1, stdout: '', stderr: 'not found'),
-  commonLocations: (_) => const [],
+  // Expose each tool's bare id as a resolvable (existence-checked) location,
+  // so a workingPaths entry of just 'adb' resolves under the no-bare-name-
+  // spawn model (a not-on-disk bare name is never spawned).
+  commonLocations: (tool) => [tool.id],
 );
 
 void main() {

@@ -22,11 +22,12 @@ class _FakeToolConfigStore implements ToolConfigStore {
 /// tool ids in [workingIds] — never touches the real filesystem or
 /// spawns a process.
 ToolProbe _fakeProbe(Set<String> workingIds) => ToolProbe(
-  exists: (_) => false,
+  exists: workingIds.contains,
   run: (exe, args) async => workingIds.contains(exe)
       ? (exitCode: 0, stdout: '$exe v1', stderr: '')
       : (exitCode: 1, stdout: '', stderr: 'not found'),
-  commonLocations: (_) => const [],
+  // Each tool id resolves as an existence-checked location (no bare-name spawn).
+  commonLocations: (tool) => [tool.id],
 );
 
 /// A loaded [ToolsController] reporting every [ExternalTool] present
