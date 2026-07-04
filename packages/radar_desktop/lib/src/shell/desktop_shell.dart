@@ -127,6 +127,16 @@ class _DesktopShellState extends State<DesktopShell> {
     super.dispose();
   }
 
+  /// The first ready (`'device'`-state) Android device's serial, or null
+  /// if none is ready — `adb` then falls back to its single-device
+  /// default, which is acceptable for this v1 scan affordance.
+  String? get _readyDeviceSerial {
+    for (final device in _android.devices) {
+      if (device.isReady) return device.serial;
+    }
+    return null;
+  }
+
   void _select(DesktopView v) {
     // Clamp: never activate a locked (perf/stability) view while offline;
     // ANDROID NATIVE is its own offline workspace, so it is never clamped;
@@ -186,6 +196,12 @@ class _DesktopShellState extends State<DesktopShell> {
 
   @override
   Widget build(BuildContext context) {
+    // Reads the resolved adb path lazily on every scan tap (same seam
+    // `_android`'s deviceProbe/capture use), so a Locate/Install in the
+    // Tools screen takes effect without rebuilding this controller.
+    final discovery = AndroidVmServiceDiscovery(
+      LazyAdbRunner(() => _tools.resolvedPath(ExternalTool.adb)),
+    );
     return Theme(
       data: radarDarkTheme(),
       child: Scaffold(
@@ -198,7 +214,12 @@ class _DesktopShellState extends State<DesktopShell> {
               missingToolCount: _tools.statuses.where((s) => !s.found).length,
               onOpenTools: () => _select(DesktopView.tools),
             ),
-            ConnectBar(connection: _connection),
+            ConnectBar(
+              connection: _connection,
+              onScanDevice: _android.canCapture
+                  ? () => discovery.discoverWsUri(serial: _readyDeviceSerial)
+                  : null,
+            ),
             Expanded(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,

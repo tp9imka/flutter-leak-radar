@@ -15,10 +15,18 @@ import '../seams/vm_service_uri_connection.dart';
 /// [ConnectionBar]; this widget adds the URI input and the connect/
 /// disconnect action around it.
 class ConnectBar extends StatefulWidget {
-  const ConnectBar({super.key, required this.connection});
+  const ConnectBar({super.key, required this.connection, this.onScanDevice});
 
   /// The live connection this bar drives and observes.
   final VmServiceUriConnection connection;
+
+  /// Scans the connected Android device's `adb logcat` for a running
+  /// Flutter VM service and `adb forward`s it, returning a ready-to-connect
+  /// `ws://…/ws` URI, or null if no VM-service line was found.
+  ///
+  /// Null hides the "Scan device" button entirely — e.g. when this host
+  /// has no resolved `adb`.
+  final Future<String?> Function()? onScanDevice;
 
   @override
   State<ConnectBar> createState() => _ConnectBarState();
@@ -26,6 +34,8 @@ class ConnectBar extends StatefulWidget {
 
 class _ConnectBarState extends State<ConnectBar> {
   final TextEditingController _uriController = TextEditingController();
+  bool _scanning = false;
+  String? _scanNote;
 
   @override
   void dispose() {
@@ -39,6 +49,37 @@ class _ConnectBarState extends State<ConnectBar> {
     await widget.connection.connect(uri);
   }
 
+  Future<void> _scanDevice() async {
+    final onScanDevice = widget.onScanDevice;
+    if (onScanDevice == null || _scanning) return;
+    setState(() {
+      _scanning = true;
+      _scanNote = null;
+    });
+
+    String? result;
+    Object? error;
+    try {
+      result = await onScanDevice();
+    } catch (e) {
+      error = e;
+    }
+    if (!mounted) return;
+
+    setState(() {
+      _scanning = false;
+      _scanNote = switch ((result, error)) {
+        (final uri?, _) when uri.isNotEmpty => null,
+        (_, final e?) => 'Scan failed: $e',
+        _ => 'No running debug/profile app found on the device',
+      };
+    });
+    if (result != null && result.isNotEmpty) {
+      _uriController.text = result;
+      _uriController.selection = TextSelection.collapsed(offset: result.length);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -49,6 +90,11 @@ class _ConnectBarState extends State<ConnectBar> {
             uriController: _uriController,
             lastError: widget.connection.lastError,
             onConnect: () => unawaited(_connect()),
+            onScan: widget.onScanDevice == null
+                ? null
+                : () => unawaited(_scanDevice()),
+            scanning: _scanning,
+            scanNote: _scanNote,
           ),
           RadarConnectionPhase.connecting => const _ConnectingBar(),
           RadarConnectionPhase.connected => _ConnectedBar(
@@ -92,11 +138,26 @@ class _DisconnectedBar extends StatelessWidget {
     required this.uriController,
     required this.lastError,
     required this.onConnect,
+    this.onScan,
+    this.scanning = false,
+    this.scanNote,
   });
 
   final TextEditingController uriController;
   final String? lastError;
   final VoidCallback onConnect;
+
+  /// Non-null when [ConnectBar.onScanDevice] was supplied; tapping
+  /// triggers a fresh `adb logcat` scan. Null hides the scan button and
+  /// spinner entirely, leaving this bar's layout unchanged.
+  final VoidCallback? onScan;
+
+  /// True while a scan triggered by [onScan] is in flight.
+  final bool scanning;
+
+  /// Inline note from the most recent scan (no app found, or an error);
+  /// null once a scan fills the field or before any scan has run.
+  final String? scanNote;
 
   @override
   Widget build(BuildContext context) {
@@ -119,6 +180,28 @@ class _DisconnectedBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
+              if (onScan != null) ...[
+                if (scanning)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 3),
+                    child: SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                else
+                  IconButton(
+                    icon: const Icon(Icons.search_rounded, size: 16),
+                    tooltip: 'Scan device for a running app',
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    color: RadarColors.text60,
+                    onPressed: onScan,
+                  ),
+                const SizedBox(width: 8),
+              ],
               ValueListenableBuilder<TextEditingValue>(
                 valueListenable: uriController,
                 builder: (context, value, _) => FilledButton(
@@ -133,6 +216,16 @@ class _DisconnectedBar extends StatelessWidget {
               ),
             ],
           ),
+          if (scanNote != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                scanNote!,
+                style: RadarTypography.caption,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           if (lastError != null)
             Padding(
               padding: const EdgeInsets.only(top: 6),

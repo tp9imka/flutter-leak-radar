@@ -33,11 +33,17 @@ final _cannedVm = VM(
   isolates: [IsolateRef(id: 'iso-1', name: 'main', number: '1')],
 );
 
-Future<void> _pump(WidgetTester tester, VmServiceUriConnection connection) {
+Future<void> _pump(
+  WidgetTester tester,
+  VmServiceUriConnection connection, {
+  Future<String?> Function()? onScanDevice,
+}) {
   return tester.pumpWidget(
     MaterialApp(
       theme: radarDarkTheme(),
-      home: Scaffold(body: ConnectBar(connection: connection)),
+      home: Scaffold(
+        body: ConnectBar(connection: connection, onScanDevice: onScanDevice),
+      ),
     ),
   );
 }
@@ -137,6 +143,57 @@ void main() {
 
       expect(connection.state.phase, RadarConnectionPhase.disconnected);
       expect(find.textContaining('boom'), findsOneWidget);
+    });
+  });
+
+  group('ConnectBar scan device', () {
+    testWidgets('no onScanDevice: the scan button is absent', (tester) async {
+      final connection = VmServiceUriConnection(
+        connect: (_) async => _FakeVmService(),
+      );
+      addTearDown(connection.dispose);
+
+      await _pump(tester, connection);
+
+      expect(find.byIcon(Icons.search_rounded), findsNothing);
+    });
+
+    testWidgets('tapping the scan button fills the URI field with the '
+        'scan result', (tester) async {
+      final connection = VmServiceUriConnection(
+        connect: (_) async => _FakeVmService(),
+      );
+      addTearDown(connection.dispose);
+
+      await _pump(
+        tester,
+        connection,
+        onScanDevice: () async => 'ws://127.0.0.1:5/tok=/ws',
+      );
+      await tester.tap(find.byIcon(Icons.search_rounded));
+      await tester.pump();
+      await tester.pump();
+
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.controller!.text, 'ws://127.0.0.1:5/tok=/ws');
+    });
+
+    testWidgets('tapping the scan button shows an inline note when no app '
+        'is found', (tester) async {
+      final connection = VmServiceUriConnection(
+        connect: (_) async => _FakeVmService(),
+      );
+      addTearDown(connection.dispose);
+
+      await _pump(tester, connection, onScanDevice: () async => null);
+      await tester.tap(find.byIcon(Icons.search_rounded));
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        find.textContaining('No running debug/profile app found on the device'),
+        findsOneWidget,
+      );
     });
   });
 }

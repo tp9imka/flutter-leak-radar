@@ -10,6 +10,7 @@ library;
 
 export 'src/capture/adb_devices.dart';
 export 'src/capture/adb_runner.dart';
+export 'src/capture/android_vm_service_discovery.dart';
 export 'src/capture/device_probe.dart';
 export 'src/capture/heapprofd_config.dart';
 export 'src/capture/native_heap_capture.dart';
