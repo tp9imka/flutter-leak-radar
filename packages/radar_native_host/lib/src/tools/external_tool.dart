@@ -77,7 +77,13 @@ enum ToolSource {
   /// An Android NDK toolchain's `llvm/prebuilt/*/bin` directory.
   ndk,
 
-  /// The bare tool name, resolved by the OS via `PATH`.
+  /// A well-known install location this app itself manages (or any
+  /// common location that doesn't match a more specific tier above),
+  /// as opposed to something resolved via `PATH` or an env var.
+  appManaged,
+
+  /// The bare tool name, resolved by the OS via `PATH`. Never used for
+  /// an absolute common-location candidate — see [appManaged].
   path,
 
   /// No candidate both existed and verified.

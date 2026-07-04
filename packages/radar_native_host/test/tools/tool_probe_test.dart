@@ -244,5 +244,51 @@ void main() {
 
       expect(status.version, 'v7');
     });
+
+    test('the app-managed common location (from the real default locations) '
+        'is existence-checked, unlike the bare-name PATH candidate', () async {
+      final existsCalls = <String>[];
+      final runExes = <String>[];
+      const fakeHome = '/fake/home/for/tool-probe-test';
+      const appManagedPath =
+          '$fakeHome/Library/Application Support/radar_desktop/bin/'
+          'trace_processor';
+      final probe = ToolProbe(
+        homeDir: fakeHome,
+        exists: (path) {
+          existsCalls.add(path);
+          return false;
+        },
+        run: (exe, args) async {
+          runExes.add(exe);
+          return (exitCode: 1, stdout: '', stderr: '');
+        },
+      );
+
+      final status = await probe.probe(ExternalTool.traceProcessor);
+
+      expect(existsCalls, contains(appManagedPath));
+      expect(runExes, isNot(contains(appManagedPath)));
+      expect(status.found, isFalse);
+    });
+
+    test('an app-managed common location that exists and verifies is source '
+        'appManaged, not path', () async {
+      const fakeHome = '/fake/home/for/tool-probe-test';
+      const appManagedPath =
+          '$fakeHome/Library/Application Support/radar_desktop/bin/'
+          'trace_processor';
+      final probe = ToolProbe(
+        homeDir: fakeHome,
+        exists: (path) => path == appManagedPath,
+        run: _ok,
+      );
+
+      final status = await probe.probe(ExternalTool.traceProcessor);
+
+      expect(status.found, isTrue);
+      expect(status.source, ToolSource.appManaged);
+      expect(status.path, appManagedPath);
+    });
   });
 }

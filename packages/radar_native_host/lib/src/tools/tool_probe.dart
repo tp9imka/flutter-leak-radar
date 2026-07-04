@@ -17,8 +17,13 @@ typedef ProcessProbe =
     );
 
 /// A single location to try while resolving a tool, tagged with the
-/// [ToolSource] tier it belongs to.
-typedef _Candidate = ({String path, ToolSource source});
+/// [ToolSource] tier it belongs to and whether it's the trailing bare
+/// `tool.id` candidate left for the OS to resolve via `PATH` — the only
+/// candidate not existence-checked, since a bare name isn't a filesystem
+/// path. Every other candidate (config, env, and every common location,
+/// including ones [_classifyLocation] can't recognize) is an absolute
+/// path and must be existence-checked regardless of its [source].
+typedef _Candidate = ({String path, ToolSource source, bool isBareName});
 
 /// Resolves an [ExternalTool] to an on-disk path and verifies it
 /// actually runs, so a Finder/Dock-launched app (minimal `PATH`, no
@@ -60,8 +65,7 @@ final class ToolProbe {
     Map<String, String> env = const {},
   }) async {
     for (final candidate in _candidatesFor(tool, configuredPath, env)) {
-      final isBareNameOnPath = candidate.source == ToolSource.path;
-      if (!isBareNameOnPath && !_exists(candidate.path)) continue;
+      if (!candidate.isBareName && !_exists(candidate.path)) continue;
 
       final result = await _run(candidate.path, tool.versionArgs);
       if (result.exitCode == 0) {
@@ -83,16 +87,26 @@ final class ToolProbe {
     Map<String, String> env,
   ) sync* {
     if (configuredPath != null) {
-      yield (path: configuredPath, source: ToolSource.config);
+      yield (
+        path: configuredPath,
+        source: ToolSource.config,
+        isBareName: false,
+      );
     }
     if (tool.envVar.isNotEmpty) {
       final envPath = env[tool.envVar];
-      if (envPath != null) yield (path: envPath, source: ToolSource.env);
+      if (envPath != null) {
+        yield (path: envPath, source: ToolSource.env, isBareName: false);
+      }
     }
     for (final location in _resolveCommonLocations(tool)) {
-      yield (path: location, source: _classifyLocation(location));
+      yield (
+        path: location,
+        source: _classifyLocation(location),
+        isBareName: false,
+      );
     }
-    yield (path: tool.id, source: ToolSource.path);
+    yield (path: tool.id, source: ToolSource.path, isBareName: true);
   }
 
   List<String> _resolveCommonLocations(ExternalTool tool) {
@@ -106,17 +120,17 @@ final class ToolProbe {
 /// Classifies a well-known install location into the [ToolSource] tier
 /// shown in the UI. An NDK toolchain path always contains `/ndk/`; the
 /// Android SDK's `platform-tools` directory contains `/Android/sdk/`;
-/// anything else under a Homebrew prefix (or an unrecognized location,
-/// such as this app's own managed install directory) is a plain
-/// filesystem lookup outside of `PATH`/env, closest to `homebrew`/`path`
-/// respectively.
+/// anything under a Homebrew prefix is `homebrew`. Anything else —
+/// including this app's own managed install directory — is an absolute
+/// common-location candidate that isn't `PATH`/env, so it's tagged
+/// `appManaged` rather than the bare-name-only [ToolSource.path] tier.
 ToolSource _classifyLocation(String path) {
   if (path.contains('/ndk/')) return ToolSource.ndk;
   if (path.contains('/Android/sdk/')) return ToolSource.androidSdk;
   if (path.contains('homebrew') || path.startsWith('/usr/local/')) {
     return ToolSource.homebrew;
   }
-  return ToolSource.path;
+  return ToolSource.appManaged;
 }
 
 /// The first non-empty, trimmed line from [stdout] or (failing that)
