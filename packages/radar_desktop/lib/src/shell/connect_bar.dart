@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:radar_ui/radar_ui.dart';
 import 'package:radar_workbench/radar_workbench.dart';
 
+import '../app/error_toast.dart';
 import '../seams/vm_service_uri_connection.dart';
 
 /// A thin bar for entering a target app's `ws://` VM service URI and
@@ -134,13 +136,37 @@ class _DisconnectedBar extends StatelessWidget {
           if (lastError != null)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                lastError!,
-                style: RadarTypography.caption.copyWith(
-                  color: RadarColors.critical,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      lastError!,
+                      style: RadarTypography.caption.copyWith(
+                        color: RadarColors.critical,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    icon: const Icon(Icons.copy_rounded, size: 14),
+                    tooltip: 'Copy error',
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    color: RadarColors.critical,
+                    onPressed: () => Clipboard.setData(
+                      ClipboardData(
+                        text: errorClipboardPayload(
+                          lastError!,
+                          source: 'Connect',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
         ],
