@@ -5,6 +5,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:radar_ui/radar_ui.dart';
 
+import '../app/error_toast.dart';
 import '../workspace/workspace_controller.dart';
 
 /// The workspace: a multi-select table of loaded dumps, a drag-drop import
@@ -352,9 +353,7 @@ Future<void> _exportDump(
 /// test that pumps the screen without one).
 void _showError(BuildContext context, String message) {
   if (!context.mounted) return;
-  ScaffoldMessenger.maybeOf(
-    context,
-  )?.showSnackBar(SnackBar(content: Text(message)));
+  showRadarError(context, message, source: 'Dumps');
 }
 
 String _fmtBytes(int b) {

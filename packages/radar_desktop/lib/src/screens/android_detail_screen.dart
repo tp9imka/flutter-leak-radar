@@ -5,6 +5,7 @@ import 'package:radar_ui/radar_ui.dart';
 import 'package:radar_workbench/radar_workbench.dart';
 
 import '../android/module_palette.dart';
+import '../app/error_toast.dart';
 import '../android/native_profiling_controller.dart';
 
 /// File types accepted by the "Add symbols" action.
@@ -242,7 +243,5 @@ class _ModuleTrend extends StatelessWidget {
 /// `_showError`.
 void _showError(BuildContext context, String message) {
   if (!context.mounted) return;
-  ScaffoldMessenger.maybeOf(
-    context,
-  )?.showSnackBar(SnackBar(content: Text(message)));
+  showRadarError(context, message, source: 'Native detail');
 }

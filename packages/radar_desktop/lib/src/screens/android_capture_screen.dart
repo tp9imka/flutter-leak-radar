@@ -8,6 +8,7 @@ import 'package:radar_native_host/radar_native_host.dart';
 import 'package:radar_ui/radar_ui.dart';
 
 import '../android/native_profiling_controller.dart';
+import '../app/error_toast.dart';
 import 'android_capture_form.dart';
 
 /// File types accepted by each import action.
@@ -373,7 +374,5 @@ class _ImportActionRow extends StatelessWidget {
 /// one). Mirrors `dumps_screen.dart`'s `_showError`.
 void _showSnackBar(BuildContext context, String message) {
   if (!context.mounted) return;
-  ScaffoldMessenger.maybeOf(
-    context,
-  )?.showSnackBar(SnackBar(content: Text(message)));
+  showRadarError(context, message, source: 'Capture / import');
 }
