@@ -2,7 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Radar Desktop shells out to external binaries (adb, trace_processor,
+	     llvm-symbolizer) and connects to a running app's VM Service; the App
+	     Sandbox blocks that. Disabled — not an App Store app. -->
 	<key>com.apple.security.app-sandbox</key>
+	<false/>
+	<key>com.apple.security.network.client</key>
 	<true/>
 	<key>com.apple.security.files.user-selected.read-write</key>
 	<true/>
