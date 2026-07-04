@@ -3,6 +3,7 @@ description: >-
   Pure-Dart models and analysis for native-heap (heapprofd/Perfetto) leak
   detection — a peer to leak_graph for the native memory lane.
 version: 0.1.0
+publish_to: none
 repository: https://github.com/tp9imka/flutter-leak-radar
 
 environment:
