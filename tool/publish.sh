@@ -14,8 +14,9 @@
 #   tool/publish.sh packages/leak_graph            # real publish
 #   tool/publish.sh packages/leak_graph --dry-run  # validate only
 #
-# Release ORDER: leak_graph BEFORE flutter_leak_radar (the latter depends on
-# leak_graph: ^0.1.0, which must already be on pub.dev).
+# Release ORDER: leak_graph BEFORE flutter_leak_radar (the latter depends on a
+# published leak_graph, which must already be live on pub.dev). See
+# docs/PUBLISHING.md for the full tier order.
 set -euo pipefail
 
 PKG="${1:?usage: tool/publish.sh <package-dir> [--dry-run]}"
