@@ -148,37 +148,66 @@ void main() {
       expect(existsCalls, isNot(contains('/x/adb')));
     });
 
+    test('the bare tool id is resolved against PATH to an existence-checked '
+        'absolute path, never spawned bare', () async {
+      final existsCalls = <String>[];
+      final runExes = <String>[];
+      final probe = ToolProbe(
+        exists: (path) {
+          existsCalls.add(path);
+          return path == '/opt/homebrew/bin/adb';
+        },
+        run: (exe, args) async {
+          runExes.add(exe);
+          if (exe == '/opt/homebrew/bin/adb') {
+            return (
+              exitCode: 0,
+              stdout: 'Android Debug Bridge 1.0.41',
+              stderr: '',
+            );
+          }
+          return (exitCode: 1, stdout: '', stderr: '');
+        },
+        commonLocations: (tool) => const [],
+      );
+
+      final status = await probe.probe(
+        ExternalTool.adb,
+        env: const {'PATH': '/usr/bin:/opt/homebrew/bin'},
+      );
+
+      expect(status.found, isTrue);
+      expect(status.source, ToolSource.path);
+      // Resolved to the absolute PATH entry, existence-checked, never the
+      // bare name — spawning a not-on-PATH bare name crashes the macOS host.
+      expect(status.path, '/opt/homebrew/bin/adb');
+      expect(existsCalls, contains('/opt/homebrew/bin/adb'));
+      expect(runExes, isNot(contains('adb')));
+      expect(runExes.last, '/opt/homebrew/bin/adb');
+    });
+
     test(
-      'the bare tool id is attempted last, without an exists check',
+      'a tool not on PATH is never spawned (no bare-name Process.run)',
       () async {
-        final existsCalls = <String>[];
         final runExes = <String>[];
         final probe = ToolProbe(
-          exists: (path) {
-            existsCalls.add(path);
-            return false;
-          },
+          exists: (path) => false, // nothing on disk anywhere
           run: (exe, args) async {
             runExes.add(exe);
-            if (exe == 'adb') {
-              return (
-                exitCode: 0,
-                stdout: 'Android Debug Bridge 1.0.41',
-                stderr: '',
-              );
-            }
-            return (exitCode: 1, stdout: '', stderr: '');
+            return (exitCode: 0, stdout: '', stderr: '');
           },
           commonLocations: (tool) => const [],
         );
 
-        final status = await probe.probe(ExternalTool.adb);
+        final status = await probe.probe(
+          ExternalTool.traceProcessor,
+          env: const {'PATH': '/usr/bin:/opt/homebrew/bin'},
+        );
 
-        expect(status.found, isTrue);
-        expect(status.source, ToolSource.path);
-        expect(status.path, 'adb');
-        expect(runExes.last, 'adb');
-        expect(existsCalls, isNot(contains('adb')));
+        expect(status.found, isFalse);
+        // The crash-prevention invariant: no candidate exists, so `run` is
+        // never invoked — we never spawn a name that isn't on disk.
+        expect(runExes, isEmpty);
       },
     );
 
