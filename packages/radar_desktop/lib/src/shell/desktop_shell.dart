@@ -16,6 +16,7 @@ import '../screens/compare_screen.dart';
 import '../screens/dumps_screen.dart';
 import '../screens/histogram_screen.dart';
 import '../screens/paths_screen.dart';
+import '../screens/tools_screen.dart';
 import '../screens/trends_screen.dart';
 import '../seams/android/lazy_tool_seams.dart';
 import '../seams/android/perfetto_trace_importer.dart';
@@ -128,8 +129,10 @@ class _DesktopShellState extends State<DesktopShell> {
 
   void _select(DesktopView v) {
     // Clamp: never activate a locked (perf/stability) view while offline;
-    // ANDROID NATIVE is its own offline workspace, so it is never clamped.
-    if (!_connected && !v.isMemory && !v.isAndroid) return;
+    // ANDROID NATIVE is its own offline workspace, so it is never clamped;
+    // Tools is how a missing tool gets fixed in the first place, so it is
+    // never clamped either.
+    if (!_connected && !v.isMemory && !v.isAndroid && !v.isTools) return;
     setState(() => _view = v);
     // Fetch fresh data once per navigation into a perf/stability view, not
     // on every rebuild.
@@ -171,7 +174,13 @@ class _DesktopShellState extends State<DesktopShell> {
       case DesktopView.androidFfi:
         return AndroidFfiScreen(controller: _android);
       case DesktopView.androidCapture:
-        return AndroidCaptureScreen(controller: _android);
+        return AndroidCaptureScreen(
+          controller: _android,
+          tools: _tools,
+          onOpenTools: () => _select(DesktopView.tools),
+        );
+      case DesktopView.tools:
+        return ToolsScreen(controller: _tools);
     }
   }
 
@@ -183,7 +192,12 @@ class _DesktopShellState extends State<DesktopShell> {
         backgroundColor: RadarColors.bgPage,
         body: Column(
           children: [
-            const DesktopWindowChrome(workspaceName: 'untitled workspace'),
+            DesktopWindowChrome(
+              workspaceName: 'untitled workspace',
+              anyToolMissing: _tools.anyMissing,
+              missingToolCount: _tools.statuses.where((s) => !s.found).length,
+              onOpenTools: () => _select(DesktopView.tools),
+            ),
             ConnectBar(connection: _connection),
             Expanded(
               child: Row(

@@ -15,7 +15,8 @@ enum DesktopView {
   androidNative,
   androidCompare,
   androidFfi,
-  androidCapture;
+  androidCapture,
+  tools;
 
   bool get isMemory =>
       this == dumps ||
@@ -32,6 +33,11 @@ enum DesktopView {
       this == androidFfi ||
       this == androidCapture;
 
+  /// The SETUP destination — external tool discovery/install/locate.
+  /// Its own group: not memory/perf/stability/android, and (unlike
+  /// perf/stability) never gated behind a live connection.
+  bool get isTools => this == tools;
+
   String get label => switch (this) {
     DesktopView.dumps => 'Dumps',
     DesktopView.histogram => 'Class histogram',
@@ -47,5 +53,6 @@ enum DesktopView {
     DesktopView.androidCompare => 'Compare',
     DesktopView.androidFfi => 'ffi allocations',
     DesktopView.androidCapture => 'Capture / import',
+    DesktopView.tools => 'Tools',
   };
 }
