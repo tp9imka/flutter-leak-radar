@@ -101,3 +101,42 @@ jobs:
       - name: Test radar_ui
         run: flutter test
         working-directory: packages/radar_ui
+
+      # radar_native is pure Dart (native-heap model + module/diff analysis).
+      - name: Analyze radar_native
+        run: dart analyze
+        working-directory: packages/radar_native
+
+      - name: Test radar_native
+        run: dart test
+        working-directory: packages/radar_native
+
+      # radar_native_host is pure Dart (Perfetto/trace_processor parser, adb +
+      # heapprofd capture, and the native symbolization producer + CLI). Its
+      # real-tool integration tests skip unless RADAR_* env vars are set.
+      - name: Analyze radar_native_host
+        run: dart analyze
+        working-directory: packages/radar_native_host
+
+      - name: Test radar_native_host
+        run: dart test
+        working-directory: packages/radar_native_host
+
+      # radar_workbench is the shared portable analysis engine (VM tests).
+      - name: Analyze radar_workbench
+        run: flutter analyze
+        working-directory: packages/radar_workbench
+
+      - name: Test radar_workbench
+        run: flutter test
+        working-directory: packages/radar_workbench
+
+      # radar_desktop is the desktop app; its widget tests run on the VM, and
+      # its device/VM-Service integration tests skip unless RADAR_* env vars set.
+      - name: Analyze radar_desktop
+        run: flutter analyze
+        working-directory: packages/radar_desktop
+
+      - name: Test radar_desktop
+        run: flutter test
+        working-directory: packages/radar_desktop
