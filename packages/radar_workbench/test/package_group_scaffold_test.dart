@@ -51,10 +51,49 @@ void main() {
       expect(groups.first.isProject, isTrue);
       expect(groups.first.package, 'my_app');
       expect(groups.last.isRuntime, isTrue);
-      expect(groups.last.package, 'runtime');
+      expect(groups.last.package, '(runtime)');
       // The middle group is the dependency.
       expect(groups[1].package, 'livekit');
       expect(groups[1].origin, RadarOrigin.dependency);
+    });
+
+    test('marks anchored membership vs declared-fallback groups', () {
+      final groups = _group([
+        // Anchored: declared in the SDK, retained by app code.
+        _row(
+          'Sub',
+          declared: 'dart:async',
+          anchor: 'package:my_app/s.dart',
+          bytes: 10,
+          delta: 10,
+        ),
+        // Declared-fallback only (no anchor).
+        _row('Plain', declared: 'package:livekit/p.dart', bytes: 5, delta: 5),
+      ]);
+
+      final project = groups.firstWhere((g) => g.isProject);
+      final dep = groups.firstWhere((g) => g.package == 'livekit');
+      expect(project.hasAnchoredMember, isTrue);
+      expect(dep.hasAnchoredMember, isFalse);
+    });
+
+    test('effectiveOriginOf uses the anchor when present, else declared', () {
+      expect(
+        effectiveOriginOf(
+          Uri.parse('dart:async'),
+          Uri.parse('package:my_app/s.dart'),
+          projectPackages: {'my_app'},
+        ),
+        RadarOrigin.project,
+      );
+      expect(
+        effectiveOriginOf(
+          Uri.parse('dart:async'),
+          null,
+          projectPackages: {'my_app'},
+        ),
+        RadarOrigin.sdk,
+      );
     });
 
     test('merges framework and sdk rows into one runtime group', () {

@@ -47,7 +47,7 @@ class ClassHistogramView extends StatelessWidget {
           distributions: {
             for (final d in analysis.classPathDistributions) d.className: d,
           },
-          classAnchors: classAnchorsFromClusters(analysis.clusters),
+          classAnchors: classAnchorsFor(analysis),
           projectPackages: analysis.resolvedAppPackages.toSet(),
         );
       },
@@ -111,10 +111,19 @@ class _HistogramBodyState extends State<_HistogramBody> {
           (c) => _filter.matches(
             ClassRow(className: c.className, libraryUri: c.libraryUri),
             projectPackages: widget.projectPackages,
+            anchorLibraryUri: widget.classAnchors[c.className],
           ),
         )
         .toList();
   }
+
+  /// Effective (anchor-aware) origin for a row's chip, matching the `origin:`
+  /// filter so the chip and filter never disagree.
+  RadarOrigin _originFor(ClassCount c) => effectiveOriginOf(
+    c.libraryUri,
+    widget.classAnchors[c.className],
+    projectPackages: widget.projectPackages,
+  );
 
   List<ClassCount> _sorted(List<ClassCount> rows) {
     rows.sort((a, b) {
@@ -137,6 +146,20 @@ class _HistogramBodyState extends State<_HistogramBody> {
         bytesOf: (c) => c.shallowBytes,
         projectPackages: widget.projectPackages,
       );
+
+  List<PackageGroup<ClassCount>>? _cachedGroups;
+  Object? _cacheKey;
+
+  /// Memoized grouping — reused across expand/select setState, recomputed only
+  /// when the entries or filter change.
+  List<PackageGroup<ClassCount>> _groupsMemo(List<ClassCount> rows) {
+    final key = (identityHashCode(widget.entries), _filter.text);
+    if (_cachedGroups != null && _cacheKey == key) return _cachedGroups!;
+    final groups = _groups(rows);
+    _cachedGroups = groups;
+    _cacheKey = key;
+    return groups;
+  }
 
   bool _isExpanded(PackageGroup<ClassCount> g, {required bool hasProject}) =>
       _expanded[g.package] ?? (g.isProject || !hasProject);
@@ -194,7 +217,15 @@ class _HistogramBodyState extends State<_HistogramBody> {
                 align: TextAlign.left,
               ),
             ),
-            const SizedBox(width: _wOrigin),
+            SizedBox(
+              width: _wOrigin,
+              child: Text(
+                'origin / package',
+                style: RadarTypography.monoLabel.copyWith(
+                  color: RadarColors.text40,
+                ),
+              ),
+            ),
             SortHeaderCell(
               width: _wInstances,
               child: _sortHeader('instances', _HistSortKey.instances),
@@ -216,6 +247,10 @@ class _HistogramBodyState extends State<_HistogramBody> {
   @override
   Widget build(BuildContext context) {
     final filtered = _filtered();
+    final groups = (_grouped && filtered.isNotEmpty)
+        ? _groupsMemo(filtered)
+        : const <PackageGroup<ClassCount>>[];
+    final hasProject = groups.any((g) => g.isProject);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -241,7 +276,18 @@ class _HistogramBodyState extends State<_HistogramBody> {
                         ),
                       )
                     : _grouped
-                    ? _groupedList(filtered)
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (!hasProject)
+                            PackageGroupBanner(
+                              attributionResolved:
+                                  widget.projectPackages.isNotEmpty,
+                              subject: 'snapshot',
+                            ),
+                          Expanded(child: _groupedList(groups, hasProject)),
+                        ],
+                      )
                     : _flatList(_sorted(filtered)),
               ),
             ],
@@ -268,25 +314,20 @@ class _HistogramBodyState extends State<_HistogramBody> {
     itemBuilder: (context, i) => _HistRow(
       entry: rows[i],
       totalBytes: _totalBytes,
-      origin: originOf(
-        rows[i].libraryUri,
-        projectPackages: widget.projectPackages,
-      ),
+      origin: _originFor(rows[i]),
       selected: rows[i].className == _selected,
       onTap: () => _select(rows[i].className),
     ),
   );
 
-  Widget _groupedList(List<ClassCount> rows) {
-    final groups = _groups(rows);
-    final hasProject = groups.any((g) => g.isProject);
+  Widget _groupedList(List<PackageGroup<ClassCount>> groups, bool hasProject) {
     final lines = <_HistLine>[];
     for (final g in groups) {
       final expanded = _isExpanded(g, hasProject: hasProject);
       lines.add(_HistHeaderLine(g, expanded));
       if (expanded) {
         for (final row in g.rows) {
-          lines.add(_HistRowLine(row, g.origin));
+          lines.add(_HistRowLine(row));
         }
       }
     }
@@ -299,6 +340,7 @@ class _HistogramBodyState extends State<_HistogramBody> {
           _HistHeaderLine(:final group, :final expanded) => PackageGroupHeader(
             package: group.package,
             origin: group.origin,
+            anchored: group.hasAnchoredMember,
             expanded: expanded,
             onToggle: () =>
                 setState(() => _expanded[group.package] = !expanded),
@@ -310,10 +352,10 @@ class _HistogramBodyState extends State<_HistogramBody> {
               ),
             ),
           ),
-          _HistRowLine(:final entry, :final origin) => _HistRow(
+          _HistRowLine(:final entry) => _HistRow(
             entry: entry,
             totalBytes: _totalBytes,
-            origin: origin,
+            origin: _originFor(entry),
             selected: entry.className == _selected,
             onTap: () => _select(entry.className),
           ),
@@ -334,9 +376,8 @@ class _HistHeaderLine extends _HistLine {
 }
 
 class _HistRowLine extends _HistLine {
-  const _HistRowLine(this.entry, this.origin);
+  const _HistRowLine(this.entry);
   final ClassCount entry;
-  final RadarOrigin origin;
 }
 
 class _Toolbar extends StatelessWidget {

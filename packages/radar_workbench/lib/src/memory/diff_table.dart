@@ -80,6 +80,7 @@ class _DiffTableState extends State<DiffTable> {
               libraryUri: d.after.libraryUri,
             ),
             projectPackages: widget.projectPackages,
+            anchorLibraryUri: widget.classAnchors[d.after.className],
           ),
         )
         .toList();
@@ -117,6 +118,25 @@ class _DiffTableState extends State<DiffTable> {
         projectPackages: widget.projectPackages,
       );
 
+  List<PackageGroup<ClassCountDiff>>? _cachedGroups;
+  Object? _cacheKey;
+
+  /// Grouping is stable across expand/select setState (which don't touch the
+  /// diffs, filter, or sort), so memoize it keyed by those inputs.
+  List<PackageGroup<ClassCountDiff>> _groupsMemo(List<ClassCountDiff> rows) {
+    final key = (
+      identityHashCode(widget.diffs),
+      _filter.text,
+      _sortKey.index,
+      _direction.index,
+    );
+    if (_cachedGroups != null && _cacheKey == key) return _cachedGroups!;
+    final groups = _groups(rows);
+    _cachedGroups = groups;
+    _cacheKey = key;
+    return groups;
+  }
+
   bool _isExpanded(
     PackageGroup<ClassCountDiff> g, {
     required bool hasProject,
@@ -151,6 +171,10 @@ class _DiffTableState extends State<DiffTable> {
   @override
   Widget build(BuildContext context) {
     final filtered = _filtered();
+    final groups = (_grouped && filtered.isNotEmpty)
+        ? _groupsMemo(filtered)
+        : const <PackageGroup<ClassCountDiff>>[];
+    final hasProject = groups.any((g) => g.isProject);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -168,14 +192,26 @@ class _DiffTableState extends State<DiffTable> {
           child: filtered.isEmpty
               ? _emptyState()
               : _grouped
-              ? _GroupedList(
-                  groups: _groups(filtered),
-                  absolute: widget.absolute,
-                  selected: widget.selected,
-                  onSelected: widget.onSelected,
-                  isExpanded: _isExpanded,
-                  onToggle: (g, expanded) =>
-                      setState(() => _expanded[g.package] = !expanded),
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (!hasProject)
+                      PackageGroupBanner(
+                        attributionResolved: widget.projectPackages.isNotEmpty,
+                      ),
+                    Expanded(
+                      child: _GroupedList(
+                        groups: groups,
+                        hasProject: hasProject,
+                        absolute: widget.absolute,
+                        selected: widget.selected,
+                        onSelected: widget.onSelected,
+                        isExpanded: _isExpanded,
+                        onToggle: (g, expanded) =>
+                            setState(() => _expanded[g.package] = !expanded),
+                      ),
+                    ),
+                  ],
                 )
               : _flatList(_sorted(filtered)),
         ),
@@ -324,6 +360,7 @@ class _SubHeader extends StatelessWidget {
 class _GroupedList extends StatelessWidget {
   const _GroupedList({
     required this.groups,
+    required this.hasProject,
     required this.absolute,
     required this.selected,
     required this.onSelected,
@@ -332,6 +369,7 @@ class _GroupedList extends StatelessWidget {
   });
 
   final List<PackageGroup<ClassCountDiff>> groups;
+  final bool hasProject;
   final bool absolute;
   final String? selected;
   final ValueChanged<String?> onSelected;
@@ -341,7 +379,6 @@ class _GroupedList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasProject = groups.any((g) => g.isProject);
     final lines = <_Line>[];
     for (final g in groups) {
       final expanded = isExpanded(g, hasProject: hasProject);
@@ -361,6 +398,7 @@ class _GroupedList extends StatelessWidget {
           _HeaderLine(:final group, :final expanded) => PackageGroupHeader(
             package: group.package,
             origin: group.origin,
+            anchored: group.hasAnchoredMember,
             expanded: expanded,
             onToggle: () => onToggle(group, expanded),
             trailing: _DeltaBytes(value: group.totalDelta, absolute: absolute),

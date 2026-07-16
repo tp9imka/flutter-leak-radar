@@ -159,6 +159,67 @@ void main() {
     });
   });
 
+  group('origin: effective (anchor) evaluation', () {
+    final appAnchor = Uri.parse('package:my_app/screen.dart');
+
+    test('origin resolves against the anchor library when one exists', () {
+      final expr = FilterExpression.parse('origin:project');
+      // Declared in the SDK, but retained (anchored) by app code.
+      expect(
+        expr.matches(
+          _t('LeakySub', 'dart:async'),
+          projectPackages: {'my_app'},
+          anchorLibraryUri: appAnchor,
+        ),
+        isTrue,
+      );
+      // No anchor → falls back to the declared (sdk) library.
+      expect(
+        expr.matches(_t('LeakySub', 'dart:async'), projectPackages: {'my_app'}),
+        isFalse,
+      );
+    });
+
+    test('the hide-framework preset keeps an app-anchored sdk row', () {
+      final expr = FilterExpression.parse(kHideFrameworkFilter);
+      // The celebrated case: dart:async declared, anchored to app → its
+      // effective origin is project, so it survives the framework/sdk hide.
+      expect(
+        expr.matches(
+          _t('LeakySub', 'dart:async'),
+          projectPackages: {'my_app'},
+          anchorLibraryUri: appAnchor,
+        ),
+        isTrue,
+      );
+      // The same row with no anchor is hidden (declared origin is sdk).
+      expect(
+        expr.matches(_t('LeakySub', 'dart:async'), projectPackages: {'my_app'}),
+        isFalse,
+      );
+    });
+
+    test('package: / library: still use the DECLARED library, not anchor', () {
+      // Only origin: uses the effective (anchor) library.
+      expect(
+        FilterExpression.parse('package:async').matches(
+          _t('LeakySub', 'dart:async'),
+          projectPackages: {'my_app'},
+          anchorLibraryUri: appAnchor,
+        ),
+        isTrue,
+      );
+      expect(
+        FilterExpression.parse('library:my_app').matches(
+          _t('LeakySub', 'dart:async'),
+          projectPackages: {'my_app'},
+          anchorLibraryUri: appAnchor,
+        ),
+        isFalse,
+      );
+    });
+  });
+
   group('kHideFrameworkFilter preset', () {
     test('parses without error', () {
       final expr = FilterExpression.parse(kHideFrameworkFilter);

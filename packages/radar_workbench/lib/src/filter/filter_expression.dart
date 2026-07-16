@@ -104,8 +104,18 @@ final class FilterExpression {
   /// everything. [projectPackages] resolves `origin:` terms (see
   /// [originOf]); it's session-level context, not part of [target], so it
   /// defaults to the empty set for callers that don't have it.
-  bool matches(FilterTarget target, {Set<String> projectPackages = const {}}) =>
-      _root?.matches(target, projectPackages) ?? true;
+  ///
+  /// [anchorLibraryUri] is the row's attribution anchor (who retains it) when
+  /// known. `origin:` terms evaluate the EFFECTIVE origin — the anchor library
+  /// when one exists, else the declared [FilterTarget.libraryUri] — so a
+  /// dart:async object retained by app code reads as `origin:project` and
+  /// survives `kHideFrameworkFilter`. `package:` / `library:` still match the
+  /// declared library.
+  bool matches(
+    FilterTarget target, {
+    Set<String> projectPackages = const {},
+    Uri? anchorLibraryUri,
+  }) => _root?.matches(target, projectPackages, anchorLibraryUri) ?? true;
 
   /// Whether this filter has no leaves (matches everything).
   bool get isEmpty => chips.isEmpty;
@@ -138,7 +148,11 @@ const int _andPrecedence = 1;
 sealed class _Node {
   const _Node();
 
-  bool matches(FilterTarget target, Set<String> projectPackages);
+  bool matches(
+    FilterTarget target,
+    Set<String> projectPackages,
+    Uri? anchorLibraryUri,
+  );
 
   /// Returns the logical negation of this node.
   _Node negate();
@@ -169,7 +183,11 @@ final class _TermNode extends _Node {
   final bool negated;
 
   @override
-  bool matches(FilterTarget target, Set<String> projectPackages) {
+  bool matches(
+    FilterTarget target,
+    Set<String> projectPackages,
+    Uri? anchorLibraryUri,
+  ) {
     final lowerValue = value.toLowerCase();
     final result = switch (field) {
       'class' => target.className.toLowerCase().contains(lowerValue),
@@ -179,7 +197,12 @@ final class _TermNode extends _Node {
       'package' =>
         packageLabelOf(target.libraryUri)?.toLowerCase().contains(lowerValue) ??
             false,
-      'origin' => _matchesOrigin(target, projectPackages, lowerValue),
+      'origin' => _matchesOrigin(
+        target,
+        projectPackages,
+        anchorLibraryUri,
+        lowerValue,
+      ),
       _ => target.className.toLowerCase().contains(lowerValue),
     };
     return negated ? !result : result;
@@ -212,15 +235,19 @@ final class _TermNode extends _Node {
   }
 }
 
-/// Matches a `origin:` leaf value (already lowercased) against the
-/// [RadarOrigin] resolved for [target]. `'yours'` aliases to `'project'`;
-/// an unrecognized value never matches (degrade to absent, not a guess).
+/// Matches a `origin:` leaf value (already lowercased) against the EFFECTIVE
+/// [RadarOrigin] for [target]: the anchor library when [anchorLibraryUri] is
+/// non-null, else the declared [FilterTarget.libraryUri]. `'yours'` aliases to
+/// `'project'`; an unrecognized value never matches (degrade to absent, not a
+/// guess).
 bool _matchesOrigin(
   FilterTarget target,
   Set<String> projectPackages,
+  Uri? anchorLibraryUri,
   String value,
 ) {
-  final origin = originOf(target.libraryUri, projectPackages: projectPackages);
+  final effectiveLibrary = anchorLibraryUri ?? target.libraryUri;
+  final origin = originOf(effectiveLibrary, projectPackages: projectPackages);
   final normalized = value == 'yours' ? 'project' : value;
   return origin.name == normalized;
 }
@@ -232,9 +259,13 @@ final class _AndNode extends _Node {
   final _Node right;
 
   @override
-  bool matches(FilterTarget target, Set<String> projectPackages) =>
-      left.matches(target, projectPackages) &&
-      right.matches(target, projectPackages);
+  bool matches(
+    FilterTarget target,
+    Set<String> projectPackages,
+    Uri? anchorLibraryUri,
+  ) =>
+      left.matches(target, projectPackages, anchorLibraryUri) &&
+      right.matches(target, projectPackages, anchorLibraryUri);
 
   @override
   _Node negate() => _NotNode(this);
@@ -269,9 +300,13 @@ final class _OrNode extends _Node {
   final _Node right;
 
   @override
-  bool matches(FilterTarget target, Set<String> projectPackages) =>
-      left.matches(target, projectPackages) ||
-      right.matches(target, projectPackages);
+  bool matches(
+    FilterTarget target,
+    Set<String> projectPackages,
+    Uri? anchorLibraryUri,
+  ) =>
+      left.matches(target, projectPackages, anchorLibraryUri) ||
+      right.matches(target, projectPackages, anchorLibraryUri);
 
   @override
   _Node negate() => _NotNode(this);
@@ -310,8 +345,11 @@ final class _NotNode extends _Node {
   final _Node child;
 
   @override
-  bool matches(FilterTarget target, Set<String> projectPackages) =>
-      !child.matches(target, projectPackages);
+  bool matches(
+    FilterTarget target,
+    Set<String> projectPackages,
+    Uri? anchorLibraryUri,
+  ) => !child.matches(target, projectPackages, anchorLibraryUri);
 
   @override
   _Node negate() => child;

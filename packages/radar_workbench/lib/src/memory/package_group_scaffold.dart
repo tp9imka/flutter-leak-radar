@@ -4,8 +4,9 @@ import 'package:radar_ui/radar_ui.dart';
 
 import 'mem_format.dart';
 
-/// Label for the single merged framework + sdk group ("runtime").
-const String kRuntimeGroupPackage = 'runtime';
+/// Label for the single merged framework + sdk group. Parenthesized so it can
+/// never collide with a real dependency literally named `runtime`.
+const String kRuntimeGroupPackage = '(runtime)';
 
 /// Label used when a row's owning package cannot be resolved.
 const String kUnknownGroupPackage = '(unknown)';
@@ -23,9 +24,10 @@ final class PackageGroup<T> {
     required this.rows,
     required this.totalBytes,
     required this.totalDelta,
+    required this.hasAnchoredMember,
   });
 
-  /// Package label, e.g. `my_app`, `livekit`, `(unknown)`, or `runtime`.
+  /// Package label, e.g. `my_app`, `livekit`, `(unknown)`, or `(runtime)`.
   final String package;
 
   /// Ownership bucket of [package] (the runtime group reports as framework).
@@ -39,6 +41,11 @@ final class PackageGroup<T> {
 
   /// Summed byte delta of [rows] (0 when no delta accessor was supplied).
   final int totalDelta;
+
+  /// True when at least one member row landed here via a real attribution
+  /// anchor (not just declared-package fallback). Drives honest header
+  /// wording: `retained via X` when anchored, `declared in X` otherwise.
+  final bool hasAnchoredMember;
 
   /// Project-owned ("yours") code. Pinned first and expanded by default.
   bool get isProject => origin == RadarOrigin.project;
@@ -64,7 +71,8 @@ List<PackageGroup<T>> groupRowsByPackage<T>(
 }) {
   final buckets = <String, _Bucket<T>>{};
   for (final row in rows) {
-    final anchorLib = anchorLibraryOf(row) ?? declaredLibraryOf(row);
+    final anchor = anchorLibraryOf(row);
+    final anchorLib = anchor ?? declaredLibraryOf(row);
     final origin = originOf(anchorLib, projectPackages: projectPackages);
     final isRuntime =
         origin == RadarOrigin.framework || origin == RadarOrigin.sdk;
@@ -76,6 +84,7 @@ List<PackageGroup<T>> groupRowsByPackage<T>(
     bucket.rows.add(row);
     bucket.totalBytes += bytesOf(row);
     if (deltaOf != null) bucket.totalDelta += deltaOf(row);
+    if (anchor != null) bucket.hasAnchoredMember = true;
   }
 
   int rowMetric(T r) => deltaOf != null ? deltaOf(r) : bytesOf(r);
@@ -118,6 +127,7 @@ List<PackageGroup<T>> groupRowsByPackage<T>(
         rows: b.rows,
         totalBytes: b.totalBytes,
         totalDelta: b.totalDelta,
+        hasAnchoredMember: b.hasAnchoredMember,
       ),
   ];
 }
@@ -130,7 +140,21 @@ class _Bucket<T> {
   final List<T> rows = [];
   int totalBytes = 0;
   int totalDelta = 0;
+  bool hasAnchoredMember = false;
 }
+
+/// The EFFECTIVE ownership origin for a row: the anchor library when one
+/// exists ([anchorLibrary] non-null), else the [declaredLibrary]. Mirrors the
+/// `origin:` filter's effective-origin rule so a row's chip and its filter
+/// classification always agree.
+RadarOrigin effectiveOriginOf(
+  Uri? declaredLibrary,
+  Uri? anchorLibrary, {
+  required Set<String> projectPackages,
+}) => originOf(
+  anchorLibrary ?? declaredLibrary,
+  projectPackages: projectPackages,
+);
 
 /// Grouped / flat toggle plus the "hide framework" preset chip, shared by the
 /// histogram and diff toolbars.
@@ -243,9 +267,14 @@ class _PresetChip extends StatelessWidget {
   }
 }
 
-/// A 34px-tall collapsible header for a [PackageGroup]: caret, origin chip,
-/// a `retained via <package>` label, a shallow-bytes honesty affordance, and a
-/// trailing rollup metric.
+/// A 34px-tall collapsible header for a [PackageGroup]: caret, origin chip, an
+/// ownership label, a shallow-bytes honesty affordance, and a trailing rollup
+/// metric.
+///
+/// The label reads `retained via <package>` only when [anchored] (the group has
+/// real attribution membership); a declared-fallback-only group reads
+/// `declared in <package>` so the header never overclaims retention it doesn't
+/// know.
 class PackageGroupHeader extends StatelessWidget {
   const PackageGroupHeader({
     super.key,
@@ -254,18 +283,21 @@ class PackageGroupHeader extends StatelessWidget {
     required this.expanded,
     required this.onToggle,
     required this.trailing,
+    this.anchored = true,
   });
 
   final String package;
   final RadarOrigin origin;
   final bool expanded;
   final VoidCallback onToggle;
+  final bool anchored;
 
   /// Rollup metric widget (e.g. the group's Δbytes or total bytes).
   final Widget trailing;
 
   @override
   Widget build(BuildContext context) {
+    final label = anchored ? 'retained via $package' : 'declared in $package';
     return GestureDetector(
       onTap: onToggle,
       behavior: HitTestBehavior.opaque,
@@ -295,9 +327,9 @@ class PackageGroupHeader extends StatelessWidget {
               const SizedBox(width: 8),
               Flexible(
                 child: Tooltip(
-                  message: 'retained via $package',
+                  message: label,
                   child: Text(
-                    'retained via $package',
+                    label,
                     style: RadarTypography.monoLabel.copyWith(
                       color: RadarColors.text80,
                     ),
@@ -345,6 +377,79 @@ class _ShallowBytesAffordance extends StatelessWidget {
     );
   }
 }
+
+/// Honesty banner shown atop a grouped table when NO project group is present,
+/// so an empty "yours" section is never silent.
+///
+/// [attributionResolved] true → the analysis resolved a project set and there
+/// simply are no project-attributed rows (a clean, positive result).
+/// False → attribution itself is unavailable (legacy export or detection off),
+/// a warning that ownership grouping can't be trusted.
+class PackageGroupBanner extends StatelessWidget {
+  const PackageGroupBanner({
+    super.key,
+    required this.attributionResolved,
+    this.subject = 'diff',
+  });
+
+  final bool attributionResolved;
+
+  /// Noun for the positive message, e.g. `diff` or `snapshot`.
+  final String subject;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = attributionResolved
+        ? RadarColors.accent
+        : RadarColors.warning;
+    final message = attributionResolved
+        ? 'No project-attributed leaks in this $subject.'
+        : 'Attribution unavailable — project packages unresolved '
+              '(legacy export or detection off).';
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: RadarColors.bgPanel,
+        border: Border(
+          bottom: BorderSide(
+            color: RadarColors.hairline08,
+            width: RadarDensity.hairline,
+          ),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Icon(
+              attributionResolved
+                  ? Icons.check_circle_outline
+                  : Icons.warning_amber_rounded,
+              size: 14,
+              color: color,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                message,
+                style: RadarTypography.monoLabel.copyWith(color: color),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Anchor-map memo, keyed by [GraphAnalysisResult] identity so the map is built
+/// once per analysis and reused across the many rebuilds a controller triggers.
+final Expando<Map<String, Uri?>> _anchorCache = Expando('classAnchors');
+
+/// Memoized [classAnchorsFromClusters] for [result], cached on the result's
+/// identity (immutable per snapshot, so identity is stable across rebuilds).
+Map<String, Uri?> classAnchorsFor(GraphAnalysisResult result) =>
+    _anchorCache[result] ??= classAnchorsFromClusters(result.clusters);
 
 /// Builds a per-class anchor-library map from analysis [clusters].
 ///
