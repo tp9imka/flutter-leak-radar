@@ -1,3 +1,21 @@
+## 0.2.0
+
+- New `series` module: `MetricSample`, `SeriesGap`, and `MetricSeries`
+  (JSON with `schemaVersion: 1`), plus `assessSeries` producing a
+  `SeriesAssessment` with a `SeriesVerdict` (`monotonicGrowth` /
+  `plateau` / `noisy` / `insufficientData`). Implements the field-proven
+  growth methodology: settle-window trim, gap-aware region selection
+  (gaps are never bridged), init-free batch2-minus-batch1 delta,
+  Theil-Sen robust slope, degrees-of-freedom-preserving noise
+  (first-difference sigma combined with residual sigma), Mann-Kendall
+  certification of growth verdicts (bounds the false-growth rate under
+  pure noise at 0.5% one-sided; measured 0.07% over 12k seeded trials),
+  and end-shift checks so late crashes cannot read as growth and late
+  rises cannot read as a bounded plateau. Details claim only measured
+  facts and quantify the detection floor. Honest degradation
+  throughout: a signal that cannot be truthfully computed reads
+  `insufficientData` / null — never a plausible number.
+
 ## 0.1.2
 
 - Optional `dedupKey` on `Tracer.trace` / `traceAsync` / `start` — a
