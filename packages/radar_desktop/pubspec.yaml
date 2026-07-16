@@ -19,7 +19,7 @@ dependencies:
   radar_ui: ^0.2.0
   radar_native: ^0.1.0
   radar_native_host: ^0.1.0
-  leak_graph: ^0.2.2
+  leak_graph: ^0.3.0
   vm_service: ^15.0.0
   window_manager: ^0.5.1
   file_selector: ^1.1.0

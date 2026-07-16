@@ -1,3 +1,33 @@
+## 0.3.0
+
+- `ClassOrigin` — classifies a class's declaring library as `project`,
+  `dependency`, `flutterFramework`, `dartSdk`, or `unknown`. New
+  `OriginClassifier` does the classification given a resolved project-package
+  set; `kFlutterFrameworkPackages` lists the recognised framework packages.
+- `GraphHop.libraryUri` — the `package:`/`dart:` library that declared a hop's
+  class, carried through JSON for attribution rendering. Deliberately
+  excluded from `==`/`hashCode`, and `GraphLeakCluster.anchorHopIndex` /
+  `leafClassName` are additive fields — **`pathSignature` and
+  `GraphHop`/`GraphRetainingPath` equality are unchanged, so cluster identity
+  is unaffected.**
+- `GraphLeakCluster.anchorHopIndex` / `leafClassName` — names the path hop
+  and internal leaf class an app-code anchor attributes a leak to, when one
+  exists.
+- `PackageRollup` and `GraphAnalysisResult.anchorRollups` /
+  `.declaredRollups` — per-package aggregation of a run's reported leaks,
+  keyed by the package that retains vs. the package that declares each leaked
+  class. `AppPackageSource` labels which detection path (explicit config,
+  auto-detected, or disabled) produced the app-package set an analysis used,
+  so a rollup is never presented as more precise than it is.
+  `GraphAnalysisResult.schemaVersion` bumped to 2; an export without the key
+  is still read as version 1.
+- `package:leak_graph/io.dart` — a new, additive `dart:io`-backed entrypoint
+  (the main `leak_graph.dart` barrel stays pure Dart). `projectPackagesFromDir`
+  detects the app's own workspace/melos member package names from a project
+  directory, for feeding an explicit `appPackages` config instead of relying
+  on auto-detection; `packageNameFromPubspec` is the pure pubspec-name parser
+  behind it.
+
 ## 0.2.2
 
 - `GraphAnalysisResult.classPathDistributions` — per-class distribution of a
