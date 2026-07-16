@@ -8,8 +8,10 @@ import '../seams/desktop_snapshot_exporter.dart';
 import '../seams/disconnected_connection.dart';
 import '../seams/file_snapshot_store.dart';
 import '../seams/offline_snapshot_source.dart';
+import 'desktop_project_context.dart';
 import 'dump_meta.dart';
 
+export 'desktop_project_context.dart';
 export 'dump_meta.dart';
 
 /// Owns the offline workspace: a `radar_workbench` [MemoryController] (built
@@ -41,11 +43,30 @@ class WorkspaceController extends ChangeNotifier {
   bool _analyzing = false;
   String? _analyzingName;
 
+  String? _projectRoot;
+  DesktopProjectContext _projectContext = DesktopProjectContext();
+
   bool get analyzing => _analyzing;
   String? get analyzingName => _analyzingName;
   List<int> get trendSelection => List.unmodifiable(_trend);
   List<String> get recentPaths => List.unmodifiable(_recent);
   int? get activeDumpId => memory.focusedId;
+
+  /// The chosen on-disk project folder used to resolve "yours" attribution and
+  /// open hop sources in an editor. Null until the user picks one.
+  String? get projectRoot => _projectRoot;
+
+  /// The desktop project identity fed to `RetainingPathsView` — detection +
+  /// source opening for the current [projectRoot].
+  ProjectContext get projectContext => _projectContext;
+
+  /// Points the project context at [root] (or clears it with null), rebuilding
+  /// the context so the paths view re-resolves attribution and opening.
+  void setProjectRoot(String? root) {
+    _projectRoot = root;
+    _projectContext = DesktopProjectContext(projectRoot: root);
+    notifyListeners();
+  }
 
   /// Dumps in capture order (matches `memory.snapshots`). Tolerant of a
   /// snapshot whose metadata hasn't been written yet: [addExisting] calls

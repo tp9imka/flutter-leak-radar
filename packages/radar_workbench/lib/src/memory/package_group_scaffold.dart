@@ -458,23 +458,57 @@ Map<String, Uri?> classAnchorsFor(GraphAnalysisResult result) =>
 /// cluster, or a cluster with no app anchor, are absent so callers fall back to
 /// the declared library.
 Map<String, Uri?> classAnchorsFromClusters(List<GraphLeakCluster> clusters) {
+  final anchors = <String, Uri?>{};
+  _dominantAnchoredClusters(clusters).forEach((className, c) {
+    anchors[className] =
+        c.representativePath.hops[c.anchorHopIndex!].libraryUri;
+  });
+  return anchors;
+}
+
+/// A class's representative path plus the hop index app code holds it at.
+typedef AnchorHop = ({GraphRetainingPath path, int index});
+
+/// Anchor-hop memo, keyed by [GraphAnalysisResult] identity (see [_anchorCache]).
+final Expando<Map<String, AnchorHop>> _anchorHopCache = Expando(
+  'classAnchorHops',
+);
+
+/// Memoized [classAnchorHopsFromClusters] for [result].
+Map<String, AnchorHop> classAnchorHopsFor(GraphAnalysisResult result) =>
+    _anchorHopCache[result] ??= classAnchorHopsFromClusters(result.clusters);
+
+/// Per-class dominant-cluster [AnchorHop] — the representative path and the hop
+/// index its app owner retains it at.
+///
+/// Same dominant-cluster selection as [classAnchorsFromClusters]. A path
+/// rendered elsewhere may use this index only when it STRUCTURALLY matches
+/// [AnchorHop.path] (`GraphRetainingPath.==` ignores library uris), so the
+/// "yours" highlight is never applied to a path the index doesn't describe.
+Map<String, AnchorHop> classAnchorHopsFromClusters(
+  List<GraphLeakCluster> clusters,
+) {
+  final hops = <String, AnchorHop>{};
+  _dominantAnchoredClusters(clusters).forEach((className, c) {
+    hops[className] = (path: c.representativePath, index: c.anchorHopIndex!);
+  });
+  return hops;
+}
+
+/// The dominant (most retained shallow bytes) app-anchored cluster per class,
+/// keeping only clusters whose [GraphLeakCluster.anchorHopIndex] is in range.
+Map<String, GraphLeakCluster> _dominantAnchoredClusters(
+  List<GraphLeakCluster> clusters,
+) {
   final byClass = <String, GraphLeakCluster>{};
   for (final c in clusters) {
-    if (c.anchorHopIndex == null) continue;
+    final i = c.anchorHopIndex;
+    if (i == null || i < 0 || i >= c.representativePath.hops.length) continue;
     final existing = byClass[c.className];
     if (existing == null ||
         c.retainedShallowBytes > existing.retainedShallowBytes) {
       byClass[c.className] = c;
     }
   }
-  final anchors = <String, Uri?>{};
-  for (final entry in byClass.entries) {
-    final c = entry.value;
-    final i = c.anchorHopIndex!;
-    final hops = c.representativePath.hops;
-    if (i >= 0 && i < hops.length) {
-      anchors[entry.key] = hops[i].libraryUri;
-    }
-  }
-  return anchors;
+  return byClass;
 }
