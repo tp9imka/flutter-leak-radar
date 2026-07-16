@@ -20,7 +20,7 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
-  radar_trace: ^0.1.2
+  radar_trace: ^0.2.0
   radar_ui: ^0.3.0
   meta: ^1.15.0
 
