@@ -37,6 +37,14 @@ final class RunMetadata {
   /// How [projectPackages] was resolved: `flag`, `io-detect`, or `none`.
   final String projectPackagesSource;
 
+  /// Whether the run reached its planned end. `false` marks a partial
+  /// artifact flushed after an abort or interrupt.
+  final bool completed;
+
+  /// Why the run ended early, when [completed] is false (e.g.
+  /// `'interrupted'`); null on a clean run.
+  final String? abortReason;
+
   /// Creates run metadata.
   const RunMetadata({
     required this.startedAt,
@@ -48,9 +56,12 @@ final class RunMetadata {
     this.notes,
     this.projectPackages = const [],
     this.projectPackagesSource = 'none',
+    this.completed = true,
+    this.abortReason,
   });
 
-  /// Restores metadata from [toJson] output. Tolerates absent optionals.
+  /// Restores metadata from [toJson] output. Tolerates absent optionals;
+  /// a legacy doc without `completed` reads as a completed run.
   factory RunMetadata.fromJson(Map<String, Object?> json) => RunMetadata(
     startedAt: DateTime.parse(json['startedAt'] as String),
     flutterVersion: json['flutterVersion'] as String?,
@@ -64,6 +75,8 @@ final class RunMetadata {
         name as String,
     ],
     projectPackagesSource: json['projectPackagesSource'] as String? ?? 'none',
+    completed: json['completed'] as bool? ?? true,
+    abortReason: json['abortReason'] as String?,
   );
 
   /// Serialises this metadata to a JSON-encodable map.
@@ -77,7 +90,24 @@ final class RunMetadata {
     if (notes != null) 'notes': notes,
     'projectPackages': projectPackages,
     'projectPackagesSource': projectPackagesSource,
+    'completed': completed,
+    if (abortReason != null) 'abortReason': abortReason,
   };
+
+  /// Returns a copy with the run-completion fields replaced.
+  RunMetadata copyWith({bool? completed, String? abortReason}) => RunMetadata(
+    startedAt: startedAt,
+    flutterVersion: flutterVersion,
+    dartVersion: dartVersion,
+    targetPlatform: targetPlatform,
+    mode: mode,
+    cmdLine: cmdLine,
+    notes: notes,
+    projectPackages: projectPackages,
+    projectPackagesSource: projectPackagesSource,
+    completed: completed ?? this.completed,
+    abortReason: abortReason ?? this.abortReason,
+  );
 }
 
 /// A labelled instant with an allocation snapshot and optional heap capture.
@@ -98,6 +128,16 @@ final class RunCheckpoint {
   /// Path to the analysis JSON, when the snapshot was analysed.
   final String? analysisPath;
 
+  /// Capture outcome: `'ok'` (allocation profile captured; any requested
+  /// snapshot succeeded), `'partial'` (profile captured but a requested
+  /// snapshot/analysis failed), or `'failed'` (the profile RPC itself
+  /// failed — [allocationTopN] is empty). Distinguishes an un-requested
+  /// snapshot (`ok`, null paths) from a failed one.
+  final String captureStatus;
+
+  /// Human-readable reason when [captureStatus] is not `'ok'`; null otherwise.
+  final String? captureError;
+
   /// Creates a checkpoint.
   const RunCheckpoint({
     required this.tMicros,
@@ -105,9 +145,12 @@ final class RunCheckpoint {
     required this.allocationTopN,
     this.snapshotPath,
     this.analysisPath,
+    this.captureStatus = 'ok',
+    this.captureError,
   });
 
-  /// Restores a checkpoint from [toJson] output.
+  /// Restores a checkpoint from [toJson] output. A legacy checkpoint without
+  /// `captureStatus` reads as `'ok'`.
   factory RunCheckpoint.fromJson(Map<String, Object?> json) => RunCheckpoint(
     tMicros: (json['tMicros'] as num).toInt(),
     label: json['label'] as String,
@@ -119,6 +162,8 @@ final class RunCheckpoint {
     },
     snapshotPath: json['snapshotPath'] as String?,
     analysisPath: json['analysisPath'] as String?,
+    captureStatus: json['captureStatus'] as String? ?? 'ok',
+    captureError: json['captureError'] as String?,
   );
 
   /// Serialises this checkpoint to a JSON-encodable map.
@@ -128,6 +173,8 @@ final class RunCheckpoint {
     'allocationTopN': allocationTopN,
     if (snapshotPath != null) 'snapshotPath': snapshotPath,
     if (analysisPath != null) 'analysisPath': analysisPath,
+    'captureStatus': captureStatus,
+    if (captureError != null) 'captureError': captureError,
   };
 }
 

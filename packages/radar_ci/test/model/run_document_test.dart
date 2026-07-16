@@ -43,6 +43,13 @@ void main() {
           snapshotPath: 'snap_start.data',
           analysisPath: 'snap_start.analysis.json',
         ),
+        RunCheckpoint(
+          tMicros: 90000000,
+          label: 'cp1',
+          allocationTopN: {},
+          captureStatus: 'failed',
+          captureError: 'allocation profile failed: socket closed',
+        ),
         RunCheckpoint(tMicros: 180000000, label: 'end', allocationTopN: {}),
       ],
     );
@@ -72,7 +79,7 @@ void main() {
       expect(restored.series.single.samples, hasLength(2));
       expect(restored.series.single.gaps.single.reason, 'sampler error: boom');
 
-      expect(restored.checkpoints, hasLength(2));
+      expect(restored.checkpoints, hasLength(3));
       expect(restored.checkpoints.first.label, 'start');
       expect(restored.checkpoints.first.allocationTopN['String'], 120);
       expect(restored.checkpoints.first.snapshotPath, 'snap_start.data');
@@ -80,7 +87,45 @@ void main() {
         restored.checkpoints.first.analysisPath,
         'snap_start.analysis.json',
       );
+      expect(restored.checkpoints.first.captureStatus, 'ok');
+      expect(restored.checkpoints.first.captureError, isNull);
+      expect(restored.checkpoints[1].captureStatus, 'failed');
+      expect(
+        restored.checkpoints[1].captureError,
+        'allocation profile failed: socket closed',
+      );
       expect(restored.checkpoints.last.snapshotPath, isNull);
+
+      expect(restored.metadata.completed, isTrue);
+      expect(restored.metadata.abortReason, isNull);
+    });
+
+    test('round-trips a partial, aborted run', () {
+      final aborted = RadarRunDocument(
+        metadata: RunMetadata(
+          startedAt: DateTime.utc(2026),
+          completed: false,
+          abortReason: 'interrupted',
+        ),
+        series: const [],
+        checkpoints: const [],
+      );
+      final restored = RadarRunDocument.fromJson(
+        jsonDecode(jsonEncode(aborted.toJson())) as Map<String, Object?>,
+      );
+      expect(restored.metadata.completed, isFalse);
+      expect(restored.metadata.abortReason, 'interrupted');
+    });
+
+    test('legacy docs without the new fields default to complete/ok', () {
+      final restored = RadarRunDocument.fromJson({
+        'metadata': {'startedAt': '2026-07-17T09:30:15.000Z'},
+        'checkpoints': [
+          {'tMicros': 0, 'label': 'start', 'allocationTopN': <String, int>{}},
+        ],
+      });
+      expect(restored.metadata.completed, isTrue);
+      expect(restored.checkpoints.single.captureStatus, 'ok');
     });
 
     test('stamps schemaVersion 1 in JSON', () {

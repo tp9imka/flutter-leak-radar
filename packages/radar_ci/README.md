@@ -50,10 +50,30 @@ floor, `radar_ci` prints a warning: the resulting run would read
   during sampling records a `SeriesGap`, never a fabricated value.
 - **`checkpoints`** — `start` … `end`, each with a top-N allocation profile
   and, when captured, sibling `<out>.<label>.data` heap snapshots and
-  `<out>.<label>.analysis.json` leak-analysis files.
-- **`metadata`** — start time, Dart version, mode, command line, and the
-  resolved project packages.
+  `<out>.<label>.analysis.json` leak-analysis files. Each carries a
+  `captureStatus` (`ok` / `partial` / `failed`) and, when not `ok`, a
+  `captureError` — so a failed capture is distinguishable from an
+  un-requested snapshot, and never aborts the run.
+- **`metadata`** — start time, Dart version, mode (only when supplied or
+  derivable from `--cmd`; otherwise absent), command line, resolved project
+  packages, and `completed` (`false` with an `abortReason` on a partial run
+  flushed after an error or interrupt).
+
+A run is resilient: a checkpoint RPC blip degrades that checkpoint to a
+`failed`/`partial` marker and continues, and an interrupt (Ctrl-C / SIGTERM)
+reaps the spawned child and still flushes a partial `run.json`
+(`completed: false`, `abortReason: interrupted`).
 
 ## Exit codes
 
-`0` ok · `1` usage error · `2` tool failure (spawn/attach/connection).
+`0` ok · `1` usage error · `2` tool failure (spawn/attach/connection, or a
+partial/aborted run).
+
+## Follow-ups (planned)
+
+- **Decouple snapshot/analysis from the sampling hot path.** Heap dumps and
+  in-process `leak_graph` analysis currently run inline at each checkpoint,
+  pausing sampling; once moved off the hot path, the `--snapshot-every`
+  default will drop to start/end-only.
+- **Worker-isolate heaps are not analysed.** Snapshots and analysis target the
+  main isolate only; leaks confined to spawned isolates are not yet surfaced.

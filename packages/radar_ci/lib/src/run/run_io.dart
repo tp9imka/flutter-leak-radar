@@ -99,24 +99,36 @@ Future<int> runVerb(List<String> argv) async {
     return _exitToolFailure;
   }
 
-  try {
-    final mainIsolate = await _selectMainIsolate(service);
-    final metadata = RunMetadata(
-      startedAt: DateTime.now(),
-      dartVersion: Platform.version.split(' ').first,
-      mode: config.mode,
-      cmdLine: config.cmd,
-      notes: config.notes,
-      projectPackages: config.projectPackages,
-      projectPackagesSource: config.projectPackagesSource,
-    );
-    final stem = _outStem(config.outPath);
+  final mainIsolate = await _selectMainIsolate(service);
+  final metadata = RunMetadata(
+    startedAt: DateTime.now(),
+    dartVersion: Platform.version.split(' ').first,
+    mode: config.mode,
+    cmdLine: config.cmd,
+    notes: config.notes,
+    projectPackages: config.projectPackages,
+    projectPackagesSource: config.projectPackagesSource,
+  );
+  final stem = _outStem(config.outPath);
+  final progress = RunProgress();
 
-    final document = await executeRun(
+  // Reap the child and flush a partial run.json on Ctrl-C / SIGTERM, since the
+  // finally below does not run once a signal handler calls exit().
+  final signalSubs = _installInterruptReaper(
+    progress: progress,
+    metadata: metadata,
+    outPath: config.outPath,
+    killChild: () => spawned?.kill(),
+  );
+
+  RadarRunDocument? document;
+  try {
+    document = await executeRun(
       service: service,
       clock: const SystemRunClock(),
       config: config,
       metadata: metadata,
+      progress: progress,
       warn: (message) => stderr.writeln('warning: $message'),
       captureSnapshot: mainIsolate == null
           ? null
@@ -129,23 +141,97 @@ Future<int> runVerb(List<String> argv) async {
             ),
       driverHook: _buildDriverHook(service, mainIsolate, config),
     );
-
-    final outFile = File(config.outPath);
-    final parent = outFile.parent;
-    if (!await parent.exists()) await parent.create(recursive: true);
-    await outFile.writeAsString(
-      '${const JsonEncoder.withIndent('  ').convert(document.toJson())}\n',
-    );
-    stdout.writeln(config.outPath);
-    _printSummary(document);
-    return _exitOk;
+    return exitCodeForDocument(document);
   } catch (error, stack) {
+    // executeRun degrades internally rather than throwing; reaching here is
+    // truly unexpected, so still flush whatever was gathered.
     stderr.writeln('Run failed: $error\n$stack');
+    document = progress.toDocument(metadata, abortReason: 'run failed: $error');
     return _exitToolFailure;
   } finally {
+    for (final sub in signalSubs) {
+      unawaited(sub.cancel());
+    }
+    if (document != null) {
+      try {
+        await _writeRunJson(config.outPath, document);
+        stdout.writeln(config.outPath);
+        _printSummary(document);
+      } catch (error) {
+        stderr.writeln('Failed to write ${config.outPath}: $error');
+      }
+    }
     await service.dispose();
     spawned?.kill();
   }
+}
+
+/// Installs SIGINT/SIGTERM handlers that reap the spawned child, flush the
+/// in-flight [progress] as a partial `run.json`, and exit with the
+/// tool-failure code. Idempotent; returns the subscriptions to cancel on a
+/// clean finish. Signals unsupported on the host platform are skipped.
+List<StreamSubscription<ProcessSignal>> _installInterruptReaper({
+  required RunProgress progress,
+  required RunMetadata metadata,
+  required String outPath,
+  required void Function() killChild,
+}) {
+  var handled = false;
+  Future<void> onSignal(ProcessSignal signal) async {
+    if (handled) return;
+    handled = true;
+    killChild();
+    try {
+      await flushPartialRun(
+        progress: progress,
+        metadata: metadata,
+        outPath: outPath,
+        abortReason: 'interrupted',
+      );
+      stderr.writeln(
+        'radar_ci: interrupted ($signal) — wrote partial $outPath',
+      );
+    } catch (error) {
+      stderr.writeln('radar_ci: interrupted; failed to flush partial: $error');
+    }
+    exit(_exitToolFailure);
+  }
+
+  final subs = <StreamSubscription<ProcessSignal>>[];
+  for (final signal in [ProcessSignal.sigint, ProcessSignal.sigterm]) {
+    try {
+      subs.add(signal.watch().listen(onSignal));
+    } catch (_) {
+      // Signal unsupported on this platform (e.g. SIGTERM on Windows).
+    }
+  }
+  return subs;
+}
+
+/// Flushes the in-flight [progress] as a partial run artifact
+/// (`completed: false`, [abortReason]) to [outPath], returning the document.
+///
+/// Extracted so the interrupt-cleanup path is unit-testable without raising a
+/// real OS signal.
+Future<RadarRunDocument> flushPartialRun({
+  required RunProgress progress,
+  required RunMetadata metadata,
+  required String outPath,
+  required String abortReason,
+}) async {
+  final document = progress.toDocument(metadata, abortReason: abortReason);
+  await _writeRunJson(outPath, document);
+  return document;
+}
+
+Future<void> _writeRunJson(String outPath, RadarRunDocument document) async {
+  final outFile = File(outPath);
+  if (!await outFile.parent.exists()) {
+    await outFile.parent.create(recursive: true);
+  }
+  await outFile.writeAsString(
+    '${const JsonEncoder.withIndent('  ').convert(document.toJson())}\n',
+  );
 }
 
 Future<RunConfig> _resolveProjectPackages(RunConfig config) async {
@@ -217,8 +303,11 @@ Future<CheckpointCapture?> _snapshotAndAnalyze(
   try {
     await _dumpHeapSnapshot(service, isolate, snapshotPath);
   } catch (error) {
-    stderr.writeln('warning: heap snapshot at "$label" failed: $error');
-    return null;
+    return (
+      snapshotPath: null,
+      analysisPath: null,
+      error: 'heap snapshot failed: $error',
+    );
   }
 
   try {
@@ -231,10 +320,17 @@ Future<CheckpointCapture?> _snapshotAndAnalyze(
     await File(analysisPath).writeAsString(
       '${const JsonEncoder.withIndent('  ').convert(result.toJson())}\n',
     );
-    return (snapshotPath: snapshotPath, analysisPath: analysisPath);
+    return (
+      snapshotPath: snapshotPath,
+      analysisPath: analysisPath,
+      error: null,
+    );
   } catch (error) {
-    stderr.writeln('warning: analysis at "$label" failed: $error');
-    return (snapshotPath: snapshotPath, analysisPath: null);
+    return (
+      snapshotPath: snapshotPath,
+      analysisPath: null,
+      error: 'analysis failed: $error',
+    );
   }
 }
 

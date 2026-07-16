@@ -62,6 +62,56 @@ class _GrowingFakeService extends FakeVmService {
     ];
 }
 
+/// Samples succeed, but every allocation-profile RPC throws — so only the
+/// per-checkpoint capture degrades, never the sampling.
+class _AllocThrowFakeService extends FakeVmService {
+  int _heap = 100000;
+
+  @override
+  Future<VM> getVM() async => VM(isolates: [IsolateRef(id: 'isolates/main')]);
+
+  @override
+  Future<MemoryUsage> getMemoryUsage(String isolateId) async {
+    _heap += 1000;
+    return MemoryUsage(
+      heapUsage: _heap,
+      heapCapacity: _heap * 2,
+      externalUsage: 0,
+    );
+  }
+
+  @override
+  Future<ProcessMemoryUsage> getProcessMemoryUsage() async =>
+      ProcessMemoryUsage(
+        root: ProcessMemoryItem(name: 'Total', size: _heap),
+      );
+
+  @override
+  Future<AllocationProfile> getAllocationProfile(
+    String isolateId, {
+    bool? reset,
+    bool? gc,
+  }) => Future.error(StateError('profile RPC down'));
+}
+
+/// Advances virtual time, then throws on the [explodeAfter]-th delay to model
+/// an unexpected mid-run failure the loop cannot foresee.
+final class _ExplodingClock implements RunClock {
+  _ExplodingClock({required this.explodeAfter});
+  final int explodeAfter;
+  int _now = 0;
+  int _delays = 0;
+
+  @override
+  int nowMicros() => _now;
+
+  @override
+  Future<void> delay(Duration duration) async {
+    if (_delays++ >= explodeAfter) throw StateError('clock exploded');
+    if (duration > Duration.zero) _now += duration.inMicroseconds;
+  }
+}
+
 RunConfig _config({
   int durationSeconds = 120,
   int intervalSeconds = 5,
@@ -222,6 +272,103 @@ void main() {
         ),
         isTrue,
       );
+    });
+
+    test('mode is null on attach unless supplied or derivable', () {
+      final parser = buildRunArgParser();
+      expect(parseRunConfig(parser.parse(['--vm-uri', 'ws://x'])).mode, isNull);
+      expect(
+        parseRunConfig(
+          parser.parse(['--vm-uri', 'ws://x', '--mode', 'profile']),
+        ).mode,
+        'profile',
+      );
+      expect(
+        parseRunConfig(
+          parser.parse(['--cmd', 'flutter run --release -d x']),
+        ).mode,
+        'release',
+      );
+    });
+  });
+
+  group('checkpoint degradation and partial flush', () {
+    test(
+      'a failed checkpoint capture is marked failed; the run completes',
+      () async {
+        final doc = await executeRun(
+          service: _AllocThrowFakeService(),
+          clock: _FakeClock(0),
+          config: _config(checkpoints: 1),
+          metadata: _metadata(),
+        );
+
+        expect(doc.metadata.completed, isTrue);
+        expect(doc.checkpoints.map((c) => c.label), ['start', 'cp1', 'end']);
+        for (final cp in doc.checkpoints) {
+          expect(cp.captureStatus, 'failed');
+          expect(cp.allocationTopN, isEmpty);
+          expect(cp.captureError, contains('profile RPC down'));
+        }
+        // Sampling was never interrupted by the checkpoint failures.
+        final heap = doc.series.firstWhere((s) => s.name == 'dart.heap.used');
+        expect(heap.samples, isNotEmpty);
+      },
+    );
+
+    test(
+      'an unexpected mid-run error yields a partial, non-completed document',
+      () async {
+        final doc = await executeRun(
+          service: _GrowingFakeService(),
+          clock: _ExplodingClock(explodeAfter: 5),
+          config: _config(),
+          metadata: _metadata(),
+        );
+
+        expect(doc.metadata.completed, isFalse);
+        expect(doc.metadata.abortReason, contains('clock exploded'));
+        // Everything collected before the abort survives in the partial doc.
+        final heap = doc.series.firstWhere((s) => s.name == 'dart.heap.used');
+        expect(heap.samples, isNotEmpty);
+      },
+    );
+  });
+
+  group('exitCodeForDocument', () {
+    RadarRunDocument doc({required bool completed}) => RadarRunDocument(
+      metadata: RunMetadata(
+        startedAt: DateTime.utc(2026),
+        completed: completed,
+        abortReason: completed ? null : 'interrupted',
+      ),
+      series: const [],
+      checkpoints: const [],
+    );
+
+    test('maps completion to the exit contract (0 ok / 2 tool failure)', () {
+      expect(exitCodeForDocument(doc(completed: true)), 0);
+      expect(exitCodeForDocument(doc(completed: false)), 2);
+    });
+  });
+
+  group('resolveMode', () {
+    test('an explicit mode always wins', () {
+      expect(
+        resolveMode(explicitMode: 'release', cmd: 'flutter run --profile'),
+        'release',
+      );
+    });
+
+    test('derives from the --cmd flags when no mode is supplied', () {
+      expect(resolveMode(cmd: 'flutter run --profile -d x'), 'profile');
+      expect(resolveMode(cmd: 'flutter run --release'), 'release');
+      expect(resolveMode(cmd: 'flutter run --debug'), 'debug');
+    });
+
+    test('is null on attach with no mode and no cmd', () {
+      expect(resolveMode(), isNull);
+      expect(resolveMode(cmd: 'dart --enable-vm-service=0 loop.dart'), isNull);
     });
   });
 }

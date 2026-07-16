@@ -6,8 +6,16 @@ import 'checkpoint.dart';
 import 'run_clock.dart';
 import 'sampler.dart';
 
-/// A snapshot/analysis pair produced at a checkpoint, either path nullable.
-typedef CheckpointCapture = ({String? snapshotPath, String? analysisPath});
+/// A snapshot/analysis result produced at a checkpoint.
+///
+/// [error] is null on success; non-null marks a `partial` capture (the
+/// allocation profile was still recorded, but the requested heap
+/// snapshot/analysis failed), which [executeRun] surfaces on the checkpoint.
+typedef CheckpointCapture = ({
+  String? snapshotPath,
+  String? analysisPath,
+  String? error,
+});
 
 /// Thrown for a command-line usage error (maps to exit code 1).
 final class UsageException implements Exception {
@@ -170,7 +178,10 @@ ArgParser buildRunArgParser() => ArgParser()
     'project-packages',
     help: 'Comma-separated app package names (else auto-detected from cwd).',
   )
-  ..addOption('mode', defaultsTo: 'profile', help: 'App run mode label.')
+  ..addOption(
+    'mode',
+    help: 'App run mode label (else derived from --cmd, else unset).',
+  )
   ..addOption('notes', help: 'Free-form note recorded in metadata.')
   ..addFlag(
     'allow-short',
@@ -239,9 +250,56 @@ RunConfig parseRunConfig(ArgResults args) {
     cmd: args['cmd'] as String?,
     execCommand: args['exec'] as String?,
     callExtension: args['call-extension'] as String?,
-    mode: args['mode'] as String?,
+    mode: resolveMode(
+      explicitMode: args['mode'] as String?,
+      cmd: args['cmd'] as String?,
+    ),
     notes: args['notes'] as String?,
   );
+}
+
+/// Resolves the run mode label without inventing one.
+///
+/// Honesty: an explicit [explicitMode] wins; otherwise the mode is derived
+/// only from an unambiguous flag in [cmd] (`--release`/`--profile`/`--debug`).
+/// A bare `--vm-uri` attach, where the app's mode is unknown, resolves to
+/// null rather than a plausible-but-wrong default.
+String? resolveMode({String? explicitMode, String? cmd}) {
+  if (explicitMode != null) return explicitMode;
+  if (cmd == null) return null;
+  if (cmd.contains('--release')) return 'release';
+  if (cmd.contains('--profile')) return 'profile';
+  if (cmd.contains('--debug')) return 'debug';
+  return null;
+}
+
+/// Maps a run document to the process exit code: 0 for a completed run,
+/// 2 (tool failure) for a partial/aborted one.
+int exitCodeForDocument(RadarRunDocument document) =>
+    document.metadata.completed ? 0 : 2;
+
+/// Live, append-only accumulator for an in-flight run.
+///
+/// Shared with [executeRun] so an out-of-band handler (e.g. a SIGINT reaper)
+/// can flush whatever was gathered so far via [toDocument], even mid-await.
+final class RunProgress {
+  /// Memory readings gathered so far, in time order.
+  final List<MemoryReading> readings = [];
+
+  /// Checkpoints recorded so far, in time order.
+  final List<RunCheckpoint> checkpoints = [];
+
+  /// Builds a document from the current state. A non-null [abortReason]
+  /// stamps the metadata as not completed (a partial artifact).
+  RadarRunDocument toDocument(RunMetadata metadata, {String? abortReason}) =>
+      RadarRunDocument(
+        metadata: metadata.copyWith(
+          completed: abortReason == null,
+          abortReason: abortReason,
+        ),
+        series: readingsToSeries(List.of(readings)),
+        checkpoints: List.of(checkpoints),
+      );
 }
 
 /// Drives the sampling loop against a connected [service], returning the
@@ -254,11 +312,18 @@ RunConfig parseRunConfig(ArgResults args) {
 /// once between each pair of checkpoints (never after the last). [warn] is
 /// invoked once if the cadence cannot reach an assessable post-settle sample
 /// count.
+///
+/// Never throws for run-internal failures: a per-checkpoint capture failure
+/// degrades that checkpoint to a `failed`/`partial` marker and the run
+/// continues; any other unexpected error stops the loop and returns the
+/// partial document collected so far, stamped not-completed. Pass [progress]
+/// to expose the in-flight state to an external flusher.
 Future<RadarRunDocument> executeRun({
   required VmService service,
   required RunClock clock,
   required RunConfig config,
   required RunMetadata metadata,
+  RunProgress? progress,
   Future<CheckpointCapture?> Function(ScheduledCheckpoint cp, int tMicros)?
   captureSnapshot,
   Future<void> Function(ScheduledCheckpoint cp, int tMicros)? onCheckpoint,
@@ -299,47 +364,101 @@ Future<RadarRunDocument> executeRun({
   final offsets = {...sampleOffsets, ...checkpointByOffset.keys}.toList()
     ..sort();
 
-  final readings = <MemoryReading>[];
-  final checkpoints = <RunCheckpoint>[];
+  final state = progress ?? RunProgress();
   final startMicros = clock.nowMicros();
 
-  for (final offset in offsets) {
-    final target = startMicros + offset;
-    await clock.delay(Duration(microseconds: target - clock.nowMicros()));
-    final now = clock.nowMicros();
+  String? abortReason;
+  try {
+    for (final offset in offsets) {
+      final target = startMicros + offset;
+      await clock.delay(Duration(microseconds: target - clock.nowMicros()));
+      final now = clock.nowMicros();
 
-    if (sampleOffsets.contains(offset)) {
-      readings.add(await sampler.read(now));
+      if (sampleOffsets.contains(offset)) {
+        state.readings.add(await sampler.read(now));
+      }
+
+      final cp = checkpointByOffset[offset];
+      if (cp == null) continue;
+
+      state.checkpoints.add(
+        await _captureCheckpoint(
+          service: service,
+          config: config,
+          cp: cp,
+          tMicros: now,
+          captureSnapshot: captureSnapshot,
+        ),
+      );
+      if (onCheckpoint != null) await onCheckpoint(cp, now);
+
+      final isLast = identical(cp, plan.last);
+      if (!isLast && driverHook != null) await driverHook();
     }
+  } catch (error) {
+    // Sampling never throws; anything reaching here is an unforeseen mid-run
+    // failure. Preserve what was gathered as a partial artifact.
+    abortReason = 'run aborted mid-sampling: $error';
+  }
 
-    final cp = checkpointByOffset[offset];
-    if (cp == null) continue;
+  return state.toDocument(metadata, abortReason: abortReason);
+}
 
-    final allocationTopN = await captureAllocationTopN(
+/// Captures one checkpoint, degrading honestly rather than aborting the run.
+///
+/// An allocation-profile RPC failure yields a `failed` checkpoint with an
+/// empty profile; a failed heap snapshot/analysis yields `partial` with the
+/// profile intact. An un-requested snapshot stays `ok` with null paths.
+Future<RunCheckpoint> _captureCheckpoint({
+  required VmService service,
+  required RunConfig config,
+  required ScheduledCheckpoint cp,
+  required int tMicros,
+  required Future<CheckpointCapture?> Function(ScheduledCheckpoint, int)?
+  captureSnapshot,
+}) async {
+  Map<String, int> allocationTopN;
+  try {
+    allocationTopN = await captureAllocationTopN(
       service,
       topN: config.allocationTopN,
     );
-    final capture = cp.takeSnapshot && captureSnapshot != null
-        ? await captureSnapshot(cp, now)
-        : null;
-    checkpoints.add(
-      RunCheckpoint(
-        tMicros: now,
-        label: cp.label,
-        allocationTopN: allocationTopN,
-        snapshotPath: capture?.snapshotPath,
-        analysisPath: capture?.analysisPath,
-      ),
+  } catch (error) {
+    return RunCheckpoint(
+      tMicros: tMicros,
+      label: cp.label,
+      allocationTopN: const {},
+      captureStatus: 'failed',
+      captureError: 'allocation profile failed: $error',
     );
-    if (onCheckpoint != null) await onCheckpoint(cp, now);
-
-    final isLast = identical(cp, plan.last);
-    if (!isLast && driverHook != null) await driverHook();
   }
 
-  return RadarRunDocument(
-    metadata: metadata,
-    series: readingsToSeries(readings),
-    checkpoints: checkpoints,
+  if (!cp.takeSnapshot || captureSnapshot == null) {
+    return RunCheckpoint(
+      tMicros: tMicros,
+      label: cp.label,
+      allocationTopN: allocationTopN,
+    );
+  }
+
+  CheckpointCapture? capture;
+  try {
+    capture = await captureSnapshot(cp, tMicros);
+  } catch (error) {
+    capture = (
+      snapshotPath: null,
+      analysisPath: null,
+      error: 'snapshot failed: $error',
+    );
+  }
+  final captureError = capture?.error;
+  return RunCheckpoint(
+    tMicros: tMicros,
+    label: cp.label,
+    allocationTopN: allocationTopN,
+    snapshotPath: capture?.snapshotPath,
+    analysisPath: capture?.analysisPath,
+    captureStatus: captureError == null ? 'ok' : 'partial',
+    captureError: captureError,
   );
 }
