@@ -40,5 +40,48 @@ void main() {
 
       expect(hops.map((h) => h.className).toList(), classNames);
     });
+
+    test('pairs library uris positionally with value-equal hops', () {
+      const repeated = PathLink(nodeId: 2, index: 0);
+      final links = <PathLink>[
+        repeated,
+        repeated,
+        const PathLink(nodeId: 3, field: '_callback'),
+      ];
+      final classNames = <String>['List', 'Map', 'HomeState'];
+      final libraryUris = <Uri>[
+        Uri.parse('dart:core'),
+        Uri.parse('dart:collection'),
+        Uri.parse('package:my_app/home.dart'),
+      ];
+
+      final hops = buildHops(links, classNames, libraryUris);
+
+      expect(
+        hops.map((h) => h.libraryUri).toList(),
+        libraryUris,
+        reason: 'each hop must take the library uri at its own position',
+      );
+    });
+
+    test('leaves libraryUri null when the list is omitted', () {
+      final links = <PathLink>[const PathLink(nodeId: 1, field: '_x')];
+      final hops = buildHops(links, <String>['A']);
+      expect(hops.single.libraryUri, isNull);
+    });
+
+    test('leaves later hops null when libraryUris is shorter', () {
+      final links = <PathLink>[
+        const PathLink(nodeId: 1),
+        const PathLink(nodeId: 2),
+      ];
+      final hops = buildHops(
+        links,
+        <String>['A', 'B'],
+        <Uri>[Uri.parse('dart:core')],
+      );
+      expect(hops[0].libraryUri, Uri.parse('dart:core'));
+      expect(hops[1].libraryUri, isNull);
+    });
   });
 }

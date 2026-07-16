@@ -13,6 +13,16 @@ final class GraphLeakCluster {
   final LeakConfidence confidence;
   final String signature;
 
+  /// Internal leaf class when [className] headlines an anchored app owner
+  /// (e.g. a `_ControllerSubscription` retained by a `_LeakyScreenState`).
+  /// Null when the headline is itself the leaf. Attribution detail carried into
+  /// serialized bundles so a drill-down can still name the internal object.
+  final String? leafClassName;
+
+  /// Index into [representativePath] `.hops` of the attribution anchor — the
+  /// hop app code holds the leak at. Null when there is no app anchor.
+  final int? anchorHopIndex;
+
   const GraphLeakCluster({
     required this.className,
     required this.libraryUri,
@@ -22,6 +32,8 @@ final class GraphLeakCluster {
     required this.rootKind,
     required this.confidence,
     required this.signature,
+    this.leafClassName,
+    this.anchorHopIndex,
   });
 
   factory GraphLeakCluster.fromJson(Map<String, Object?> json) =>
@@ -38,6 +50,8 @@ final class GraphLeakCluster {
         rootKind: RootKind.values.byName(json['rootKind'] as String),
         confidence: LeakConfidence.values.byName(json['confidence'] as String),
         signature: json['signature'] as String,
+        leafClassName: json['leafClassName'] as String?,
+        anchorHopIndex: json['anchorHopIndex'] as int?,
       );
 
   @override
@@ -51,7 +65,9 @@ final class GraphLeakCluster {
           representativePath == other.representativePath &&
           rootKind == other.rootKind &&
           confidence == other.confidence &&
-          signature == other.signature;
+          signature == other.signature &&
+          leafClassName == other.leafClassName &&
+          anchorHopIndex == other.anchorHopIndex;
 
   @override
   int get hashCode => Object.hash(
@@ -63,6 +79,8 @@ final class GraphLeakCluster {
     rootKind,
     confidence,
     signature,
+    leafClassName,
+    anchorHopIndex,
   );
 
   Map<String, Object?> toJson() => {
@@ -74,5 +92,7 @@ final class GraphLeakCluster {
     'rootKind': rootKind.name,
     'confidence': confidence.name,
     'signature': signature,
+    if (leafClassName != null) 'leafClassName': leafClassName,
+    if (anchorHopIndex != null) 'anchorHopIndex': anchorHopIndex,
   };
 }

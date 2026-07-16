@@ -22,6 +22,12 @@ final class LeakRecord {
   final String? attributionClassName;
   final Uri? attributionLibraryUri;
 
+  /// Index into [path] `.hops` of the attribution anchor — the hop this
+  /// finding is reported under. Parallel to [attributionAnchorNodeId]; null
+  /// when there is no app anchor. Lets a serialized bundle point at the hop
+  /// where app code holds the leak.
+  final int? anchorHopIndex;
+
   const LeakRecord({
     required this.nodeId,
     required this.className,
@@ -34,6 +40,7 @@ final class LeakRecord {
     this.attributionAnchorNodeId,
     this.attributionClassName,
     this.attributionLibraryUri,
+    this.anchorHopIndex,
   });
 }
 
@@ -92,6 +99,12 @@ List<GraphLeakCluster> clusterLeaks(
         rootKind: first.rootKind,
         confidence: confidence,
         signature: entry.key,
+        // When the headline is an anchored owner, keep the internal leaf class
+        // so a drill-down can still name it; null when the headline IS the leaf.
+        leafClassName: first.attributionClassName != null
+            ? first.className
+            : null,
+        anchorHopIndex: first.anchorHopIndex,
       ),
     );
   }

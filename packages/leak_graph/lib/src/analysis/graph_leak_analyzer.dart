@@ -10,19 +10,29 @@ import 'live_tree.dart';
 import 'shortest_retaining_paths.dart';
 
 /// Pairs each retaining-path [links] entry with its class name from
-/// [classNames] by POSITION.
+/// [classNames] and, when supplied, its library uri from [libraryUris] by
+/// POSITION.
 ///
-/// [classNames] is parallel to [links] (same order, same length). Positional
-/// pairing is required because two hops can be value-equal (repeated container
-/// or array-index slots); a value-based lookup would alias them to the first
-/// match and corrupt the path and its cluster signature.
-List<GraphHop> buildHops(List<PathLink> links, List<String> classNames) {
+/// [classNames] (and optional [libraryUris]) are parallel to [links] (same
+/// order, same length). Positional pairing is required because two hops can be
+/// value-equal (repeated container or array-index slots); a value-based lookup
+/// would alias them to the first match and corrupt the path and its cluster
+/// signature. A shorter or absent [libraryUris] leaves later hops with a null
+/// [GraphHop.libraryUri].
+List<GraphHop> buildHops(
+  List<PathLink> links,
+  List<String> classNames, [
+  List<Uri>? libraryUris,
+]) {
   return [
     for (final entry in links.asMap().entries)
       GraphHop(
         className: entry.key < classNames.length ? classNames[entry.key] : '',
         field: entry.value.field,
         index: entry.value.index,
+        libraryUri: libraryUris != null && entry.key < libraryUris.length
+            ? libraryUris[entry.key]
+            : null,
       ),
   ];
 }
@@ -57,8 +67,15 @@ GraphRetainingPath? retainingPathForClass(
         return '';
       }
     }).toList();
+    final libraryUris = links.map((l) {
+      try {
+        return graph.node(l.nodeId).libraryUri;
+      } catch (_) {
+        return Uri();
+      }
+    }).toList();
     return GraphRetainingPath(
-      hops: buildHops(links, classNames),
+      hops: buildHops(links, classNames, libraryUris),
       rootKind: paths.rootKindOf(id),
     );
   }
@@ -195,7 +212,7 @@ final class GraphLeakAnalyzer {
         }
       }
 
-      final hops = buildHops(pathLinks, pathClassNames);
+      final hops = buildHops(pathLinks, pathClassNames, pathLibraries);
       final path = GraphRetainingPath(hops: hops, rootKind: rootKind);
       // Signature anchored at the owner (root -> anchor) so two owners with the
       // same owner+root path cluster regardless of which internal leaf BFS
@@ -224,6 +241,7 @@ final class GraphLeakAnalyzer {
           attributionLibraryUri: anchorIndex != null
               ? pathLibraries[anchorIndex]
               : null,
+          anchorHopIndex: anchorIndex,
         ),
       );
     }
@@ -457,8 +475,15 @@ GraphRetainingPath _representativePath(
       return '';
     }
   }).toList();
+  final libraryUris = links.map((l) {
+    try {
+      return graph.node(l.nodeId).libraryUri;
+    } catch (_) {
+      return Uri();
+    }
+  }).toList();
   return GraphRetainingPath(
-    hops: buildHops(links, classNames),
+    hops: buildHops(links, classNames, libraryUris),
     rootKind: paths.rootKindOf(nodeId),
   );
 }
@@ -541,7 +566,14 @@ List<ClassPathDistribution> buildClassPathDistributions(
         return '';
       }
     }).toList();
-    final hops = buildHops(links, classNames);
+    final libraryUris = links.map((l) {
+      try {
+        return graph.node(l.nodeId).libraryUri;
+      } catch (_) {
+        return Uri();
+      }
+    }).toList();
+    final hops = buildHops(links, classNames, libraryUris);
     final signature = pathSignature(hops, maxDepth: maxSignatureDepth);
 
     final bySig = acc.putIfAbsent(className, () => {});
