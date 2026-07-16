@@ -40,6 +40,10 @@ void main() {
         ClassOrigin.unknown,
       );
     });
+
+    test('malformed package: URI with no segments → unknown', () {
+      expect(classifier.classify(Uri.parse('package:')), ClassOrigin.unknown);
+    });
   });
 
   group('OriginClassifier.packageOf', () {
@@ -55,6 +59,10 @@ void main() {
 
     test('Uri() → null', () {
       expect(classifier.packageOf(Uri()), isNull);
+    });
+
+    test('malformed package: URI with no segments → null', () {
+      expect(classifier.packageOf(Uri.parse('package:')), isNull);
     });
   });
 

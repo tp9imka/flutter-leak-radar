@@ -24,9 +24,9 @@ final class OriginClassifier {
   /// package set it falls into.
   ClassOrigin classify(Uri libraryUri) {
     if (libraryUri.scheme == 'dart') return ClassOrigin.dartSdk;
-    if (libraryUri.scheme != 'package') return ClassOrigin.unknown;
 
-    final package = libraryUri.pathSegments.first;
+    final package = _packageSegment(libraryUri);
+    if (package == null) return ClassOrigin.unknown;
     if (kFlutterFrameworkPackages.contains(package)) {
       return ClassOrigin.flutterFramework;
     }
@@ -36,10 +36,15 @@ final class OriginClassifier {
 
   /// Package name for `package:` URIs, `dart:<lib>` for SDK, null otherwise.
   String? packageOf(Uri libraryUri) {
-    return switch (libraryUri.scheme) {
-      'package' => libraryUri.pathSegments.first,
-      'dart' => 'dart:${libraryUri.path}',
-      _ => null,
-    };
+    if (libraryUri.scheme == 'dart') return 'dart:${libraryUri.path}';
+    return _packageSegment(libraryUri);
+  }
+
+  /// First path segment of a `package:` URI, or null when [libraryUri] isn't
+  /// a `package:` URI or is malformed (e.g. `package:` with no segments).
+  String? _packageSegment(Uri libraryUri) {
+    if (libraryUri.scheme != 'package') return null;
+    if (libraryUri.pathSegments.isEmpty) return null;
+    return libraryUri.pathSegments.first;
   }
 }
