@@ -1,6 +1,13 @@
 import 'class_path_distribution.dart';
 import 'class_root_profile.dart';
 import 'graph_leak_cluster.dart';
+import 'package_rollup.dart';
+
+/// Serialization version stamped into [GraphAnalysisResult.toJson].
+///
+/// Bumped to 2 when per-package rollups and the detection source were added.
+/// An export without the `schemaVersion` key is treated as version 1.
+const int kGraphAnalysisResultSchemaVersion = 2;
 
 /// Aggregate counts and diagnostics from a single analysis run.
 final class GraphAnalysisStats {
@@ -80,11 +87,26 @@ final class GraphAnalysisResult {
   /// paths, for a bounded set of classes. See [ClassPathDistribution].
   final List<ClassPathDistribution> classPathDistributions;
 
+  /// Leaked instances grouped by the package that RETAINS them (attribution
+  /// anchor, falling back to the declaring package when unanchored).
+  final List<PackageRollup> anchorRollups;
+
+  /// Leaked instances grouped by the package that DECLARES their class.
+  final List<PackageRollup> declaredRollups;
+
+  /// Which detection source resolved the app-package set for this run.
+  ///
+  /// Null on legacy exports predating package detection.
+  final AppPackageSource? appPackageSource;
+
   const GraphAnalysisResult({
     required this.clusters,
     required this.stats,
     this.classRootProfiles = const [],
     this.classPathDistributions = const [],
+    this.anchorRollups = const [],
+    this.declaredRollups = const [],
+    this.appPackageSource,
   });
 
   factory GraphAnalysisResult.fromJson(Map<String, Object?> json) =>
@@ -110,6 +132,23 @@ final class GraphAnalysisResult {
                     (d as Map).cast<String, Object?>(),
                   ),
               ],
+        anchorRollups: json['anchorRollups'] == null
+            ? const []
+            : [
+                for (final r in json['anchorRollups']! as List)
+                  PackageRollup.fromJson((r as Map).cast<String, Object?>()),
+              ],
+        declaredRollups: json['declaredRollups'] == null
+            ? const []
+            : [
+                for (final r in json['declaredRollups']! as List)
+                  PackageRollup.fromJson((r as Map).cast<String, Object?>()),
+              ],
+        appPackageSource: json['appPackageSource'] == null
+            ? null
+            : AppPackageSource.values.byName(
+                json['appPackageSource'] as String,
+              ),
       );
 
   @override
@@ -117,25 +156,35 @@ final class GraphAnalysisResult {
       identical(this, other) ||
       other is GraphAnalysisResult &&
           stats == other.stats &&
+          appPackageSource == other.appPackageSource &&
           _listEquals(clusters, other.clusters) &&
           _listEquals(classRootProfiles, other.classRootProfiles) &&
-          _listEquals(classPathDistributions, other.classPathDistributions);
+          _listEquals(classPathDistributions, other.classPathDistributions) &&
+          _listEquals(anchorRollups, other.anchorRollups) &&
+          _listEquals(declaredRollups, other.declaredRollups);
 
   @override
   int get hashCode => Object.hash(
     stats,
+    appPackageSource,
     Object.hashAll(clusters),
     Object.hashAll(classRootProfiles),
     Object.hashAll(classPathDistributions),
+    Object.hashAll(anchorRollups),
+    Object.hashAll(declaredRollups),
   );
 
   Map<String, Object?> toJson() => {
+    'schemaVersion': kGraphAnalysisResultSchemaVersion,
     'clusters': [for (final c in clusters) c.toJson()],
     'stats': stats.toJson(),
     'classRootProfiles': [for (final p in classRootProfiles) p.toJson()],
     'classPathDistributions': [
       for (final d in classPathDistributions) d.toJson(),
     ],
+    'anchorRollups': [for (final r in anchorRollups) r.toJson()],
+    'declaredRollups': [for (final r in declaredRollups) r.toJson()],
+    if (appPackageSource != null) 'appPackageSource': appPackageSource!.name,
   };
 }
 

@@ -13,6 +13,7 @@ export 'src/model/graph_leak_cluster.dart';
 export 'src/model/class_root_profile.dart';
 export 'src/model/class_path_distribution.dart';
 export 'src/model/graph_analysis_result.dart';
+export 'src/model/package_rollup.dart';
 export 'src/graph/heap_graph_view.dart';
 export 'src/graph/vm_snapshot_adapter.dart';
 export 'src/graph/snapshot_loader.dart';
