@@ -5,12 +5,33 @@ import 'package:radar_ui/radar_ui.dart';
 
 void main() {
   test('moduleKindColor maps every kind to its palette token', () {
-    expect(moduleKindColor(NativeModuleKind.app), RadarColors.info);
+    expect(
+      moduleKindColor(NativeModuleKind.app),
+      OriginTokens.color(RadarOrigin.project),
+    );
     expect(moduleKindColor(NativeModuleKind.gpuDriver), RadarColors.warning);
     expect(moduleKindColor(NativeModuleKind.engine), RadarColors.text50);
-    expect(moduleKindColor(NativeModuleKind.plugin), RadarColors.accent);
-    expect(moduleKindColor(NativeModuleKind.system), RadarColors.text25);
+    expect(
+      moduleKindColor(NativeModuleKind.plugin),
+      OriginTokens.color(RadarOrigin.dependency),
+    );
+    expect(
+      moduleKindColor(NativeModuleKind.system),
+      OriginTokens.color(RadarOrigin.framework),
+    );
     expect(moduleKindColor(NativeModuleKind.unknown), RadarColors.text25);
+  });
+
+  test('app agrees with OriginTokens project hue (one ownership palette)', () {
+    expect(
+      moduleKindColor(NativeModuleKind.app),
+      OriginTokens.color(RadarOrigin.project),
+    );
+    expect(moduleKindColor(NativeModuleKind.app), isNot(RadarColors.accent));
+  });
+
+  test('plugin is no longer accent (was inverted vs. app=info)', () {
+    expect(moduleKindColor(NativeModuleKind.plugin), isNot(RadarColors.accent));
   });
 
   test('moduleKindLabel maps every kind to its display label', () {
