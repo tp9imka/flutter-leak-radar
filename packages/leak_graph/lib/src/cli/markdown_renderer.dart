@@ -27,6 +27,14 @@ const _packageNameOf = OriginClassifier(projectPackages: {});
 /// on GitHub-flavored-markdown-only syntax (the `> [!CAUTION]` gate
 /// admonition) for step summaries and PR comments — plain `md` renders the
 /// same content with standard markdown only.
+///
+/// The featured clusters are project-anchored first — but a huge
+/// dependency/framework/SDK leak (e.g. a native-heap leak in a package like
+/// `livekit_client` or `flutter_webrtc`) must never be invisible just because
+/// it isn't app-owned: when the single worst cluster overall isn't one of the
+/// featured ones, one extra "largest overall" line names it. When there are
+/// no project-anchored clusters at all, the featured slots fall back to the
+/// worst clusters overall instead of leaving the view empty.
 String renderMarkdownReport(
   GraphAnalysisResult result, {
   BaselineComparison? comparison,
@@ -37,17 +45,23 @@ String renderMarkdownReport(
     ..writeln(_verdictLine(result, gate))
     ..writeln();
 
-  final highlights = _selectHighlights(result, comparison);
+  final selection = _selectHighlights(result, comparison);
+  final highlights = selection.highlights;
   if (highlights.isNotEmpty) {
     buf
       ..writeln(
-        '### Top project-anchor clusters '
-        '(${highlights.length} of ${result.clusters.length})',
+        selection.isFallback
+            ? '### Top clusters (${highlights.length} of '
+                  '${result.clusters.length}) — no project-anchored '
+                  'clusters found'
+            : '### Top project-anchor clusters '
+                  '(${highlights.length} of ${result.clusters.length})',
       )
       ..writeln();
     for (var i = 0; i < highlights.length; i++) {
       _writeHighlight(buf, i + 1, highlights[i], result.anchorRollups);
     }
+    _writeLargestOverallLine(buf, result, highlights);
   }
 
   if (gate != null && !gate.passed) {
@@ -76,10 +90,22 @@ String _verdictLine(GraphAnalysisResult result, GateResult? gate) {
 /// One current cluster paired with its baseline classification, when known.
 typedef _Highlight = ({GraphLeakCluster cluster, ClusterDelta? delta});
 
-/// Picks at most 3 project-anchor clusters: NEW ones first (largest first),
-/// then the worst (largest shallow bytes) of the rest — so a reviewer always
-/// sees either what's new or what's biggest, never neither.
-List<_Highlight> _selectHighlights(
+/// The featured clusters plus whether they came from the project-anchor tier
+/// or the any-origin fallback tier (see [_selectHighlights]).
+typedef _HighlightSelection = ({List<_Highlight> highlights, bool isFallback});
+
+/// Picks at most 3 clusters to feature above the fold.
+///
+/// Project-anchored clusters are always preferred: NEW ones first (largest
+/// first), then the worst (largest shallow bytes) of the rest — so a
+/// reviewer always sees either what's new or what's biggest in their own
+/// code, never neither. When there is NOT a single project-anchored cluster
+/// in the whole run, the same NEW-or-worst ranking runs over every cluster
+/// regardless of origin instead, so the featured section is never left empty
+/// while [GraphAnalysisResult.clusters] is non-empty (a dependency-only run,
+/// e.g. one dominated by native-heap growth in a package like
+/// `flutter_webrtc`, still gets a usable 30-second view).
+_HighlightSelection _selectHighlights(
   GraphAnalysisResult result,
   BaselineComparison? comparison,
 ) {
@@ -88,25 +114,83 @@ List<_Highlight> _selectHighlights(
       for (final d in comparison.deltas) d.cluster.signature: d,
   };
 
-  final candidates = <_Highlight>[
+  List<_Highlight> candidatesWhere(bool Function(GraphLeakCluster) keep) => [
     for (final cluster in result.clusters)
-      if (_originOf(cluster, result.anchorRollups) == ClassOrigin.project)
+      if (keep(cluster))
         (cluster: cluster, delta: deltaBySignature[cluster.signature]),
   ];
 
-  candidates.sort((a, b) {
-    final aNew = a.delta?.novelty == ClusterNovelty.newCluster;
-    final bNew = b.delta?.novelty == ClusterNovelty.newCluster;
-    if (aNew != bNew) return aNew ? -1 : 1;
-    final byBytes = b.cluster.retainedShallowBytes.compareTo(
-      a.cluster.retainedShallowBytes,
-    );
-    if (byBytes != 0) return byBytes;
-    return b.cluster.instanceCount.compareTo(a.cluster.instanceCount);
-  });
+  final projectCandidates = candidatesWhere(
+    (c) => _originOf(c, result.anchorRollups) == ClassOrigin.project,
+  );
+  if (projectCandidates.isNotEmpty) {
+    return (highlights: _topByNewOrWorst(projectCandidates), isFallback: false);
+  }
 
-  return candidates.take(3).toList();
+  return (
+    highlights: _topByNewOrWorst(candidatesWhere((_) => true)),
+    isFallback: true,
+  );
 }
+
+/// Sorts [candidates] NEW-first (largest first), then by shallow bytes
+/// descending, and returns at most the top 3.
+List<_Highlight> _topByNewOrWorst(List<_Highlight> candidates) {
+  final sorted = [...candidates]
+    ..sort((a, b) {
+      final aNew = a.delta?.novelty == ClusterNovelty.newCluster;
+      final bNew = b.delta?.novelty == ClusterNovelty.newCluster;
+      if (aNew != bNew) return aNew ? -1 : 1;
+      final byBytes = b.cluster.retainedShallowBytes.compareTo(
+        a.cluster.retainedShallowBytes,
+      );
+      if (byBytes != 0) return byBytes;
+      return b.cluster.instanceCount.compareTo(a.cluster.instanceCount);
+    });
+  return sorted.take(3).toList();
+}
+
+/// Appends the single "largest overall" line when the overall-worst cluster
+/// (by shallow bytes alone, any origin, ignoring novelty) isn't one of the
+/// already-[highlights]ed clusters — so a huge dependency/framework/SDK leak
+/// can never hide silently behind smaller featured project clusters.
+void _writeLargestOverallLine(
+  StringBuffer buf,
+  GraphAnalysisResult result,
+  List<_Highlight> highlights,
+) {
+  final worst = _worstOverall(result.clusters);
+  if (worst == null) return;
+
+  final featured = {for (final h in highlights) h.cluster.signature};
+  if (featured.contains(worst.signature)) return;
+
+  final origin = _originOf(worst, result.anchorRollups);
+  buf.writeln(
+    'largest overall: `${worst.className}` ${_originLabel(origin)} — '
+    '${worst.instanceCount} instances, '
+    '${_kbShallow(worst.retainedShallowBytes)} (see details)',
+  );
+  buf.writeln();
+}
+
+/// The cluster with the largest [GraphLeakCluster.retainedShallowBytes], or
+/// null when [clusters] is empty. Ties keep the first one encountered.
+GraphLeakCluster? _worstOverall(List<GraphLeakCluster> clusters) {
+  GraphLeakCluster? worst;
+  for (final cluster in clusters) {
+    if (worst == null ||
+        cluster.retainedShallowBytes > worst.retainedShallowBytes) {
+      worst = cluster;
+    }
+  }
+  return worst;
+}
+
+/// Formats [bytes] as whole kilobytes, still carrying the "shallow"
+/// qualifier — this one summary line reads better in KB than in raw bytes,
+/// but must stay just as honest about what it's measuring.
+String _kbShallow(int bytes) => '${(bytes / 1024).round()} KB shallow';
 
 void _writeHighlight(
   StringBuffer buf,

@@ -568,4 +568,153 @@ void main() {
       expect(githubReport.split('\n').first, mdReport.split('\n').first);
     });
   });
+
+  group('renderMarkdownReport — largest-overall visibility', () {
+    test('appends a largest-overall line when a dependency cluster out-bytes '
+        'every featured project-anchor cluster', () {
+      final small1 = _anchoredCluster(
+        className: 'GroupCallBloc',
+        signature: 'r>GroupCallBloc',
+        anchorLibrary: 'package:my_app/call.dart',
+        retainedShallowBytes: 300,
+        instanceCount: 3,
+      );
+      final small2 = _anchoredCluster(
+        className: 'ChatScreenState',
+        signature: 'r>ChatScreenState',
+        anchorLibrary: 'package:my_app/chat.dart',
+        retainedShallowBytes: 200,
+        instanceCount: 2,
+      );
+      final hugeDependency = _anchoredCluster(
+        className: 'PeerConnectionObserver',
+        signature: 'r>PeerConnectionObserver',
+        anchorLibrary: 'package:flutter_webrtc/rtc.dart',
+        retainedShallowBytes: 1024 * 500,
+        instanceCount: 40,
+      );
+      final report = renderMarkdownReport(
+        _result(
+          [small1, small2, hugeDependency],
+          anchorRollups: [
+            _rollup('my_app', ClassOrigin.project),
+            _rollup('flutter_webrtc', ClassOrigin.dependency),
+          ],
+        ),
+        github: false,
+      );
+
+      // The huge dependency cluster is not one of the (project-anchored)
+      // featured clusters ...
+      expect(report, isNot(contains('**3.')));
+      // ... but must still surface above the fold as the overall worst.
+      expect(
+        report,
+        contains(
+          'largest overall: `PeerConnectionObserver` [dependency] — '
+          '40 instances, 500 KB shallow (see details)',
+        ),
+      );
+      // The line must appear before the fold-line (details) content.
+      expect(
+        report.indexOf('largest overall') < report.indexOf('<details>'),
+        isTrue,
+      );
+    });
+
+    test('omits the largest-overall line when the overall-worst cluster is '
+        'already featured', () {
+      final smaller = _anchoredCluster(
+        className: 'GroupCallBloc',
+        signature: 'r>GroupCallBloc',
+        anchorLibrary: 'package:my_app/call.dart',
+        retainedShallowBytes: 1000,
+      );
+      final biggestProject = _anchoredCluster(
+        className: 'ChatScreenState',
+        signature: 'r>ChatScreenState',
+        anchorLibrary: 'package:my_app/chat.dart',
+        retainedShallowBytes: 2000,
+      );
+      final smallerDependency = _anchoredCluster(
+        className: 'SomeVendorThing',
+        signature: 'r>SomeVendorThing',
+        anchorLibrary: 'package:some_vendor_pkg/x.dart',
+        retainedShallowBytes: 500,
+      );
+      final report = renderMarkdownReport(
+        _result(
+          [smaller, biggestProject, smallerDependency],
+          anchorRollups: [
+            _rollup('my_app', ClassOrigin.project),
+            _rollup('some_vendor_pkg', ClassOrigin.dependency),
+          ],
+        ),
+        github: false,
+      );
+
+      // Both project clusters fit within the top-3 cap, including the
+      // overall-worst one (ChatScreenState, 2000 bytes) — so no extra
+      // line is needed even though a smaller dependency cluster exists
+      // and is NOT featured.
+      expect(report, contains('ChatScreenState'));
+      expect(report, isNot(contains('largest overall')));
+    });
+
+    test(
+      'falls back to the worst clusters overall when none are '
+      'project-anchored, so the view is never empty while clusters exist',
+      () {
+        final biggest = _anchoredCluster(
+          className: 'PeerConnectionObserver',
+          signature: 'r>PeerConnectionObserver',
+          anchorLibrary: 'package:flutter_webrtc/rtc.dart',
+          retainedShallowBytes: 4000,
+        );
+        final second = _anchoredCluster(
+          className: 'RoomEngine',
+          signature: 'r>RoomEngine',
+          anchorLibrary: 'package:livekit_client/room.dart',
+          retainedShallowBytes: 3000,
+        );
+        final third = _anchoredCluster(
+          className: 'TrackPublication',
+          signature: 'r>TrackPublication',
+          anchorLibrary: 'package:livekit_client/track.dart',
+          retainedShallowBytes: 2000,
+        );
+        final smallest = _anchoredCluster(
+          className: 'AudioLevelObserver',
+          signature: 'r>AudioLevelObserver',
+          anchorLibrary: 'package:flutter_webrtc/audio.dart',
+          retainedShallowBytes: 1000,
+        );
+        final report = renderMarkdownReport(
+          _result(
+            [biggest, second, third, smallest],
+            anchorRollups: [
+              _rollup('flutter_webrtc', ClassOrigin.dependency),
+              _rollup('livekit_client', ClassOrigin.dependency),
+            ],
+          ),
+          github: false,
+        );
+
+        // The featured section is never empty while clusters exist, even
+        // with zero project-anchored clusters.
+        expect(report, contains('**1.'));
+        expect(report, contains('**2.'));
+        expect(report, contains('**3.'));
+        expect(report, isNot(contains('**4.')));
+        expect(report, contains('PeerConnectionObserver'));
+        expect(report, contains('RoomEngine'));
+        expect(report, contains('TrackPublication'));
+        // The smallest cluster didn't make the cut, but the worst overall
+        // (PeerConnectionObserver) did, so no duplicate summary line.
+        expect(report, isNot(contains('largest overall')));
+        // Full table still lists everything, including the excluded one.
+        expect(report, contains('AudioLevelObserver'));
+      },
+    );
+  });
 }
