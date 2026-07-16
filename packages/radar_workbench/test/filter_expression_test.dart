@@ -135,6 +135,23 @@ void main() {
       expect(expr.matches(_t('X', 'package:my_app/x.dart')), isFalse);
     });
 
+    test('origin:project matches nothing under empty projectPackages', () {
+      // A7 gap: with no resolved project set, no package can classify as
+      // project, so `origin:project` must match nothing (never a guess).
+      final expr = FilterExpression.parse('origin:project');
+      expect(expr.matches(_t('X', 'package:my_app/x.dart')), isFalse);
+      expect(expr.matches(_t('X', 'package:collection/x.dart')), isFalse);
+      expect(expr.matches(_t('X', 'dart:core')), isFalse);
+      // Once the project set resolves the package, it matches.
+      expect(
+        expr.matches(
+          _t('X', 'package:my_app/x.dart'),
+          projectPackages: {'my_app'},
+        ),
+        isTrue,
+      );
+    });
+
     test('!origin: negates like any other field', () {
       final expr = FilterExpression.parse('!origin:framework');
       expect(expr.matches(_t('X', 'package:flutter/widgets.dart')), isFalse);

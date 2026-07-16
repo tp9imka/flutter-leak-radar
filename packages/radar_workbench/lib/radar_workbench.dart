@@ -16,6 +16,7 @@ export 'src/memory/filter_target.dart';
 export 'src/memory/mem_format.dart';
 export 'src/memory/memory_controller.dart';
 export 'src/memory/memory_view.dart';
+export 'src/memory/package_group_scaffold.dart';
 export 'src/memory/retaining_paths_view.dart';
 export 'src/memory/root_kind_ui.dart';
 export 'src/memory/snapshots_view.dart';

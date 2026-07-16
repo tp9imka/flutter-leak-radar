@@ -9,6 +9,7 @@ import 'class_detail_panel.dart';
 import 'diff_table.dart';
 import 'mem_format.dart';
 import 'memory_controller.dart';
+import 'package_group_scaffold.dart';
 
 const _log = 'leakRadarDevTools.snapshotsView';
 
@@ -111,6 +112,11 @@ class _SnapshotsViewState extends State<SnapshotsView> {
           child: DiffTable(
             diffs: diff,
             absolute: againstEmpty,
+            classAnchors: classAnchorsFromClusters(
+              comparison.analysisResult.clusters,
+            ),
+            projectPackages: comparison.analysisResult.resolvedAppPackages
+                .toSet(),
             summary: againstEmpty
                 ? _ShowAllSummary(snapshot: comparison)
                 : _DiffSummary(pair: _c.pair!),
