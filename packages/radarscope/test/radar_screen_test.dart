@@ -319,6 +319,34 @@ void main() {
       expect(find.byKey(const Key('quick_menu_open_perf')), findsOneWidget);
     });
 
+    testWidgets('quick-menu Open Leaks opens the Leaks tab', (tester) async {
+      await tester.pumpWidget(buildOverlay());
+      await _pump(tester);
+      await tester.longPress(find.byKey(const Key('radar_badge')));
+      await _pump(tester);
+
+      await tester.tap(find.byKey(const Key('quick_menu_open_leaks')));
+      await _pump(tester);
+
+      expect(find.byType(LeakRadarView), findsOneWidget);
+      expect(find.byType(PerfRadarView), findsNothing);
+    });
+
+    testWidgets('quick-menu Open Performance opens the Performance tab', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildOverlay());
+      await _pump(tester);
+      await tester.longPress(find.byKey(const Key('radar_badge')));
+      await _pump(tester);
+
+      await tester.tap(find.byKey(const Key('quick_menu_open_perf')));
+      await _pump(tester);
+
+      expect(find.byType(PerfRadarView), findsOneWidget);
+      expect(find.byType(LeakRadarView), findsNothing);
+    });
+
     testWidgets('quick-menu scrim tap dismisses menu', (tester) async {
       await tester.pumpWidget(buildOverlay());
       await _pump(tester);

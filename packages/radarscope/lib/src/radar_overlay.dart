@@ -43,6 +43,7 @@ class _RadarOverlayState extends State<RadarOverlay> {
   double _bottom = _initialBottom;
   bool _inspectorOpen = false;
   bool _menuOpen = false;
+  int _inspectorInitialTab = 0;
 
   LeakReport? _leakReport;
   FrameStatsSnapshot _frameStats = const FrameStatsSnapshot(
@@ -164,7 +165,10 @@ class _RadarOverlayState extends State<RadarOverlay> {
     });
   }
 
-  void _onTap() => setState(() => _inspectorOpen = true);
+  void _onTap() => setState(() {
+    _inspectorInitialTab = 0;
+    _inspectorOpen = true;
+  });
 
   void _onLongPress() => setState(() => _menuOpen = true);
 
@@ -192,6 +196,7 @@ class _RadarOverlayState extends State<RadarOverlay> {
                 debugShowCheckedModeBanner: false,
                 theme: _buildInspectorTheme(),
                 home: RadarScreen(
+                  initialTab: _inspectorInitialTab,
                   onClose: () => setState(() => _inspectorOpen = false),
                 ),
               ),
@@ -222,11 +227,17 @@ class _RadarOverlayState extends State<RadarOverlay> {
                 },
                 onOpenLeaks: () {
                   _closeMenu();
-                  setState(() => _inspectorOpen = true);
+                  setState(() {
+                    _inspectorInitialTab = 0;
+                    _inspectorOpen = true;
+                  });
                 },
                 onOpenPerformance: () {
                   _closeMenu();
-                  setState(() => _inspectorOpen = true);
+                  setState(() {
+                    _inspectorInitialTab = 1;
+                    _inspectorOpen = true;
+                  });
                 },
               ),
           ],

@@ -23,7 +23,7 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
-  flutter_leak_radar: ^0.2.1
+  flutter_leak_radar: ^0.3.0
   flutter_perf_radar: ^0.1.1
   radar_trace: ^0.2.0
   radar_ui: ^0.3.0

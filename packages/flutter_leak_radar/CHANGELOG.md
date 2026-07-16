@@ -1,3 +1,24 @@
+## 0.3.0
+
+Findings now carry attribution: each `LeakFinding` reports its class `origin`
+(project / dependency / framework / SDK / unknown) and shallow `bytes`, and each
+`LeakReport` populates `heapBytes` and records which detection link resolved the
+project-package set.
+
+- `LeakFinding.origin` classifies the declaring library against the resolved
+  project-package set. `ClassOrigin` is re-exported from the package barrel so
+  app code does not import `leak_graph` directly.
+- `LeakFinding.bytes` carries shallow bytes from the heap sample; it is null
+  (never 0) when the size was not measured.
+- `LeakReport.heapBytes` is the live heap total from the probe when connected,
+  and null when not measured.
+- `LeakReport.projectPackageSource` labels the project-package detection chain:
+  `explicit` (config) → `rootLib` (the app's root-library package via one
+  `getIsolate` RPC) → `autoDetected` (from the heap) → `none`. The resolved set
+  now feeds graph analysis, replacing the empty default.
+- `toJson` and `toMarkdown` include origin, bytes, heap size, and the source
+  label.
+
 ## 0.2.1
 
 In-app overlay UX polish (no public API change) plus a refreshed bundled

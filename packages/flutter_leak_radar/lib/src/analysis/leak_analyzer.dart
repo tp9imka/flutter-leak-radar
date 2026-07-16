@@ -1,4 +1,6 @@
 // lib/src/analysis/leak_analyzer.dart
+import 'package:leak_graph/leak_graph.dart';
+
 import '../config/leak_rule.dart';
 import '../config/suspect_set.dart';
 import '../model/leak_finding.dart';
@@ -13,12 +15,18 @@ class LeakAnalyzer {
 
   final SuspectSet suspects;
 
+  /// [projectPackages] and [projectPackageSource] are resolved by the engine's
+  /// detection chain (see `LeakEngine`); when omitted, origins classify against
+  /// an empty project set and the report is labelled `'none'`.
   LeakReport analyze(
     SampleHistory history, {
     required String trigger,
     required LeakRadarStatus status,
     List<LeakFinding> preciseFindings = const <LeakFinding>[],
+    Set<String> projectPackages = const <String>{},
+    String projectPackageSource = 'none',
   }) {
+    final classifier = OriginClassifier(projectPackages: projectPackages);
     final findings = <LeakFinding>[...preciseFindings];
 
     for (final className in history.classNames) {
@@ -75,6 +83,8 @@ class LeakAnalyzer {
           liveCount: liveCount,
           growth: growth,
           library: library,
+          origin: _originFor(classifier, library),
+          bytes: history.latestBytesFor(className),
           series: series,
           captureTimes: history.captureTimestamps,
         ),
@@ -87,7 +97,18 @@ class LeakAnalyzer {
       capturedAt: DateTime.now(),
       trigger: trigger,
       status: status,
+      heapBytes: history.latestHeapBytes,
+      projectPackageSource: projectPackageSource,
     );
+  }
+
+  /// Classifies [library] into a [ClassOrigin]; unknown when the library is
+  /// absent or unparseable.
+  static ClassOrigin _originFor(OriginClassifier classifier, String? library) {
+    if (library == null) return ClassOrigin.unknown;
+    final uri = Uri.tryParse(library);
+    if (uri == null) return ClassOrigin.unknown;
+    return classifier.classify(uri);
   }
 
   static bool _isMonotonic(List<int> series) {

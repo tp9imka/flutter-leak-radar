@@ -67,6 +67,12 @@ class LeakEngine {
   int _navCount = 0;
   bool _graphScanInFlight = false;
 
+  /// Memoised app root-library package from the probe RPC (step 2 of the
+  /// detection chain). Stable for a session, so fetched at most once after it
+  /// first succeeds; while null the RPC is retried (physical devices may only
+  /// become reachable later).
+  String? _rootLibPackageCache;
+
   /// When the last navigation-triggered graph scan ran. A min-interval cooldown
   /// keyed off this neutralises bursty push/pop (which `_graphScanInFlight` does
   /// not — it only blocks overlap, not back-to-back sequential scans).
@@ -292,10 +298,11 @@ class LeakEngine {
             '(maxObjects=${gs.maxGraphObjects})',
             level: LeakLogLevel.verbose,
           );
+          final resolved = await _resolveProjectPackages();
           final outcome = await _graphRunner.run(
             GraphAnalysisOptions(
               confirmWithReachability: true,
-              appPackages: gs.appPackages,
+              appPackages: resolved.packages.toList(),
               minClusterSize: gs.minClusterSize,
             ),
             maxObjects: gs.maxGraphObjects,
@@ -345,10 +352,15 @@ class LeakEngine {
             trigger: baseReport.trigger,
             status: _status,
             preciseFindings: precise,
+            projectPackages: resolved.packages,
+            projectPackageSource: resolved.source,
           );
 
+          final classifier = OriginClassifier(
+            projectPackages: resolved.packages,
+          );
           final graphFindings = outcome.result.clusters
-              .map(mapGraphCluster)
+              .map((c) => mapGraphCluster(c, classifier: classifier))
               .toList();
           _logger.log(
             'graphScan result: rawClusters=${outcome.result.clusters.length} '
@@ -361,7 +373,8 @@ class LeakEngine {
             capturedAt: baseReport.capturedAt,
             trigger: baseReport.trigger,
             status: baseReport.status,
-            heapBytes: baseReport.heapBytes,
+            heapBytes: reAnalyzed.heapBytes,
+            projectPackageSource: reAnalyzed.projectPackageSource,
           );
           _latestFullReport = merged;
           final filtered = _filtered(merged);
@@ -381,8 +394,10 @@ class LeakEngine {
   /// allocation profile.
   HeapSnapshot _snapshotFromHistogram(List<ClassCount> histogram) {
     final now = DateTime.now();
+    final totalBytes = histogram.fold<int>(0, (a, c) => a + c.shallowBytes);
     return HeapSnapshot(
       capturedAt: now,
+      heapBytes: totalBytes > 0 ? totalBytes : null,
       samples: [
         for (final c in histogram)
           ClassSample(
@@ -449,6 +464,43 @@ class LeakEngine {
     _registry.markDisposed(o);
   }
 
+  /// Resolves the project-package set used for origin attribution, following
+  /// the chain: explicit config → probe root-library package → heap
+  /// auto-detect → none. Returns the resolved set and the label of the link
+  /// that produced it. Never throws.
+  Future<({Set<String> packages, String source})>
+  _resolveProjectPackages() async {
+    final explicit = _config.graphScan?.appPackages ?? const <String>[];
+    if (explicit.isNotEmpty) {
+      return (packages: explicit.toSet(), source: 'explicit');
+    }
+    final rootPkg = await _rootLibraryPackage();
+    if (rootPkg != null) {
+      return (packages: <String>{rootPkg}, source: 'rootLib');
+    }
+    final detected = AppPackageSet.autoDetect(_history.libraryUris());
+    if (detected.names.isNotEmpty) {
+      return (packages: detected.names, source: 'autoDetected');
+    }
+    return (packages: const <String>{}, source: 'none');
+  }
+
+  /// The app's root-library package via the probe's RPC capability, memoised
+  /// after the first success. Null when the probe has no such capability or the
+  /// RPC is unreachable. Never throws.
+  Future<String?> _rootLibraryPackage() async {
+    if (_rootLibPackageCache != null) return _rootLibPackageCache;
+    final p = _probe;
+    if (p is! RootLibrarySource) return null;
+    final pkg = await runSafelyAsync<String?>(
+      () => (p as RootLibrarySource).rootLibraryPackage(),
+      fallback: null,
+      logger: _logger,
+    );
+    if (pkg != null) _rootLibPackageCache = pkg;
+    return pkg;
+  }
+
   /// Captures a heap snapshot (when active), analyses history, and returns a
   /// [LeakReport]. Overlapping calls are dropped — the in-flight scan's result
   /// is returned instead of queuing a second capture.
@@ -513,11 +565,14 @@ class LeakEngine {
         'precise=${precise.length} {notGced=$notGced, notDisposed=$notDisposed}',
         level: LeakLogLevel.verbose,
       );
+      final resolved = await _resolveProjectPackages();
       final report = _analyzer.analyze(
         _history,
         trigger: trigger,
         status: _status,
         preciseFindings: precise,
+        projectPackages: resolved.packages,
+        projectPackageSource: resolved.source,
       );
       _latestFullReport = report;
       final filtered = _filtered(report);
@@ -569,6 +624,7 @@ class LeakEngine {
     trigger: full.trigger,
     status: full.status,
     heapBytes: full.heapBytes,
+    projectPackageSource: full.projectPackageSource,
   );
 
   LeakReport _degraded(String trigger) => LeakReport(

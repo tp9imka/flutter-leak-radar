@@ -49,6 +49,43 @@ class SampleHistory {
   int latestCountFor(String className) =>
       _snapshots.isEmpty ? 0 : _countIn(_snapshots.last, className);
 
+  /// Shallow bytes for [className] from the most recent snapshot that carries a
+  /// non-zero measurement, or null when the class is absent or its size was
+  /// never measured. A reported 0 is treated as unmeasured — never surfaced as
+  /// a real byte count.
+  int? latestBytesFor(String className) {
+    for (final s in _snapshots.toList().reversed) {
+      for (final sample in s.samples) {
+        if (sample.className == className && sample.bytesCurrent > 0) {
+          return sample.bytesCurrent;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Total live heap in bytes from the most recent snapshot, or null when no
+  /// snapshot has been captured or the size was not measured.
+  int? get latestHeapBytes =>
+      _snapshots.isEmpty ? null : _snapshots.last.heapBytes;
+
+  /// Distinct, parseable declaring-library URIs across all snapshots. Null
+  /// libraries and unparseable strings are dropped. Feeds
+  /// [AppPackageSet.autoDetect] in the engine's package-detection chain.
+  Iterable<Uri> libraryUris() {
+    final seen = <String>{};
+    final uris = <Uri>[];
+    for (final s in _snapshots) {
+      for (final sample in s.samples) {
+        final lib = sample.library;
+        if (lib == null || !seen.add(lib)) continue;
+        final uri = Uri.tryParse(lib);
+        if (uri != null) uris.add(uri);
+      }
+    }
+    return uris;
+  }
+
   /// Total live-object count across all classes in the most recent snapshot,
   /// or null when no snapshot has been captured (e.g. the VM service is not
   /// connected). Lets the engine gate the graph scan on heap size BEFORE

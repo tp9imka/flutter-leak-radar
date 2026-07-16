@@ -1,3 +1,4 @@
+import 'package:flutter_leak_radar/flutter_leak_radar.dart' show ClassOrigin;
 import 'package:flutter_leak_radar/src/model/leak_finding.dart';
 import 'package:flutter_leak_radar/src/model/leak_kind.dart';
 import 'package:flutter_leak_radar/src/model/leak_report.dart';
@@ -57,5 +58,82 @@ void main() {
     final b = finding('X', LeakSeverity.info);
     expect(a, b);
     expect(a.hashCode, b.hashCode);
+  });
+
+  test('projectPackageSource defaults to none', () {
+    final r = LeakReport(
+      findings: const [],
+      capturedAt: DateTime(2026),
+      trigger: 'manual',
+      status: LeakRadarStatus.active,
+    );
+    expect(r.projectPackageSource, 'none');
+  });
+
+  test(
+    'toJson includes projectPackageSource, heapBytes, and finding fields',
+    () {
+      final r = LeakReport(
+        findings: [
+          LeakFinding(
+            className: 'HomeBloc',
+            kind: LeakKind.growth,
+            severity: LeakSeverity.critical,
+            liveCount: 3,
+            growth: 2,
+            origin: ClassOrigin.project,
+            bytes: 4096,
+          ),
+        ],
+        capturedAt: DateTime(2026, 1, 2),
+        trigger: 'manual',
+        status: LeakRadarStatus.active,
+        heapBytes: 1024,
+        projectPackageSource: 'rootLib',
+      );
+      final json = r.toJson();
+      expect(json['heapBytes'], 1024);
+      expect(json['projectPackageSource'], 'rootLib');
+      final f = (json['findings'] as List).single as Map<String, Object?>;
+      expect(f['origin'], 'project');
+      expect(f['bytes'], 4096);
+    },
+  );
+
+  test('toMarkdown surfaces heapBytes, source, origin, and bytes', () {
+    final r = LeakReport(
+      findings: [
+        LeakFinding(
+          className: 'HomeBloc',
+          kind: LeakKind.growth,
+          severity: LeakSeverity.critical,
+          liveCount: 3,
+          growth: 2,
+          origin: ClassOrigin.project,
+          bytes: 4096,
+        ),
+      ],
+      capturedAt: DateTime(2026, 1, 2),
+      trigger: 'manual',
+      status: LeakRadarStatus.active,
+      heapBytes: 1024,
+      projectPackageSource: 'autoDetected',
+    );
+    final md = r.toMarkdown();
+    expect(md, contains('autoDetected'));
+    expect(md, contains('project'));
+    expect(md, contains('4096'));
+    expect(md, contains('1024'));
+  });
+
+  test('toMarkdown shows a dash for a finding with null bytes', () {
+    final r = LeakReport(
+      findings: [finding('HomeBloc', LeakSeverity.info)],
+      capturedAt: DateTime(2026),
+      trigger: 'manual',
+      status: LeakRadarStatus.active,
+    );
+    // The finding has no bytes; the Bytes cell must not read as 0.
+    expect(r.toMarkdown(), isNot(contains('| 0 |\n')));
   });
 }
