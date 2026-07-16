@@ -27,6 +27,9 @@ jobs:
       - name: Format check
         run: dart format --output=none --set-exit-if-changed .
 
+      - name: Constraint sync check
+        run: ./tool/sync-constraints.sh --check
+
       # One root `pub get` resolves the whole pub workspace
       # (flutter_leak_radar + flutter_leak_radar_lint + the lint example).
       # This is the workspace-native alternative to `melos bootstrap`, which
