@@ -25,4 +25,5 @@ export 'src/analysis/clustering.dart';
 export 'src/analysis/graph_leak_analyzer.dart';
 export 'src/analysis/live_tree.dart';
 export 'src/cli/report_renderer.dart';
+export 'src/cli/baseline.dart';
 export 'src/analysis/histogram_diff.dart';
