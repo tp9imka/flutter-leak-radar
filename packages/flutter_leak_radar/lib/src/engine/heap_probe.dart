@@ -14,6 +14,18 @@ abstract interface class HeapProbe {
   Future<void> dispose();
 }
 
+/// Optional capability for probes that can name the app's root-library
+/// package via a VM-service RPC. Used by the engine's project-package
+/// detection chain. Probes without a VM connection (e.g. [NoopHeapProbe]) do
+/// not implement it, and the chain falls through to auto-detection.
+abstract interface class RootLibrarySource {
+  /// The first path segment of the app's root-library `package:` URI (one
+  /// `getIsolate` RPC on the existing connection), or null when unreachable
+  /// (common on physical devices), not a `package:` URI, or on any error.
+  /// Never throws.
+  Future<String?> rootLibraryPackage();
+}
+
 /// Optional capability for probes backed by a VM-service connection: live
 /// connection state plus a manual reconnect. The engine surfaces these so the
 /// dashboard can show whether the per-scan allocation-profile (growth) source

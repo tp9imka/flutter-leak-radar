@@ -6,16 +6,31 @@ import '../model/retaining_path.dart';
 
 /// Maps a [GraphLeakCluster] produced by the graph analyser into a
 /// [LeakFinding] for consumption by the runtime UI and report layer.
-LeakFinding mapGraphCluster(GraphLeakCluster c) => LeakFinding(
-  className: c.className,
-  kind: LeakKind.retainedByNonLiveRoot,
-  severity: _severity(c),
-  liveCount: c.instanceCount,
-  growth: 0,
-  library: c.libraryUri?.toString(),
-  tag: c.rootKind.label,
-  retainingPath: mapGraphPath(c.representativePath),
-);
+///
+/// [classifier] resolves the finding's [LeakFinding.origin]; when omitted, the
+/// library classifies against an empty project set (project vs dependency is
+/// then indistinguishable, so app-owned classes read as `dependency`).
+LeakFinding mapGraphCluster(
+  GraphLeakCluster c, {
+  OriginClassifier? classifier,
+}) {
+  final origin = c.libraryUri == null
+      ? ClassOrigin.unknown
+      : (classifier ?? const OriginClassifier(projectPackages: <String>{}))
+            .classify(c.libraryUri!);
+  return LeakFinding(
+    className: c.className,
+    kind: LeakKind.retainedByNonLiveRoot,
+    severity: _severity(c),
+    liveCount: c.instanceCount,
+    growth: 0,
+    library: c.libraryUri?.toString(),
+    tag: c.rootKind.label,
+    origin: origin,
+    bytes: c.retainedShallowBytes > 0 ? c.retainedShallowBytes : null,
+    retainingPath: mapGraphPath(c.representativePath),
+  );
+}
 
 LeakSeverity _severity(GraphLeakCluster c) =>
     c.confidence == LeakConfidence.confirmed && c.instanceCount >= 2

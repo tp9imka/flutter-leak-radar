@@ -15,7 +15,7 @@ import 'vm_service_status.dart';
 
 /// The sole unit that imports `package:vm_service`. Connects to the running
 /// app's own VM service (debug/profile) and never throws into callers.
-class VmHeapProbe implements HeapProbe, VmConnectable {
+class VmHeapProbe implements HeapProbe, VmConnectable, RootLibrarySource {
   VmHeapProbe({RateLimitedLogger? logger, this.maxRetainingPathRequests = 5})
     : _logger = logger ?? RateLimitedLogger();
 
@@ -153,6 +153,25 @@ class VmHeapProbe implements HeapProbe, VmConnectable {
   }
 
   @override
+  Future<String?> rootLibraryPackage() async {
+    final service = await _ensureConnected();
+    final isolateId = _isolateId;
+    if (service == null || isolateId == null) return null;
+    try {
+      final isolate = await service.getIsolate(isolateId);
+      final uriStr = isolate.rootLib?.uri;
+      if (uriStr == null) return null;
+      final uri = Uri.tryParse(uriStr);
+      if (uri == null || uri.scheme != 'package') return null;
+      if (uri.pathSegments.isEmpty) return null;
+      return uri.pathSegments.first;
+    } catch (e) {
+      _logger.log('rootLibraryPackage failed: $e', level: LeakLogLevel.verbose);
+      return null;
+    }
+  }
+
+  @override
   Future<HeapSnapshot> capture({required bool forceGc}) async {
     _pathRequestsThisCycle = 0; // reset throttle budget each cycle
     final service = await _ensureConnected();
@@ -170,21 +189,30 @@ class VmHeapProbe implements HeapProbe, VmConnectable {
       );
       final now = DateTime.now();
       final samples = <ClassSample>[];
+      var totalBytes = 0;
       for (final m in profile.members ?? const <ClassHeapStats>[]) {
         final name = m.classRef?.name;
         if (name == null || name.isEmpty) continue;
         if (m.classRef != null) _classRefCache[name] = m.classRef!;
+        final bytes = m.bytesCurrent ?? 0;
+        totalBytes += bytes;
         samples.add(
           ClassSample(
             className: name,
             library: m.classRef?.library?.uri,
             instancesCurrent: m.instancesCurrent ?? 0,
-            bytesCurrent: m.bytesCurrent ?? 0,
+            bytesCurrent: bytes,
             timestamp: now,
           ),
         );
       }
-      return HeapSnapshot(samples: samples, capturedAt: now);
+      // Sum of per-class shallow bytes = live heap this scan. 0 means the VM
+      // reported no byte data — surfaced as null (unmeasured), never as 0.
+      return HeapSnapshot(
+        samples: samples,
+        capturedAt: now,
+        heapBytes: totalBytes > 0 ? totalBytes : null,
+      );
     } on RPCError catch (e) {
       _logger.log(
         'getAllocationProfile RPCError: ${e.message}',

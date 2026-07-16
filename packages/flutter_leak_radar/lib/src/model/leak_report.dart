@@ -15,6 +15,7 @@ final class LeakReport {
     required this.trigger,
     required this.status,
     this.heapBytes,
+    this.projectPackageSource = 'none',
   });
 
   /// All leak findings produced by this scan. Empty when the app is clean.
@@ -32,6 +33,12 @@ final class LeakReport {
 
   /// Total live heap in bytes at scan time, if available from the VM.
   final int? heapBytes;
+
+  /// Which link of the detection chain resolved the project-package set used to
+  /// classify finding origins: `'explicit'` (from config), `'rootLib'` (the
+  /// app's root-library package), `'autoDetected'` (derived from the heap), or
+  /// `'none'` (no signal). Labels the heuristic so its confidence is honest.
+  final String projectPackageSource;
 
   /// Whether any findings were detected.
   bool get hasLeaks => findings.isNotEmpty;
@@ -51,19 +58,24 @@ final class LeakReport {
     'trigger': trigger,
     'status': status.name,
     if (heapBytes != null) 'heapBytes': heapBytes,
+    'projectPackageSource': projectPackageSource,
     'findings': findings.map((f) => f.toJson()).toList(),
   };
 
   String toMarkdown() {
+    final heap = heapBytes == null ? 'unmeasured' : '$heapBytes bytes';
     final b = StringBuffer()
       ..writeln('# Leak report ($trigger) — ${capturedAt.toIso8601String()}')
       ..writeln('Status: ${status.name} · findings: ${findings.length}')
+      ..writeln('Heap: $heap · project packages: $projectPackageSource')
       ..writeln()
-      ..writeln('| Class | Kind | Severity | Live | Growth |')
-      ..writeln('|---|---|---|---:|---:|');
+      ..writeln('| Class | Origin | Kind | Severity | Live | Growth | Bytes |')
+      ..writeln('|---|---|---|---|---:|---:|---:|');
     for (final f in findings) {
+      final bytes = f.bytes?.toString() ?? '—';
       b.writeln(
-        '| ${f.className} | ${f.kind.name} | ${f.severity.name} | ${f.liveCount} | ${f.growth} |',
+        '| ${f.className} | ${f.origin.name} | ${f.kind.name} | '
+        '${f.severity.name} | ${f.liveCount} | ${f.growth} | $bytes |',
       );
     }
     return b.toString();
@@ -76,6 +88,7 @@ final class LeakReport {
       other.trigger == trigger &&
       other.status == status &&
       other.heapBytes == heapBytes &&
+      other.projectPackageSource == projectPackageSource &&
       _listEq(other.findings, findings);
 
   @override
@@ -84,6 +97,7 @@ final class LeakReport {
     trigger,
     status,
     heapBytes,
+    projectPackageSource,
     Object.hashAll(findings),
   );
 }

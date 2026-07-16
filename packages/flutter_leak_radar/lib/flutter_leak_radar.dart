@@ -7,6 +7,7 @@ export 'src/config/leak_radar_config.dart' show LeakRadarConfig, AutoScan;
 export 'src/config/graph_scan.dart' show GraphScan;
 export 'src/config/leak_rule.dart' show LeakRule, LeakDetectionMode;
 export 'src/config/suspect_set.dart' show SuspectSet;
+export 'package:leak_graph/leak_graph.dart' show ClassOrigin;
 export 'src/model/leak_report.dart' show LeakReport;
 export 'src/model/leak_finding.dart' show LeakFinding;
 export 'src/model/retaining_path.dart' show RetainingPathView, RetainingHop;

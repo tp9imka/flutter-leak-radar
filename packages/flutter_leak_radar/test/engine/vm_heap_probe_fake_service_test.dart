@@ -25,6 +25,25 @@ ClassRef _classRef(String name, {String? libraryUri}) => ClassRef(
 InstanceRef _instanceRef(String id, String className) =>
     InstanceRef(id: id, kind: 'PlainInstance', classRef: _classRef(className));
 
+/// Returns a fixed root-library URI from getIsolate; getVM/getVersion are not
+/// needed because the probe is injected directly.
+class _RootLibFakeService extends Fake implements VmService {
+  _RootLibFakeService(this._rootLibUri);
+
+  final String? _rootLibUri;
+
+  @override
+  Future<Isolate> getIsolate(String isolateId) async =>
+      Isolate(rootLib: _rootLibUri == null ? null : _libRef(_rootLibUri));
+}
+
+/// Throws from getIsolate, modelling an unreachable RPC on a physical device.
+class _ThrowingIsolateFakeService extends Fake implements VmService {
+  @override
+  Future<Isolate> getIsolate(String isolateId) =>
+      Future.error(StateError('unreachable'));
+}
+
 // ---------------------------------------------------------------------------
 // Fakes — capture group
 // ---------------------------------------------------------------------------
@@ -432,5 +451,43 @@ void main() {
         expect(p3, isNull);
       },
     );
+  });
+
+  group('VmHeapProbe.rootLibraryPackage', () {
+    test('extracts the package name from a package: root library', () async {
+      final probe = VmHeapProbe();
+      probe.debugInjectServiceAndCache(
+        _RootLibFakeService('package:my_app/main.dart'),
+        isolateId: 'isolates/1',
+      );
+      expect(await probe.rootLibraryPackage(), 'my_app');
+    });
+
+    test('returns null for a non-package root library', () async {
+      final probe = VmHeapProbe();
+      probe.debugInjectServiceAndCache(
+        _RootLibFakeService('dart:core'),
+        isolateId: 'isolates/1',
+      );
+      expect(await probe.rootLibraryPackage(), isNull);
+    });
+
+    test('returns null when the root library is absent', () async {
+      final probe = VmHeapProbe();
+      probe.debugInjectServiceAndCache(
+        _RootLibFakeService(null),
+        isolateId: 'isolates/1',
+      );
+      expect(await probe.rootLibraryPackage(), isNull);
+    });
+
+    test('returns null (never throws) when the RPC fails', () async {
+      final probe = VmHeapProbe();
+      probe.debugInjectServiceAndCache(
+        _ThrowingIsolateFakeService(),
+        isolateId: 'isolates/1',
+      );
+      expect(await probe.rootLibraryPackage(), isNull);
+    });
   });
 }
