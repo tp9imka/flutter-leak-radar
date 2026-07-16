@@ -2,14 +2,19 @@ import 'package:flutter/painting.dart';
 import 'package:radar_native/radar_native.dart';
 import 'package:radar_ui/radar_ui.dart';
 
-/// UI color token for a [NativeModuleKind], reusing the shared `radar_ui`
-/// severity/text scale rather than introducing Android-specific colors.
+/// UI color token for a [NativeModuleKind].
+///
+/// Shares the `radar_ui` [OriginTokens] ownership palette rather than
+/// keeping an Android-specific one: `app` is project code (violet, not
+/// `accent`), `plugin` is third-party (neutral-strong, not `accent`), and
+/// `system` is muted like framework code — one ownership palette across
+/// the Dart-side and native lanes.
 Color moduleKindColor(NativeModuleKind kind) => switch (kind) {
-  NativeModuleKind.app => RadarColors.info,
+  NativeModuleKind.app => OriginTokens.color(RadarOrigin.project),
   NativeModuleKind.gpuDriver => RadarColors.warning,
   NativeModuleKind.engine => RadarColors.text50,
-  NativeModuleKind.plugin => RadarColors.accent,
-  NativeModuleKind.system => RadarColors.text25,
+  NativeModuleKind.plugin => OriginTokens.color(RadarOrigin.dependency),
+  NativeModuleKind.system => OriginTokens.color(RadarOrigin.framework),
   NativeModuleKind.unknown => RadarColors.text25,
 };
 

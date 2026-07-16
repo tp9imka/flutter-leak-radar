@@ -55,6 +55,14 @@ abstract final class RadarColors {
   /// Info / secondary severity (`#5ad1e6`).
   static const Color info = Color(0xFF5ad1e6);
 
+  // ── Ownership palette ────────────────────────────────────────────────────
+
+  /// Origin/ownership hue for project code (`#a78bfa`).
+  ///
+  /// Deliberately not [accent] — accent always means healthy or a
+  /// negative delta across the suite, never "this is your code".
+  static const Color violet = Color(0xFFa78bfa);
+
   // ── Text scale ───────────────────────────────────────────────────────────
 
   /// Primary text: values, names (`#e7eef0`).
