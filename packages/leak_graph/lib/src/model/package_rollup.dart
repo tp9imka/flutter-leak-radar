@@ -23,6 +23,10 @@ enum AppPackageSource {
 /// DECLARES it. The distinction is what makes a rollup honest — a `dart:core`
 /// String held alive by project code is retained by the project but declared
 /// by the SDK.
+///
+/// Population: only leaked records belonging to a REPORTED cluster are rolled
+/// up; candidates whose signature was dropped below `minClusterSize` are
+/// excluded, so these totals match the run's emitted clusters.
 final class PackageRollup {
   /// Package key, e.g. `livekit_client`, `dart:core`, or `(unknown)` when the
   /// declaring/retaining library URI could not be resolved to a package.
@@ -34,7 +38,14 @@ final class PackageRollup {
   /// Distinct leaked classes attributed to [package].
   final int classCount;
 
-  /// Leaked instances attributed to [package].
+  /// RAW retained heap objects attributed to [package] — one per leaked record,
+  /// NOT deduped by owner.
+  ///
+  /// This differs from `GraphLeakCluster.instanceCount`, which counts DISTINCT
+  /// attribution owners. Several internal leaves retained by one owner each add
+  /// a record here but fold into a single cluster instance, so an anchor
+  /// rollup's [instanceCount] may EXCEED the summed `cluster.instanceCount`.
+  /// Do not reconcile the two as equal.
   final int instanceCount;
 
   /// Summed SHALLOW (own) bytes of the attributed instances.
@@ -43,7 +54,9 @@ final class PackageRollup {
   /// it is never presented as a retained-graph size.
   final int shallowBytes;
 
-  /// Reported leak clusters that at least one attributed instance belongs to.
+  /// Distinct reported leak clusters at least one attributed record belongs to
+  /// (counted by cluster signature) — unlike [instanceCount], never inflated by
+  /// per-owner leaf fan-out.
   final int clusterCount;
 
   const PackageRollup({
