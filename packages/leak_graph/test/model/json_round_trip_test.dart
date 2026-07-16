@@ -225,5 +225,44 @@ void main() {
 
       expect(decoded.classRootProfiles, isEmpty);
     });
+
+    test('GraphAnalysisResult carries resolvedAppPackages across JSON', () {
+      const stats = GraphAnalysisStats(
+        totalObjects: 1,
+        reachableObjects: 1,
+        leakCandidates: 0,
+        clusters: 0,
+        suppressedByAppFilter: 0,
+        warnings: [],
+      );
+      const result = GraphAnalysisResult(
+        clusters: [],
+        stats: stats,
+        resolvedAppPackages: ['my_app', 'my_widgets'],
+      );
+
+      final decoded = GraphAnalysisResult.fromJson(result.toJson());
+
+      expect(decoded, equals(result));
+      expect(decoded.resolvedAppPackages, ['my_app', 'my_widgets']);
+    });
+
+    test('GraphAnalysisResult without resolvedAppPackages key defaults to '
+        'empty (backward compatible with older exports)', () {
+      const stats = GraphAnalysisStats(
+        totalObjects: 1,
+        reachableObjects: 0,
+        leakCandidates: 0,
+        clusters: 0,
+        suppressedByAppFilter: 0,
+        warnings: [],
+      );
+      const result = GraphAnalysisResult(clusters: [], stats: stats);
+      final json = result.toJson()..remove('resolvedAppPackages');
+
+      final decoded = GraphAnalysisResult.fromJson(json);
+
+      expect(decoded.resolvedAppPackages, isEmpty);
+    });
   });
 }

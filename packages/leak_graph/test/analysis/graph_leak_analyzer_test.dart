@@ -487,5 +487,24 @@ void main() {
         AppPackageSource.disabled,
       );
     });
+
+    test('resolvedAppPackages reflects the resolved app-package set', () {
+      final graph = _keystoneGraph();
+      expect(
+        analyzer
+            .analyze(graph, const GraphAnalysisOptions(appPackages: ['my_app']))
+            .resolvedAppPackages,
+        ['my_app'],
+      );
+      // Auto-detect derives 'my_app' from the graph (flutter is denylisted).
+      expect(analyzer.analyze(graph).resolvedAppPackages, contains('my_app'));
+      // Disabled filtering resolves no project-owned package.
+      expect(
+        analyzer
+            .analyze(graph, const GraphAnalysisOptions(disableAppFilter: true))
+            .resolvedAppPackages,
+        isEmpty,
+      );
+    });
   });
 }

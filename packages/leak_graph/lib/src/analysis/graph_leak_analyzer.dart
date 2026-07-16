@@ -379,6 +379,7 @@ final class GraphLeakAnalyzer {
       anchorRollups: anchorRollups,
       declaredRollups: declaredRollups,
       appPackageSource: appPackageSource,
+      resolvedAppPackages: (appSet?.names.toList() ?? <String>[])..sort(),
     );
   }
 }

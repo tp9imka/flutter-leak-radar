@@ -99,6 +99,14 @@ final class GraphAnalysisResult {
   /// Null on legacy exports predating package detection.
   final AppPackageSource? appPackageSource;
 
+  /// The resolved project-owned package names for this run (e.g. `['my_app']`).
+  ///
+  /// Lets a UI classify a row's origin without re-deriving the app-package set:
+  /// it is the same `AppPackageSet` the analysis already resolved, so
+  /// `origin:project` / `origin:yours` filtering agrees with attribution.
+  /// Empty when app filtering was disabled or no package resolved.
+  final List<String> resolvedAppPackages;
+
   const GraphAnalysisResult({
     required this.clusters,
     required this.stats,
@@ -107,49 +115,52 @@ final class GraphAnalysisResult {
     this.anchorRollups = const [],
     this.declaredRollups = const [],
     this.appPackageSource,
+    this.resolvedAppPackages = const [],
   });
 
-  factory GraphAnalysisResult.fromJson(Map<String, Object?> json) =>
-      GraphAnalysisResult(
-        clusters: [
-          for (final c in json['clusters']! as List)
-            GraphLeakCluster.fromJson((c as Map).cast<String, Object?>()),
-        ],
-        stats: GraphAnalysisStats.fromJson(
-          (json['stats']! as Map).cast<String, Object?>(),
-        ),
-        classRootProfiles: json['classRootProfiles'] == null
-            ? const []
-            : [
-                for (final p in json['classRootProfiles']! as List)
-                  ClassRootProfile.fromJson((p as Map).cast<String, Object?>()),
-              ],
-        classPathDistributions: json['classPathDistributions'] == null
-            ? const []
-            : [
-                for (final d in json['classPathDistributions']! as List)
-                  ClassPathDistribution.fromJson(
-                    (d as Map).cast<String, Object?>(),
-                  ),
-              ],
-        anchorRollups: json['anchorRollups'] == null
-            ? const []
-            : [
-                for (final r in json['anchorRollups']! as List)
-                  PackageRollup.fromJson((r as Map).cast<String, Object?>()),
-              ],
-        declaredRollups: json['declaredRollups'] == null
-            ? const []
-            : [
-                for (final r in json['declaredRollups']! as List)
-                  PackageRollup.fromJson((r as Map).cast<String, Object?>()),
-              ],
-        appPackageSource: json['appPackageSource'] == null
-            ? null
-            : AppPackageSource.values.byName(
-                json['appPackageSource'] as String,
+  factory GraphAnalysisResult.fromJson(
+    Map<String, Object?> json,
+  ) => GraphAnalysisResult(
+    clusters: [
+      for (final c in json['clusters']! as List)
+        GraphLeakCluster.fromJson((c as Map).cast<String, Object?>()),
+    ],
+    stats: GraphAnalysisStats.fromJson(
+      (json['stats']! as Map).cast<String, Object?>(),
+    ),
+    classRootProfiles: json['classRootProfiles'] == null
+        ? const []
+        : [
+            for (final p in json['classRootProfiles']! as List)
+              ClassRootProfile.fromJson((p as Map).cast<String, Object?>()),
+          ],
+    classPathDistributions: json['classPathDistributions'] == null
+        ? const []
+        : [
+            for (final d in json['classPathDistributions']! as List)
+              ClassPathDistribution.fromJson(
+                (d as Map).cast<String, Object?>(),
               ),
-      );
+          ],
+    anchorRollups: json['anchorRollups'] == null
+        ? const []
+        : [
+            for (final r in json['anchorRollups']! as List)
+              PackageRollup.fromJson((r as Map).cast<String, Object?>()),
+          ],
+    declaredRollups: json['declaredRollups'] == null
+        ? const []
+        : [
+            for (final r in json['declaredRollups']! as List)
+              PackageRollup.fromJson((r as Map).cast<String, Object?>()),
+          ],
+    appPackageSource: json['appPackageSource'] == null
+        ? null
+        : AppPackageSource.values.byName(json['appPackageSource'] as String),
+    resolvedAppPackages: json['resolvedAppPackages'] == null
+        ? const []
+        : [for (final p in json['resolvedAppPackages']! as List) p as String],
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -161,7 +172,8 @@ final class GraphAnalysisResult {
           _listEquals(classRootProfiles, other.classRootProfiles) &&
           _listEquals(classPathDistributions, other.classPathDistributions) &&
           _listEquals(anchorRollups, other.anchorRollups) &&
-          _listEquals(declaredRollups, other.declaredRollups);
+          _listEquals(declaredRollups, other.declaredRollups) &&
+          _listEquals(resolvedAppPackages, other.resolvedAppPackages);
 
   @override
   int get hashCode => Object.hash(
@@ -172,6 +184,7 @@ final class GraphAnalysisResult {
     Object.hashAll(classPathDistributions),
     Object.hashAll(anchorRollups),
     Object.hashAll(declaredRollups),
+    Object.hashAll(resolvedAppPackages),
   );
 
   Map<String, Object?> toJson() => {
@@ -185,6 +198,7 @@ final class GraphAnalysisResult {
     'anchorRollups': [for (final r in anchorRollups) r.toJson()],
     'declaredRollups': [for (final r in declaredRollups) r.toJson()],
     if (appPackageSource != null) 'appPackageSource': appPackageSource!.name,
+    'resolvedAppPackages': [...resolvedAppPackages],
   };
 }
 
