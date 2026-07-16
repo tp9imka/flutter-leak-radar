@@ -1,0 +1,571 @@
+import 'package:leak_graph/leak_graph.dart';
+import 'package:test/test.dart';
+
+/// Builds a cluster whose representative path is
+/// `_Timer -> [anchorClassName] -> [leafClassName]`, with the anchor hop at
+/// index 1 (the standard "SDK leaf retained by an app owner" shape used by
+/// the analyzer). [anchorLibrary] is stamped on both [GraphLeakCluster
+/// .libraryUri] and the anchor hop, matching how the real analyzer derives
+/// `cluster.libraryUri` from the attribution anchor.
+GraphLeakCluster _anchoredCluster({
+  required String className,
+  required String signature,
+  required String anchorLibrary,
+  String holdingField = '_sub',
+  String leafClassName = '_ControllerSubscription',
+  int instanceCount = 2,
+  int retainedShallowBytes = 100,
+  int? anchorHopIndex = 1,
+}) => GraphLeakCluster(
+  className: className,
+  libraryUri: anchorHopIndex == null ? null : Uri.parse(anchorLibrary),
+  instanceCount: instanceCount,
+  retainedShallowBytes: retainedShallowBytes,
+  representativePath: GraphRetainingPath(
+    hops: [
+      const GraphHop(className: '_Timer', field: null),
+      GraphHop(
+        className: className,
+        field: '_callback',
+        libraryUri: anchorHopIndex == null ? null : Uri.parse(anchorLibrary),
+      ),
+      GraphHop(className: leafClassName, field: holdingField),
+    ],
+    rootKind: RootKind.timer,
+  ),
+  rootKind: RootKind.timer,
+  confidence: LeakConfidence.heuristic,
+  signature: signature,
+  leafClassName: leafClassName,
+  anchorHopIndex: anchorHopIndex,
+);
+
+/// A cluster with no attribution anchor: the leaked object itself is the
+/// (headlined) app class, directly retained by its root.
+GraphLeakCluster _unanchoredCluster({
+  required String className,
+  required String signature,
+  required String library,
+  int instanceCount = 2,
+  int retainedShallowBytes = 100,
+}) => GraphLeakCluster(
+  className: className,
+  libraryUri: Uri.parse(library),
+  instanceCount: instanceCount,
+  retainedShallowBytes: retainedShallowBytes,
+  representativePath: GraphRetainingPath(
+    hops: [
+      const GraphHop(className: '_Timer'),
+      GraphHop(
+        className: className,
+        field: '_callback',
+        libraryUri: Uri.parse(library),
+      ),
+    ],
+    rootKind: RootKind.timer,
+  ),
+  rootKind: RootKind.timer,
+  confidence: LeakConfidence.heuristic,
+  signature: signature,
+);
+
+PackageRollup _rollup(
+  String package,
+  ClassOrigin origin, {
+  int classCount = 1,
+  int instanceCount = 2,
+  int shallowBytes = 100,
+  int clusterCount = 1,
+}) => PackageRollup(
+  package: package,
+  origin: origin,
+  classCount: classCount,
+  instanceCount: instanceCount,
+  shallowBytes: shallowBytes,
+  clusterCount: clusterCount,
+);
+
+GraphAnalysisResult _result(
+  List<GraphLeakCluster> clusters, {
+  List<PackageRollup> anchorRollups = const [],
+  List<PackageRollup> declaredRollups = const [],
+  List<String> warnings = const [],
+}) => GraphAnalysisResult(
+  clusters: clusters,
+  stats: GraphAnalysisStats(
+    totalObjects: 100,
+    reachableObjects: 50,
+    leakCandidates: clusters.length,
+    clusters: clusters.length,
+    suppressedByAppFilter: 0,
+    warnings: warnings,
+  ),
+  anchorRollups: anchorRollups,
+  declaredRollups: declaredRollups,
+);
+
+void main() {
+  group('renderMarkdownReport — verdict line', () {
+    test('no clusters → success verdict, no gate needed', () {
+      final report = renderMarkdownReport(_result(const []), github: false);
+      expect(report.split('\n').first, '✅ no leak clusters');
+    });
+
+    test('gate failed → failure verdict names the first violation', () {
+      final cluster = _anchoredCluster(
+        className: 'GroupCallBloc',
+        signature: 'r>GroupCallBloc',
+        anchorLibrary: 'package:my_app/call.dart',
+      );
+      const gate = GateResult(
+        passed: false,
+        violations: ['new clusters 1 exceeds limit 0', 'other violation'],
+      );
+      final report = renderMarkdownReport(
+        _result(
+          [cluster],
+          anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+        ),
+        gate: gate,
+        github: false,
+      );
+      expect(
+        report.split('\n').first,
+        '❌ gate failed: new clusters 1 exceeds limit 0',
+      );
+    });
+
+    test('gate passed with clusters present', () {
+      final cluster = _anchoredCluster(
+        className: 'GroupCallBloc',
+        signature: 'r>GroupCallBloc',
+        anchorLibrary: 'package:my_app/call.dart',
+      );
+      const gate = GateResult(passed: true, violations: []);
+      final report = renderMarkdownReport(
+        _result(
+          [cluster],
+          anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+        ),
+        gate: gate,
+        github: false,
+      );
+      expect(report.split('\n').first, '✅ 1 clusters (gate passed)');
+    });
+
+    test('no gate with clusters present', () {
+      final cluster = _anchoredCluster(
+        className: 'GroupCallBloc',
+        signature: 'r>GroupCallBloc',
+        anchorLibrary: 'package:my_app/call.dart',
+      );
+      final report = renderMarkdownReport(
+        _result(
+          [cluster],
+          anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+        ),
+        github: false,
+      );
+      expect(report.split('\n').first, '⚠ 1 clusters (no gate)');
+    });
+  });
+
+  group('renderMarkdownReport — top-3 highlight rule', () {
+    test(
+      'shows at most 3 project-anchor clusters even with more available',
+      () {
+        final clusters = List.generate(
+          5,
+          (i) => _anchoredCluster(
+            className: 'Owner$i',
+            signature: 'r>Owner$i',
+            anchorLibrary: 'package:my_app/o$i.dart',
+            retainedShallowBytes: (5 - i) * 100,
+          ),
+        );
+        final report = renderMarkdownReport(
+          _result(
+            clusters,
+            anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+          ),
+          github: false,
+        );
+
+        expect(report, contains('**1.'));
+        expect(report, contains('**2.'));
+        expect(report, contains('**3.'));
+        expect(report, isNot(contains('**4.')));
+      },
+    );
+
+    test('shows fewer than 3 lines when fewer clusters qualify', () {
+      final cluster = _anchoredCluster(
+        className: 'GroupCallBloc',
+        signature: 'r>GroupCallBloc',
+        anchorLibrary: 'package:my_app/call.dart',
+      );
+      final report = renderMarkdownReport(
+        _result(
+          [cluster],
+          anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+        ),
+        github: false,
+      );
+
+      expect(report, contains('**1.'));
+      expect(report, isNot(contains('**2.')));
+    });
+
+    test('excludes non-project-anchor clusters from the top section', () {
+      final projectCluster = _anchoredCluster(
+        className: 'GroupCallBloc',
+        signature: 'r>GroupCallBloc',
+        anchorLibrary: 'package:my_app/call.dart',
+      );
+      final depCluster = _anchoredCluster(
+        className: 'SomeVendorThing',
+        signature: 'r>SomeVendorThing',
+        anchorLibrary: 'package:some_vendor_pkg/x.dart',
+      );
+      final report = renderMarkdownReport(
+        _result(
+          [projectCluster, depCluster],
+          anchorRollups: [
+            _rollup('my_app', ClassOrigin.project),
+            _rollup('some_vendor_pkg', ClassOrigin.dependency),
+          ],
+        ),
+        github: false,
+      );
+
+      // Only one project-anchor cluster qualifies for the top section.
+      expect(report, contains('**1.'));
+      expect(report, isNot(contains('**2.')));
+      // The dependency cluster must still appear somewhere (full table).
+      expect(report, contains('SomeVendorThing'));
+    });
+  });
+
+  group('renderMarkdownReport — anchor-hop line', () {
+    test('names the anchor class and the field holding the leak onward', () {
+      final cluster = _anchoredCluster(
+        className: 'GroupCallBloc',
+        signature: 'r>GroupCallBloc',
+        anchorLibrary: 'package:my_app/call.dart',
+        holdingField: '_subs',
+      );
+      final report = renderMarkdownReport(
+        _result(
+          [cluster],
+          anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+        ),
+        github: false,
+      );
+
+      expect(report, contains('your code holds it at `GroupCallBloc._subs`'));
+    });
+
+    test('falls back to a root-kind line when there is no anchor hop', () {
+      final cluster = _unanchoredCluster(
+        className: 'LeakyBloc',
+        signature: 'r>LeakyBloc',
+        library: 'package:my_app/leaky.dart',
+      );
+      final report = renderMarkdownReport(
+        _result(
+          [cluster],
+          anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+        ),
+        github: false,
+      );
+
+      expect(report, contains('LeakyBloc'));
+      expect(report, contains('Timer root'));
+    });
+  });
+
+  group('renderMarkdownReport — nearest-known line', () {
+    test('renders for a new cluster when a nearest signature was found', () {
+      final cluster = _anchoredCluster(
+        className: 'GroupCallBloc',
+        signature: 'r>GroupCallBloc',
+        anchorLibrary: 'package:my_app/call.dart',
+      );
+      final delta = ClusterDelta(
+        cluster: cluster,
+        novelty: ClusterNovelty.newCluster,
+        instanceDelta: 2,
+        bytesDelta: 100,
+        nearestKnownSignature: 'r>OldOwner',
+      );
+      final comparison = BaselineComparison(
+        baselineComparable: true,
+        deltas: [delta],
+        gone: const [],
+        currentTotalShallowBytes: 100,
+        baselineTotalShallowBytes: 0,
+        currentClusters: [cluster],
+      );
+      final report = renderMarkdownReport(
+        _result(
+          [cluster],
+          anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+        ),
+        comparison: comparison,
+        github: false,
+      );
+
+      expect(report, contains('nearest known: `r>OldOwner`'));
+    });
+
+    test('omits the nearest-known line when none was found', () {
+      final cluster = _anchoredCluster(
+        className: 'GroupCallBloc',
+        signature: 'r>GroupCallBloc',
+        anchorLibrary: 'package:my_app/call.dart',
+      );
+      final delta = ClusterDelta(
+        cluster: cluster,
+        novelty: ClusterNovelty.newCluster,
+        instanceDelta: 2,
+        bytesDelta: 100,
+        nearestKnownSignature: null,
+      );
+      final comparison = BaselineComparison(
+        baselineComparable: true,
+        deltas: [delta],
+        gone: const [],
+        currentTotalShallowBytes: 100,
+        baselineTotalShallowBytes: 0,
+        currentClusters: [cluster],
+      );
+      final report = renderMarkdownReport(
+        _result(
+          [cluster],
+          anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+        ),
+        comparison: comparison,
+        github: false,
+      );
+
+      expect(report, isNot(contains('nearest known')));
+      expect(report, contains('new cluster'));
+    });
+
+    test('omits new/nearest badges for a known (unchanged) cluster', () {
+      final cluster = _anchoredCluster(
+        className: 'GroupCallBloc',
+        signature: 'r>GroupCallBloc',
+        anchorLibrary: 'package:my_app/call.dart',
+      );
+      final delta = ClusterDelta(
+        cluster: cluster,
+        novelty: ClusterNovelty.known,
+        instanceDelta: 0,
+        bytesDelta: 0,
+        nearestKnownSignature: null,
+      );
+      final comparison = BaselineComparison(
+        baselineComparable: true,
+        deltas: [delta],
+        gone: const [],
+        currentTotalShallowBytes: 100,
+        baselineTotalShallowBytes: 100,
+        currentClusters: [cluster],
+      );
+      final report = renderMarkdownReport(
+        _result(
+          [cluster],
+          anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+        ),
+        comparison: comparison,
+        github: false,
+      );
+
+      expect(report, isNot(contains('new cluster')));
+      expect(report, isNot(contains('nearest known')));
+    });
+  });
+
+  group('renderMarkdownReport — origin labels', () {
+    test('labels yours/dependency/framework/sdk/unknown correctly', () {
+      final report = renderMarkdownReport(
+        _result(
+          const [],
+          anchorRollups: [
+            _rollup('my_app', ClassOrigin.project),
+            _rollup('some_pkg', ClassOrigin.dependency),
+            _rollup('flutter', ClassOrigin.flutterFramework),
+            _rollup('dart:async', ClassOrigin.dartSdk),
+            _rollup('(unknown)', ClassOrigin.unknown),
+          ],
+        ),
+        github: false,
+      );
+
+      expect(report, contains('[yours]'));
+      expect(report, contains('[dependency]'));
+      expect(report, contains('[framework]'));
+      expect(report, contains('[sdk]'));
+      expect(report, contains('[?]'));
+    });
+  });
+
+  group('renderMarkdownReport — details sections', () {
+    test('wraps everything else in <details> blocks', () {
+      final cluster = _anchoredCluster(
+        className: 'GroupCallBloc',
+        signature: 'r>GroupCallBloc',
+        anchorLibrary: 'package:my_app/call.dart',
+      );
+      final report = renderMarkdownReport(
+        _result(
+          [cluster],
+          anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+          declaredRollups: [_rollup('my_app', ClassOrigin.project)],
+          warnings: ['a warning'],
+        ),
+        github: false,
+      );
+
+      expect(report, contains('<details>'));
+      expect(report, contains('</details>'));
+      expect(report, contains('a warning'));
+    });
+
+    test('full cluster table lists every cluster, including non-highlighted '
+        'ones', () {
+      final clusters = List.generate(
+        5,
+        (i) => _anchoredCluster(
+          className: 'Owner$i',
+          signature: 'r>Owner$i',
+          anchorLibrary: 'package:my_app/o$i.dart',
+          retainedShallowBytes: (5 - i) * 100,
+        ),
+      );
+      final report = renderMarkdownReport(
+        _result(
+          clusters,
+          anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+        ),
+        github: false,
+      );
+
+      // Owner4 is never in the top-3 (smallest byte figure) but must still
+      // show up in the full details table.
+      expect(report, contains('Owner4'));
+    });
+
+    test('anchor rollup table precedes the declared rollup table', () {
+      final report = renderMarkdownReport(
+        _result(
+          const [],
+          anchorRollups: [_rollup('anchor_pkg', ClassOrigin.project)],
+          declaredRollups: [_rollup('declared_pkg', ClassOrigin.dependency)],
+        ),
+        github: false,
+      );
+
+      expect(
+        report.indexOf('anchor_pkg') < report.indexOf('declared_pkg'),
+        isTrue,
+      );
+      expect(
+        report.indexOf('retained via') < report.indexOf('declared by'),
+        isTrue,
+      );
+    });
+
+    test(
+      'lists gone clusters when the baseline had ones no longer present',
+      () {
+        final report = renderMarkdownReport(
+          _result(const []),
+          comparison: const BaselineComparison(
+            baselineComparable: true,
+            deltas: [],
+            gone: [
+              BaselineCluster(
+                signature: 'r>GoneOwner',
+                className: 'GoneOwner',
+                instanceCount: 4,
+                retainedShallowBytes: 400,
+              ),
+            ],
+            currentTotalShallowBytes: 0,
+            baselineTotalShallowBytes: 400,
+            currentClusters: [],
+          ),
+          github: false,
+        );
+
+        expect(report, contains('GoneOwner'));
+      },
+    );
+  });
+
+  group('renderMarkdownReport — byte figures always carry "shallow"', () {
+    test('every rendered byte figure includes the shallow qualifier', () {
+      final cluster = _anchoredCluster(
+        className: 'GroupCallBloc',
+        signature: 'r>GroupCallBloc',
+        anchorLibrary: 'package:my_app/call.dart',
+        retainedShallowBytes: 384,
+      );
+      final report = renderMarkdownReport(
+        _result(
+          [cluster],
+          anchorRollups: [
+            _rollup('my_app', ClassOrigin.project, shallowBytes: 384),
+          ],
+          declaredRollups: [
+            _rollup('my_app', ClassOrigin.project, shallowBytes: 384),
+          ],
+        ),
+        github: false,
+      );
+
+      final byteFigure = RegExp(r'\d+ B\b');
+      for (final line in report.split('\n')) {
+        if (byteFigure.hasMatch(line)) {
+          expect(
+            line.toLowerCase(),
+            contains('shallow'),
+            reason: 'line "$line" has an unlabeled byte figure',
+          );
+        }
+      }
+    });
+  });
+
+  group('renderMarkdownReport — github vs plain md', () {
+    test('github uses a GitHub-flavored admonition for a failed gate', () {
+      final cluster = _anchoredCluster(
+        className: 'GroupCallBloc',
+        signature: 'r>GroupCallBloc',
+        anchorLibrary: 'package:my_app/call.dart',
+      );
+      const gate = GateResult(
+        passed: false,
+        violations: ['new clusters 1 exceeds limit 0'],
+      );
+      final result = _result(
+        [cluster],
+        anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+      );
+
+      final githubReport = renderMarkdownReport(
+        result,
+        gate: gate,
+        github: true,
+      );
+      final mdReport = renderMarkdownReport(result, gate: gate, github: false);
+
+      expect(githubReport, contains('[!CAUTION]'));
+      expect(mdReport, isNot(contains('[!CAUTION]')));
+      // Line 1 (the 30-second verdict) is identical either way.
+      expect(githubReport.split('\n').first, mdReport.split('\n').first);
+    });
+  });
+}

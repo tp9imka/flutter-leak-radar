@@ -3,6 +3,23 @@ import 'package:args/args.dart';
 import '../model/root_kind.dart';
 import 'baseline.dart';
 
+/// Output format for the primary report on stdout (`--format`).
+enum CliOutputFormat {
+  /// The original plain-text ranked report (default; byte-stable).
+  text,
+
+  /// The full analysis result as JSON — the same envelope `--json <file>`
+  /// writes, printed to stdout instead.
+  json,
+
+  /// The 30-second markdown report, standard-markdown only.
+  markdown,
+
+  /// The 30-second markdown report with GitHub-flavored-markdown extras
+  /// (step-summary/PR-comment tuning).
+  github,
+}
+
 /// Parsed command-line configuration for the analyze CLI.
 final class CliConfig {
   final String dumpPath;
@@ -12,6 +29,9 @@ final class CliConfig {
   final int top;
   final String? jsonOut;
   final bool confirm;
+
+  /// Output format for the primary report on stdout (`--format`).
+  final CliOutputFormat format;
 
   /// Path to a baseline JSON to compare this run against (`--baseline`).
   final String? baselinePath;
@@ -31,6 +51,7 @@ final class CliConfig {
     required this.top,
     required this.jsonOut,
     required this.confirm,
+    this.format = CliOutputFormat.text,
     this.baselinePath,
     this.writeBaselinePath,
     this.gate = const GateOptions(),
@@ -67,6 +88,13 @@ final _parser = ArgParser()
     'confirm',
     negatable: false,
     help: 'Run reachability confirmation on each cluster.',
+  )
+  ..addOption(
+    'format',
+    defaultsTo: 'text',
+    help:
+        'Primary report format on stdout: text|json|md|github '
+        '(default: text).',
   )
   ..addOption(
     'baseline',
@@ -154,6 +182,7 @@ CliConfig parseCliArgs(List<String> argv) {
     top: top,
     jsonOut: results['json'] as String?,
     confirm: results['confirm'] as bool,
+    format: _parseFormat(results['format'] as String),
     baselinePath: results['baseline'] as String?,
     writeBaselinePath: results['write-baseline'] as String?,
     gate: _parseGate(results),
@@ -185,6 +214,18 @@ int? _parseNullableInt(ArgResults results, String name) {
   }
   return value;
 }
+
+/// Parses `--format`, accepting the short `md`/`github` spellings alongside
+/// the [CliOutputFormat] enum names.
+CliOutputFormat _parseFormat(String raw) => switch (raw) {
+  'text' => CliOutputFormat.text,
+  'json' => CliOutputFormat.json,
+  'md' || 'markdown' => CliOutputFormat.markdown,
+  'github' => CliOutputFormat.github,
+  _ => throw FormatException(
+    '--format must be one of: text|json|md|github (got "$raw")',
+  ),
+};
 
 LeakConfidence _parseConfidence(String? raw) {
   if (raw == null) return LeakConfidence.heuristic;

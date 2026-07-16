@@ -7,6 +7,7 @@ import '../graph/snapshot_loader.dart';
 import '../model/graph_analysis_result.dart';
 import 'baseline.dart';
 import 'cli_args.dart';
+import 'markdown_renderer.dart';
 import 'report_renderer.dart';
 
 /// Loads a heap graph from a snapshot file path.
@@ -76,8 +77,51 @@ Future<int> runAnalyze(
     ),
   );
 
-  // Byte-stable report goes to stdout unchanged; nothing else does.
-  out.writeln(renderReport(result, top: config.top));
+  // A baseline comparison is only ever read when the exit-code gate needs
+  // one, OR a rich (md/github) report was asked to show baseline-derived
+  // novelty. This keeps the plain-text/json default path exactly as it was
+  // before `--format` existed: nothing new is read or computed for it, so
+  // its stdout bytes cannot change.
+  final wantsRichReport =
+      config.format == CliOutputFormat.markdown ||
+      config.format == CliOutputFormat.github;
+  final needsComparison =
+      config.gatingRequested ||
+      (wantsRichReport && config.baselinePath != null);
+
+  BaselineComparison? comparison;
+  if (needsComparison) {
+    final built = await _buildComparison(
+      config: config,
+      result: result,
+      readText: readText,
+      err: err,
+    );
+    if (built.comparison == null) return built.exitCode;
+    comparison = built.comparison;
+  }
+  final gate = (config.gatingRequested && comparison != null)
+      ? evaluateGate(comparison, config.gate)
+      : null;
+
+  // The primary report goes to stdout; gate/baseline diagnostics never do —
+  // text stays byte-stable, the others render richer detail.
+  out.writeln(switch (config.format) {
+    CliOutputFormat.text => renderReport(result, top: config.top),
+    CliOutputFormat.json => renderJson(result),
+    CliOutputFormat.markdown => renderMarkdownReport(
+      result,
+      comparison: comparison,
+      gate: gate,
+      github: false,
+    ),
+    CliOutputFormat.github => renderMarkdownReport(
+      result,
+      comparison: comparison,
+      gate: gate,
+      github: true,
+    ),
+  });
 
   final jsonOut = config.jsonOut;
   if (jsonOut != null) {
@@ -105,16 +149,14 @@ Future<int> runAnalyze(
   }
 
   if (!config.gatingRequested) return AnalyzeExit.ok;
+  if (gate == null) {
+    // Unreachable in practice: gatingRequested implies needsComparison was
+    // true above, so either a gate was computed here or an earlier
+    // usage/tool-failure return already fired. Kept defensive rather than
+    // asserting non-null.
+    return AnalyzeExit.toolFailure;
+  }
 
-  final (:comparison, :exitCode) = await _buildComparison(
-    config: config,
-    result: result,
-    readText: readText,
-    err: err,
-  );
-  if (comparison == null) return exitCode;
-
-  final gate = evaluateGate(comparison, config.gate);
   if (gate.passed) {
     err.writeln('Gate passed.');
     return AnalyzeExit.ok;

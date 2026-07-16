@@ -390,6 +390,99 @@ void main() {
     );
   });
 
+  group('--format', () {
+    test('defaults to text: identical to the byte-stable report', () async {
+      final defaultOut = StringBuffer();
+      final explicitOut = StringBuffer();
+      await _run(
+        ['dump.data', '--package', 'my_app'],
+        out: defaultOut,
+        err: StringBuffer(),
+      );
+      await _run(
+        ['dump.data', '--package', 'my_app', '--format', 'text'],
+        out: explicitOut,
+        err: StringBuffer(),
+      );
+      expect(explicitOut.toString(), defaultOut.toString());
+    });
+
+    test('--format json prints the JSON envelope to stdout', () async {
+      final out = StringBuffer();
+      final code = await _run(
+        ['dump.data', '--package', 'my_app', '--format', 'json'],
+        out: out,
+        err: StringBuffer(),
+      );
+      expect(code, AnalyzeExit.ok);
+      final decoded = jsonDecode(out.toString()) as Map<String, Object?>;
+      expect(decoded['clusters'], isA<List<Object?>>());
+
+      final result = const GraphLeakAnalyzer().analyze(
+        _leakGraph(),
+        const GraphAnalysisOptions(appPackages: ['my_app']),
+      );
+      expect(out.toString(), '${renderJson(result)}\n');
+    });
+
+    test('--format md prints the 30-second markdown report', () async {
+      final out = StringBuffer();
+      final code = await _run(
+        ['dump.data', '--package', 'my_app', '--format', 'md'],
+        out: out,
+        err: StringBuffer(),
+      );
+      expect(code, AnalyzeExit.ok);
+      expect(out.toString(), contains('clusters (no gate)'));
+      expect(out.toString(), isNot(contains('[!CAUTION]')));
+    });
+
+    test(
+      '--format github renders a GitHub admonition when the gate fails',
+      () async {
+        final files = _FakeFiles();
+        await files.write(
+          'empty.json',
+          jsonEncode({
+            'schemaVersion': 1,
+            'createdAt': '2026-01-01T00:00:00.000Z',
+            'clusters': <Object?>[],
+          }),
+        );
+        final out = StringBuffer();
+        final err = StringBuffer();
+        final code = await _run(
+          [
+            'dump.data',
+            '--package',
+            'my_app',
+            '--format',
+            'github',
+            '--baseline',
+            'empty.json',
+            '--fail-on-new-clusters',
+          ],
+          out: out,
+          err: err,
+          files: files,
+        );
+        expect(code, AnalyzeExit.gateFailed);
+        expect(out.toString(), contains('❌ gate failed'));
+        expect(out.toString(), contains('[!CAUTION]'));
+        expect(err.toString(), contains('Gate FAILED'));
+      },
+    );
+
+    test('unknown --format value is a usage error (1)', () async {
+      final code = await _run(
+        ['dump.data', '--format', 'yaml'],
+        out: StringBuffer(),
+        err: StringBuffer(),
+      );
+      expect(code, AnalyzeExit.usage);
+    });
+  });
+
   group('--json output', () {
     test('writes the analysis JSON to the given path', () async {
       final files = _FakeFiles();
