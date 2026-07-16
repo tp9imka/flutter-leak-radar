@@ -178,6 +178,22 @@ const double _noisyRelativeNoise = 0.2;
 // this many points, so thin (preserving time coverage) past it.
 const int _maxSlopeSamples = 400;
 
+// One-sided significance for the Mann-Kendall growth certification: the
+// probability that pure noise shows this consistent an ascent. Bounds
+// the false-growth rate by construction. A consequence of the exact
+// test's discreteness: batch2 needs >= 6 samples before ANY ordering
+// can certify (min p at n=5 is 1/120 ~ 0.83% > alpha) — the calibrated
+// refusal floor for tiny batches.
+const double _growthAlpha = 0.005;
+
+// One-sided z for _growthAlpha, used by the normal approximation above
+// _mkExactMaxN samples. Keep paired with _growthAlpha.
+const double _growthZ = 2.576;
+
+// Exact Kendall-S permutation null up to here; factorial magnitudes stay
+// well inside double precision and the DP is trivial at this size.
+const int _mkExactMaxN = 10;
+
 SeriesAssessment _assess(MetricSeries series, AssessOptions options) {
   final total = series.samples.length;
 
@@ -198,7 +214,14 @@ SeriesAssessment _assess(MetricSeries series, AssessOptions options) {
   ]..sort((a, b) => a.tMicros.compareTo(b.tMicros));
   if (ordered.isEmpty) return fail(0, 'no finite samples to assess');
 
-  final settleEnd = ordered.first.tMicros + options.settle.inMicroseconds;
+  // Settle anchors at the earliest sample TIME across the whole series:
+  // measurement began then even if that reading was non-finite, so a
+  // broken first sample must not shift the warm-up window.
+  var anchorMicros = ordered.first.tMicros;
+  for (final sample in series.samples) {
+    if (sample.tMicros < anchorMicros) anchorMicros = sample.tMicros;
+  }
+  final settleEnd = anchorMicros + options.settle.inMicroseconds;
   final settled = [
     for (final sample in ordered)
       if (sample.tMicros >= settleEnd) sample,
@@ -312,14 +335,33 @@ SeriesAssessment _assess(MetricSeries series, AssessOptions options) {
   final slopePerMicro = _median(pairSlopes);
   final slopePerHour = slopePerMicro * _microsPerHour;
 
-  // Noise = robust residual scale of batch2 about its own trend line
-  // (batch1 warm-up curvature must not inflate it). Times are taken
-  // relative to the region start to preserve double precision.
+  // Per-sample noise combines two robust views:
+  //  - diffSigma: MAD-sigma of centered lag-1 first differences over the
+  //    whole region (/ sqrt2: differencing doubles the variance; a linear
+  //    trend differences to a constant that centering removes). It loses
+  //    no degrees of freedom to a fitted line — at batch2 sizes of 4-10 a
+  //    Theil-Sen line near-interpolates its points and residual-based
+  //    noise collapses toward zero, which let pure noise read as growth.
+  //  - residualSigma: MAD-sigma of batch2 residuals about its Theil-Sen
+  //    line (batch1 warm-up curvature must not inflate it); it captures
+  //    oscillation amplitude (GC sawtooth) that per-step differencing
+  //    understates at fine sampling. Times are taken relative to the
+  //    region start to preserve double precision.
+  // max() errs toward the larger honest estimate: harder to claim growth.
+  final diffs = [
+    for (var i = 1; i < region.length; i++)
+      region[i].value - region[i - 1].value,
+  ];
+  final medianDiff = _median(diffs);
+  final diffSigma =
+      _madToSigma /
+      math.sqrt2 *
+      _median([for (final diff in diffs) (diff - medianDiff).abs()]);
   final intercept = _median([
     for (final sample in batch2)
       sample.value - slopePerMicro * (sample.tMicros - startMicros),
   ]);
-  final noise =
+  final residualSigma =
       _madToSigma *
       _median([
         for (final sample in batch2)
@@ -327,6 +369,7 @@ SeriesAssessment _assess(MetricSeries series, AssessOptions options) {
                   (intercept + slopePerMicro * (sample.tMicros - startMicros)))
               .abs(),
       ]);
+  final noise = math.max(diffSigma, residualSigma);
 
   final unit = series.unit;
   final batch2SpanMicros = endMicros - batch2.first.tMicros;
@@ -354,19 +397,34 @@ SeriesAssessment _assess(MetricSeries series, AssessOptions options) {
   final endShift = _endShift(batch2);
 
   if (slopeDrift > threshold && deltaMove > 0) {
+    // A drift threshold alone cannot bound the false-growth rate at
+    // small batch2 sizes, where the sampling spread of any fitted slope
+    // rivals the per-sample noise itself. Mann-Kendall certification
+    // caps it at _growthAlpha regardless of the noise estimate.
+    if (!_mannKendallAscending(slopeSamples)) {
+      return verdictOf(
+        SeriesVerdict.noisy,
+        'rose ~${_fmt(slopePerHour)} $unit/h in the second half, but too '
+        'few consistent increases to separate trend from noise '
+        '(${slopeSamples.length} samples)',
+      );
+    }
     if (endShift != null && endShift < -threshold) {
-      // Monotonic-then-crash: "still climbing at series end" would be a
-      // lie, and "bounded" was never demonstrated either.
+      // Monotonic-then-crash: "kept growing" would be a lie, and
+      // "bounded" was never demonstrated either.
       return verdictOf(
         SeriesVerdict.noisy,
         'grew ${_fmt(slopePerHour)} $unit/h, then dropped in the final '
         'stretch — growth not sustained through series end',
       );
     }
+    // Claim only what was measured: the batch2 robust slope. End-state
+    // wording ("still climbing at series end") would overreach — the
+    // end-shift check only rules a sustained tail drop out.
     return verdictOf(
       SeriesVerdict.monotonicGrowth,
-      'grew ${_fmt(slopePerHour)} $unit/h in the second half — '
-      'still climbing at series end',
+      'grew ${_fmt(slopePerHour)} $unit/h across the second half '
+      'of the window',
     );
   }
 
@@ -388,11 +446,14 @@ SeriesAssessment _assess(MetricSeries series, AssessOptions options) {
       'in the window to demonstrate either growth or a bounded plateau',
     );
   }
+  // A drift smaller than the threshold is invisible at this window;
+  // quantify that detection floor instead of asserting "not a leak".
+  final detectableRatePerHour = threshold / batch2SpanMicros * _microsPerHour;
   if (deltaMove > threshold) {
     return verdictOf(
       SeriesVerdict.plateau,
-      'warmed up ${_fmt(deltaMove)} $unit between halves, then flat over '
-      '${_fmtDuration(batch2SpanMicros)} — bounded, not a leak',
+      'warmed up ${_fmt(deltaMove)} $unit between halves — no residual '
+      'trend across the final ${_fmtDuration(batch2SpanMicros)}',
     );
   }
   if (deltaMove < -threshold || slopeDrift < -threshold) {
@@ -403,8 +464,9 @@ SeriesAssessment _assess(MetricSeries series, AssessOptions options) {
   }
   return verdictOf(
     SeriesVerdict.plateau,
-    'flat within noise over ${_fmtDuration(regionSpan)} — '
-    'bounded, not a leak',
+    'held near ${_fmt(level)} $unit over ${_fmtDuration(regionSpan)} — '
+    'drift below ~${_fmt(detectableRatePerHour)} $unit/h would not '
+    'register at this noise level',
   );
 }
 
@@ -427,6 +489,57 @@ double? _endShift(List<MetricSample> batch2) {
   if (tail.length < 3 || head.length < 3) return null;
   return _median([for (final sample in tail) sample.value]) -
       _median([for (final sample in head) sample.value]);
+}
+
+/// One-sided Mann-Kendall trend certification: are the time-ordered
+/// [samples] ascending more consistently than pure noise explains at
+/// [_growthAlpha]? S = #(rising pairs) - #(falling pairs); tied values
+/// contribute 0, which is conservative against the no-ties null used
+/// below (ties can only shrink S). Pairs with tied timestamps are
+/// skipped, matching the Theil-Sen pair rule.
+bool _mannKendallAscending(List<MetricSample> samples) {
+  final n = samples.length;
+  var s = 0;
+  for (var i = 0; i < n; i++) {
+    for (var j = i + 1; j < n; j++) {
+      if (samples[j].tMicros == samples[i].tMicros) continue;
+      final dv = samples[j].value - samples[i].value;
+      if (dv > 0) s++;
+      if (dv < 0) s--;
+    }
+  }
+  if (s <= 0) return false;
+  if (n <= _mkExactMaxN) return _kendallPAtLeast(s, n) <= _growthAlpha;
+  final sigma = math.sqrt(n * (n - 1) * (2 * n + 5) / 18);
+  // Continuity-corrected normal approximation (standard MK for n > 10).
+  return (s - 1) / sigma >= _growthZ;
+}
+
+/// P(Kendall S >= [s]) under the no-trend permutation null for [n]
+/// items, via the inversion-count recurrence: inserting the m-th item
+/// adds 0..m-1 inversions, and S = maxPairs - 2 * inversions.
+double _kendallPAtLeast(int s, int n) {
+  final maxPairs = n * (n - 1) ~/ 2;
+  final inversionLimit = (maxPairs - s) ~/ 2;
+  if (inversionLimit < 0) return 0;
+  var counts = <double>[1];
+  for (var m = 2; m <= n; m++) {
+    final next = List<double>.filled(counts.length + m - 1, 0);
+    var window = 0.0;
+    for (var k = 0; k < next.length; k++) {
+      if (k < counts.length) window += counts[k];
+      if (k - m >= 0 && k - m < counts.length) window -= counts[k - m];
+      next[k] = window;
+    }
+    counts = next;
+  }
+  var atOrBelow = 0.0;
+  var totalPermutations = 0.0;
+  for (var k = 0; k < counts.length; k++) {
+    totalPermutations += counts[k];
+    if (k <= inversionLimit) atOrBelow += counts[k];
+  }
+  return atOrBelow / totalPermutations;
 }
 
 /// Splits [samples] into contiguous regions separated by [gaps].

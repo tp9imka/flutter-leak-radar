@@ -111,6 +111,19 @@ void main() {
       );
     });
 
+    test('fromJson rejects a non-numeric schemaVersion', () {
+      // A string "2" must not silently read as v1.
+      expect(
+        () => MetricSeries.fromJson(const {
+          'schemaVersion': '2',
+          'name': 'm',
+          'unit': 'bytes',
+          'samples': <Object?>[],
+        }),
+        throwsFormatException,
+      );
+    });
+
     test('fromJson accepts an absent schemaVersion (treated as 1)', () {
       final restored = MetricSeries.fromJson(const {
         'name': 'm',

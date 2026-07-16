@@ -123,14 +123,23 @@ final class MetricSeries {
   ///
   /// Tolerates absent `gaps` (and `samples`) as empty lists and an absent
   /// `schemaVersion` (treated as 1). Throws [FormatException] when the
-  /// payload declares a schema version newer than [schemaVersion].
+  /// payload declares a schema version newer than [schemaVersion] or a
+  /// non-numeric one — an unrecognisable version must not silently read
+  /// as v1.
   factory MetricSeries.fromJson(Map<String, Object?> json) {
     final version = json['schemaVersion'];
-    if (version is num && version > schemaVersion) {
-      throw FormatException(
-        'unsupported MetricSeries schemaVersion $version — '
-        'this reader supports <= $schemaVersion',
-      );
+    if (version != null) {
+      if (version is! num) {
+        throw FormatException(
+          'MetricSeries schemaVersion must be numeric, got: $version',
+        );
+      }
+      if (version > schemaVersion) {
+        throw FormatException(
+          'unsupported MetricSeries schemaVersion $version — '
+          'this reader supports <= $schemaVersion',
+        );
+      }
     }
     return MetricSeries(
       name: json['name'] as String,

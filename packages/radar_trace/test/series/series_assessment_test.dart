@@ -373,4 +373,111 @@ void main() {
       expect(a.verdict, SeriesVerdict.plateau);
     });
   });
+
+  group('false-positive gate (seeded Monte Carlo)', () {
+    test('pure noise growth-verdict rate < 1% at n=8/12/20', () {
+      // Regression for the small-sample noise collapse: residual-based
+      // noise about batch2's own fitted line under-reads at batch2 sizes
+      // of 4-10, which let pure noise read as growth up to ~12% of the
+      // time. Deterministic seeds; spans fixed at 480s; uniform +-5 noise
+      // around 100 with no trend. Growth must be (near-)impossible.
+      const spanMicros = 480 * 1000000;
+      const trialsPerCase = 400;
+      var trials = 0;
+      var falseGrowth = 0;
+      for (final n in const [8, 12, 20]) {
+        for (final options in const [
+          AssessOptions(),
+          AssessOptions(settle: Duration.zero),
+        ]) {
+          for (var trial = 0; trial < trialsPerCase; trial++) {
+            final random = math.Random(n * 100000 + trial);
+            final series = MetricSeries(
+              name: 'mc',
+              unit: 'mb',
+              samples: [
+                for (var i = 0; i < n; i++)
+                  MetricSample(
+                    tMicros: i * spanMicros ~/ (n - 1),
+                    value: 100 + (random.nextDouble() - 0.5) * 10,
+                  ),
+              ],
+            );
+            trials++;
+            final a = assessSeries(series, options);
+            if (a.verdict == SeriesVerdict.monotonicGrowth) falseGrowth++;
+          }
+        }
+      }
+      expect(
+        falseGrowth / trials,
+        lessThan(0.01),
+        reason: '$falseGrowth false growth verdicts in $trials trials',
+      );
+    });
+
+    test('moderate-n clean ramp still reads growth (sensitivity kept)', () {
+      // 20 samples @ 10s (190s span): settle trims 3, batch2 gets ~9.
+      // Specificity must not be bought by killing sensitivity here.
+      final series = seriesOf(
+        valuesOf(20, (t) => 100 + t / 10, stepSeconds: 10),
+        interval: const Duration(seconds: 10),
+      );
+      final a = assessSeries(series);
+      expect(a.verdict, SeriesVerdict.monotonicGrowth);
+    });
+  });
+
+  group('detail honesty', () {
+    test('flat detail quantifies the detection floor, not "not a leak"', () {
+      // A drift below the noise threshold is invisible at this window;
+      // the sentence must say what would NOT have registered instead of
+      // asserting an unbounded "not a leak".
+      final random = math.Random(7);
+      final a = assessSeries(
+        seriesOf(
+          valuesOf(standardCount, (_) => 100 + (random.nextDouble() - 0.5)),
+        ),
+      );
+      expect(a.verdict, SeriesVerdict.plateau);
+      expect(a.detail, contains('would not register'));
+    });
+
+    test('growth detail claims the measured rate, not the series end', () {
+      // Only the batch2 robust slope is measured; "still climbing at
+      // series end" was never established by the end-drop veto alone.
+      final a = assessSeries(
+        seriesOf(valuesOf(standardCount, (t) => 100 + t / 60)),
+      );
+      expect(a.verdict, SeriesVerdict.monotonicGrowth);
+      expect(a.detail, contains('grew'));
+      expect(a.detail, isNot(contains('series end')));
+    });
+
+    test('warm-up detail claims no residual trend, not blanket flatness', () {
+      final a = assessSeries(
+        seriesOf(valuesOf(standardCount, (t) => t < 250 ? 100 * t / 250 : 100)),
+      );
+      expect(a.verdict, SeriesVerdict.plateau);
+      expect(a.detail, contains('no residual trend'));
+    });
+  });
+
+  group('settle anchor', () {
+    test('non-finite first sample does not shift the settle anchor', () {
+      // NaN at t=0, finite flat samples from t=5s. The settle window is
+      // anchored at the earliest sample TIME (measurement began then,
+      // even if that reading was broken): trim t<30s leaves 90 samples;
+      // an anchor shifted to t=5s would leave 89.
+      final samples = [
+        const MetricSample(tMicros: 0, value: double.nan),
+        for (var i = 1; i < standardCount; i++)
+          MetricSample(tMicros: i * 5000000, value: 100),
+      ];
+      final a = assessSeries(
+        MetricSeries(name: 'm', unit: 'mb', samples: samples),
+      );
+      expect(a.samplesAssessed, standardCount - 6);
+    });
+  });
 }
