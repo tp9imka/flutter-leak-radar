@@ -46,6 +46,7 @@ class RetainingPathsView extends StatelessWidget {
           key: ValueKey(snapshot.id),
           profiles: profiles,
           distributions: snapshot.analysisResult.classPathDistributions,
+          projectPackages: snapshot.analysisResult.resolvedAppPackages.toSet(),
         );
       },
     );
@@ -73,10 +74,12 @@ class _RetainingPathsBody extends StatefulWidget {
     super.key,
     required this.profiles,
     required this.distributions,
+    required this.projectPackages,
   });
 
   final List<ClassRootProfile> profiles;
   final List<ClassPathDistribution> distributions;
+  final Set<String> projectPackages;
 
   @override
   State<_RetainingPathsBody> createState() => _RetainingPathsBodyState();
@@ -99,6 +102,7 @@ class _RetainingPathsBodyState extends State<_RetainingPathsBody> {
         : widget.profiles.where(
             (p) => _filter.matches(
               ClassRow(className: p.className, libraryUri: p.libraryUri),
+              projectPackages: widget.projectPackages,
             ),
           );
     final groups = {for (final b in _order) b: <ClassRootProfile>[]};

@@ -9,6 +9,7 @@ import 'class_detail_panel.dart';
 import 'diff_table.dart';
 import 'mem_format.dart';
 import 'memory_controller.dart';
+import 'package_group_scaffold.dart';
 
 const _log = 'leakRadarDevTools.snapshotsView';
 
@@ -31,10 +32,25 @@ class SnapshotsView extends StatefulWidget {
 class _SnapshotsViewState extends State<SnapshotsView> {
   String? _selectedClass;
 
+  // The current diff, cached by pair identity so a selection change (which
+  // rebuilds this view) does not recompute the diff and thus lets the child
+  // DiffTable's grouping memo stay warm.
+  List<ClassCountDiff> _diff = const [];
+  String? _diffKey;
+
   MemoryController get _c => widget.controller;
 
+  /// Stable identity for the current diff selection: baseline+comparison ids,
+  /// or `abs-<id>` for a single snapshot against an empty baseline.
+  String _pairKey(SnapshotBundle comparison) {
+    final baseline = _c.pair?.baseline;
+    return baseline == null
+        ? 'abs-${comparison.id}'
+        : '${baseline.id}-${comparison.id}';
+  }
+
   ClassCountDiff? _diffFor(String className) {
-    for (final d in _c.diff ?? const <ClassCountDiff>[]) {
+    for (final d in _diff) {
       if (d.after.className == className) return d;
     }
     return null;
@@ -100,7 +116,12 @@ class _SnapshotsViewState extends State<SnapshotsView> {
       );
     }
     final againstEmpty = _c.comparingAgainstEmpty;
-    final diff = _c.diff ?? const <ClassCountDiff>[];
+    final pairKey = _pairKey(comparison);
+    if (_diffKey != pairKey) {
+      _diff = _c.diff ?? const <ClassCountDiff>[];
+      _diffKey = pairKey;
+    }
+    final diff = _diff;
     final selectedDiff = _selectedClass == null
         ? null
         : _diffFor(_selectedClass!);
@@ -109,8 +130,12 @@ class _SnapshotsViewState extends State<SnapshotsView> {
       children: [
         Expanded(
           child: DiffTable(
+            key: ValueKey('diff-$pairKey'),
             diffs: diff,
             absolute: againstEmpty,
+            classAnchors: classAnchorsFor(comparison.analysisResult),
+            projectPackages: comparison.analysisResult.resolvedAppPackages
+                .toSet(),
             summary: againstEmpty
                 ? _ShowAllSummary(snapshot: comparison)
                 : _DiffSummary(pair: _c.pair!),

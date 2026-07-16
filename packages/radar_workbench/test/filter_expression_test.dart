@@ -59,6 +59,201 @@ void main() {
       expect(expr.matches(_t('Foo')), isFalse);
       expect(expr.matches(_t('Bar')), isTrue);
     });
+
+    test('package: matches the package label, case-insensitively', () {
+      final expr = FilterExpression.parse('package:livekit');
+      expect(expr.matches(_t('X', 'package:livekit_client/room.dart')), isTrue);
+      expect(expr.matches(_t('X', 'package:LIVEKIT_CLIENT/room.dart')), isTrue);
+      expect(
+        expr.matches(_t('X', 'package:collection/collection.dart')),
+        isFalse,
+      );
+    });
+
+    test('package: matches dart: labels', () {
+      final expr = FilterExpression.parse('package:dart:core');
+      expect(expr.matches(_t('X', 'dart:core')), isTrue);
+      expect(expr.matches(_t('X', 'dart:async')), isFalse);
+    });
+
+    test('package: is false (not error) when libraryUri is null', () {
+      final expr = FilterExpression.parse('package:app');
+      expect(expr.matches(_t('X')), isFalse);
+    });
+
+    test('origin: matches the resolved RadarOrigin bucket', () {
+      final expr = FilterExpression.parse('origin:project');
+      expect(
+        expr.matches(
+          _t('X', 'package:my_app/x.dart'),
+          projectPackages: {'my_app'},
+        ),
+        isTrue,
+      );
+      expect(
+        expr.matches(
+          _t('X', 'package:collection/x.dart'),
+          projectPackages: {'my_app'},
+        ),
+        isFalse,
+      );
+    });
+
+    test('origin:yours is an alias for origin:project', () {
+      final expr = FilterExpression.parse('origin:yours');
+      expect(
+        expr.matches(
+          _t('X', 'package:my_app/x.dart'),
+          projectPackages: {'my_app'},
+        ),
+        isTrue,
+      );
+    });
+
+    test('origin:framework and origin:sdk match runtime code', () {
+      final framework = FilterExpression.parse('origin:framework');
+      expect(
+        framework.matches(_t('X', 'package:flutter/widgets.dart')),
+        isTrue,
+      );
+      expect(framework.matches(_t('X', 'package:collection/x.dart')), isFalse);
+
+      final sdk = FilterExpression.parse('origin:sdk');
+      expect(sdk.matches(_t('X', 'dart:core')), isTrue);
+      expect(sdk.matches(_t('X', 'package:flutter/widgets.dart')), isFalse);
+    });
+
+    test('origin: defaults to unknown/empty projectPackages when omitted', () {
+      final expr = FilterExpression.parse('origin:dependency');
+      // No projectPackages passed: 'my_app' can't resolve to project, so it
+      // falls back to dependency rather than silently matching project.
+      expect(expr.matches(_t('X', 'package:my_app/x.dart')), isTrue);
+    });
+
+    test('origin: with an unrecognized value never matches', () {
+      final expr = FilterExpression.parse('origin:bogus');
+      expect(expr.matches(_t('X', 'package:my_app/x.dart')), isFalse);
+    });
+
+    test('origin:project matches nothing under empty projectPackages', () {
+      // A7 gap: with no resolved project set, no package can classify as
+      // project, so `origin:project` must match nothing (never a guess).
+      final expr = FilterExpression.parse('origin:project');
+      expect(expr.matches(_t('X', 'package:my_app/x.dart')), isFalse);
+      expect(expr.matches(_t('X', 'package:collection/x.dart')), isFalse);
+      expect(expr.matches(_t('X', 'dart:core')), isFalse);
+      // Once the project set resolves the package, it matches.
+      expect(
+        expr.matches(
+          _t('X', 'package:my_app/x.dart'),
+          projectPackages: {'my_app'},
+        ),
+        isTrue,
+      );
+    });
+
+    test('!origin: negates like any other field', () {
+      final expr = FilterExpression.parse('!origin:framework');
+      expect(expr.matches(_t('X', 'package:flutter/widgets.dart')), isFalse);
+      expect(expr.matches(_t('X', 'package:my_app/x.dart')), isTrue);
+    });
+  });
+
+  group('origin: effective (anchor) evaluation', () {
+    final appAnchor = Uri.parse('package:my_app/screen.dart');
+
+    test('origin resolves against the anchor library when one exists', () {
+      final expr = FilterExpression.parse('origin:project');
+      // Declared in the SDK, but retained (anchored) by app code.
+      expect(
+        expr.matches(
+          _t('LeakySub', 'dart:async'),
+          projectPackages: {'my_app'},
+          anchorLibraryUri: appAnchor,
+        ),
+        isTrue,
+      );
+      // No anchor → falls back to the declared (sdk) library.
+      expect(
+        expr.matches(_t('LeakySub', 'dart:async'), projectPackages: {'my_app'}),
+        isFalse,
+      );
+    });
+
+    test('the hide-framework preset keeps an app-anchored sdk row', () {
+      final expr = FilterExpression.parse(kHideFrameworkFilter);
+      // The celebrated case: dart:async declared, anchored to app → its
+      // effective origin is project, so it survives the framework/sdk hide.
+      expect(
+        expr.matches(
+          _t('LeakySub', 'dart:async'),
+          projectPackages: {'my_app'},
+          anchorLibraryUri: appAnchor,
+        ),
+        isTrue,
+      );
+      // The same row with no anchor is hidden (declared origin is sdk).
+      expect(
+        expr.matches(_t('LeakySub', 'dart:async'), projectPackages: {'my_app'}),
+        isFalse,
+      );
+    });
+
+    test('package: / library: still use the DECLARED library, not anchor', () {
+      // Only origin: uses the effective (anchor) library.
+      expect(
+        FilterExpression.parse('package:async').matches(
+          _t('LeakySub', 'dart:async'),
+          projectPackages: {'my_app'},
+          anchorLibraryUri: appAnchor,
+        ),
+        isTrue,
+      );
+      expect(
+        FilterExpression.parse('library:my_app').matches(
+          _t('LeakySub', 'dart:async'),
+          projectPackages: {'my_app'},
+          anchorLibraryUri: appAnchor,
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('kHideFrameworkFilter preset', () {
+    test('parses without error', () {
+      final expr = FilterExpression.parse(kHideFrameworkFilter);
+      expect(expr.error, isNull);
+      expect(expr.chips, hasLength(2));
+    });
+
+    test('excludes framework and sdk, keeps everything else', () {
+      final expr = FilterExpression.parse(kHideFrameworkFilter);
+      expect(expr.matches(_t('X', 'package:flutter/widgets.dart')), isFalse);
+      expect(expr.matches(_t('X', 'dart:core')), isFalse);
+      expect(
+        expr.matches(
+          _t('X', 'package:my_app/x.dart'),
+          projectPackages: {'my_app'},
+        ),
+        isTrue,
+      );
+      expect(expr.matches(_t('X', 'package:collection/x.dart')), isTrue);
+    });
+
+    test('round-trips through the parser', () {
+      final expr = FilterExpression.parse(kHideFrameworkFilter);
+      final reparsed = FilterExpression.parse(expr.text);
+
+      expect(reparsed.error, isNull);
+      expect(reparsed.chips, hasLength(2));
+      expect(
+        reparsed.matches(_t('X', 'package:flutter/widgets.dart')),
+        isFalse,
+      );
+      expect(reparsed.matches(_t('X', 'dart:core')), isFalse);
+      expect(reparsed.matches(_t('X', 'package:collection/x.dart')), isTrue);
+    });
   });
 
   group('boolean composition', () {

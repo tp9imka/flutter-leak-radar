@@ -2,13 +2,21 @@
 
 /// A small boolean filter language for Memory table rows.
 ///
-/// Supports `field:value` terms (`class:`, `library:`/`lib:`), bare
-/// substring terms, `&&` / `||` / `!` operators with the usual
-/// precedence (`!` > `&&` > `||`), parentheses, and implicit `&&`
+/// Supports `field:value` terms (`class:`, `library:`/`lib:`, `package:`,
+/// `origin:`), bare substring terms, `&&` / `||` / `!` operators with the
+/// usual precedence (`!` > `&&` > `||`), parentheses, and implicit `&&`
 /// between whitespace-separated terms. Parsing never throws: a
 /// malformed expression degrades to "match everything" and surfaces
 /// a human-readable [FilterExpression.error] instead.
 library;
+
+import 'package:radar_ui/radar_ui.dart';
+
+import '../memory/mem_format.dart';
+
+/// Preset filter hiding non-project runtime noise: framework and SDK
+/// classes. Applied as a one-tap chip; never a default.
+const String kHideFrameworkFilter = '!origin:framework !origin:sdk';
 
 /// Anything the filter matches against.
 abstract interface class FilterTarget {
@@ -32,7 +40,7 @@ final class FilterChipData {
   /// Stable id: the index of this leaf in left-to-right traversal.
   final int leafId;
 
-  /// One of `'class'`, `'library'`, or `'text'`.
+  /// One of `'class'`, `'library'`, `'package'`, `'origin'`, or `'text'`.
   final String field;
 
   /// The raw (unquoted) term value.
@@ -93,8 +101,21 @@ final class FilterExpression {
   /// Whether [target] matches this filter.
   ///
   /// An empty filter or a filter with a parse [error] matches
-  /// everything.
-  bool matches(FilterTarget target) => _root?.matches(target) ?? true;
+  /// everything. [projectPackages] resolves `origin:` terms (see
+  /// [originOf]); it's session-level context, not part of [target], so it
+  /// defaults to the empty set for callers that don't have it.
+  ///
+  /// [anchorLibraryUri] is the row's attribution anchor (who retains it) when
+  /// known. `origin:` terms evaluate the EFFECTIVE origin — the anchor library
+  /// when one exists, else the declared [FilterTarget.libraryUri] — so a
+  /// dart:async object retained by app code reads as `origin:project` and
+  /// survives `kHideFrameworkFilter`. `package:` / `library:` still match the
+  /// declared library.
+  bool matches(
+    FilterTarget target, {
+    Set<String> projectPackages = const {},
+    Uri? anchorLibraryUri,
+  }) => _root?.matches(target, projectPackages, anchorLibraryUri) ?? true;
 
   /// Whether this filter has no leaves (matches everything).
   bool get isEmpty => chips.isEmpty;
@@ -127,7 +148,11 @@ const int _andPrecedence = 1;
 sealed class _Node {
   const _Node();
 
-  bool matches(FilterTarget target);
+  bool matches(
+    FilterTarget target,
+    Set<String> projectPackages,
+    Uri? anchorLibraryUri,
+  );
 
   /// Returns the logical negation of this node.
   _Node negate();
@@ -158,13 +183,26 @@ final class _TermNode extends _Node {
   final bool negated;
 
   @override
-  bool matches(FilterTarget target) {
+  bool matches(
+    FilterTarget target,
+    Set<String> projectPackages,
+    Uri? anchorLibraryUri,
+  ) {
     final lowerValue = value.toLowerCase();
     final result = switch (field) {
       'class' => target.className.toLowerCase().contains(lowerValue),
       'library' =>
         target.libraryUri?.toString().toLowerCase().contains(lowerValue) ??
             false,
+      'package' =>
+        packageLabelOf(target.libraryUri)?.toLowerCase().contains(lowerValue) ??
+            false,
+      'origin' => _matchesOrigin(
+        target,
+        projectPackages,
+        anchorLibraryUri,
+        lowerValue,
+      ),
       _ => target.className.toLowerCase().contains(lowerValue),
     };
     return negated ? !result : result;
@@ -197,6 +235,23 @@ final class _TermNode extends _Node {
   }
 }
 
+/// Matches a `origin:` leaf value (already lowercased) against the EFFECTIVE
+/// [RadarOrigin] for [target]: the anchor library when [anchorLibraryUri] is
+/// non-null, else the declared [FilterTarget.libraryUri]. `'yours'` aliases to
+/// `'project'`; an unrecognized value never matches (degrade to absent, not a
+/// guess).
+bool _matchesOrigin(
+  FilterTarget target,
+  Set<String> projectPackages,
+  Uri? anchorLibraryUri,
+  String value,
+) {
+  final effectiveLibrary = anchorLibraryUri ?? target.libraryUri;
+  final origin = originOf(effectiveLibrary, projectPackages: projectPackages);
+  final normalized = value == 'yours' ? 'project' : value;
+  return origin.name == normalized;
+}
+
 final class _AndNode extends _Node {
   const _AndNode(this.left, this.right);
 
@@ -204,8 +259,13 @@ final class _AndNode extends _Node {
   final _Node right;
 
   @override
-  bool matches(FilterTarget target) =>
-      left.matches(target) && right.matches(target);
+  bool matches(
+    FilterTarget target,
+    Set<String> projectPackages,
+    Uri? anchorLibraryUri,
+  ) =>
+      left.matches(target, projectPackages, anchorLibraryUri) &&
+      right.matches(target, projectPackages, anchorLibraryUri);
 
   @override
   _Node negate() => _NotNode(this);
@@ -240,8 +300,13 @@ final class _OrNode extends _Node {
   final _Node right;
 
   @override
-  bool matches(FilterTarget target) =>
-      left.matches(target) || right.matches(target);
+  bool matches(
+    FilterTarget target,
+    Set<String> projectPackages,
+    Uri? anchorLibraryUri,
+  ) =>
+      left.matches(target, projectPackages, anchorLibraryUri) ||
+      right.matches(target, projectPackages, anchorLibraryUri);
 
   @override
   _Node negate() => _NotNode(this);
@@ -280,7 +345,11 @@ final class _NotNode extends _Node {
   final _Node child;
 
   @override
-  bool matches(FilterTarget target) => !child.matches(target);
+  bool matches(
+    FilterTarget target,
+    Set<String> projectPackages,
+    Uri? anchorLibraryUri,
+  ) => !child.matches(target, projectPackages, anchorLibraryUri);
 
   @override
   _Node negate() => child;
@@ -456,6 +525,8 @@ class _Parser {
     final lower = raw.toLowerCase();
     if (lower == 'class') return 'class';
     if (lower == 'library' || lower == 'lib') return 'library';
+    if (lower == 'package') return 'package';
+    if (lower == 'origin') return 'origin';
     return null;
   }
 
