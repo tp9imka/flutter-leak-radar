@@ -143,3 +143,14 @@ jobs:
       - name: Test radar_desktop
         run: flutter test
         working-directory: packages/radar_desktop
+
+      # radar_ci is pure Dart (headless CI front door: attach/spawn, sampled
+      # memory series, checkpoints, run.json). Its VM-service tests use
+      # hand-rolled fakes; the real-attach smoke is manual.
+      - name: Analyze radar_ci
+        run: dart analyze
+        working-directory: packages/radar_ci
+
+      - name: Test radar_ci
+        run: dart test
+        working-directory: packages/radar_ci
