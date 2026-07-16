@@ -101,5 +101,28 @@ void main() {
 
       expect(packages, {'root_pkg'});
     });
+
+    test(
+      'an unreadable packages/ dir degrades to the root name, never throws',
+      () async {
+        // Directory.exists() is true (stat succeeds) but .list() throws
+        // PathAccessException — the scenario the plain-file trick can't
+        // reach, since exists() would already be false and skip .list().
+        // POSIX-only (matches this repo's macOS/ubuntu-latest toolchain).
+        await writePubspec('${tmpDir.path}/pubspec.yaml', 'root_pkg');
+        final membersDir = Directory('${tmpDir.path}/packages');
+        await membersDir.create();
+        Process.runSync('chmod', ['000', membersDir.path]);
+
+        try {
+          final packages = await projectPackagesFromDir(tmpDir.path);
+          expect(packages, {'root_pkg'});
+        } finally {
+          // Restore permissions so tearDown's recursive delete can recurse
+          // into (and remove) this directory.
+          Process.runSync('chmod', ['755', membersDir.path]);
+        }
+      },
+    );
   });
 }

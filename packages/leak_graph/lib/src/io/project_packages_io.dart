@@ -35,9 +35,11 @@ String _unquote(String value) {
 /// found under [rootDir].
 ///
 /// Members are read from `packages/*/pubspec.yaml` under [rootDir]. Never
-/// throws: a missing [rootDir], a missing `pubspec.yaml`, or a pubspec with
-/// no `name:` line are all treated as "no name to contribute" rather than an
-/// error, so a caller always gets a (possibly empty) result.
+/// throws: a missing [rootDir], a missing `pubspec.yaml`, a pubspec with no
+/// `name:` line, or an unreadable `packages/` directory (e.g. permission
+/// denied) are all treated as "no name to contribute" rather than an error,
+/// so a caller always gets a (possibly empty) result built from whatever
+/// could actually be read.
 Future<Set<String>> projectPackagesFromDir(String rootDir) async {
   final names = <String>{};
 
@@ -46,12 +48,17 @@ Future<Set<String>> projectPackagesFromDir(String rootDir) async {
 
   final membersDir = Directory(_join(rootDir, 'packages'));
   if (await membersDir.exists()) {
-    await for (final entry in membersDir.list()) {
-      if (entry is! Directory) continue;
-      final memberName = await _packageNameFromFile(
-        _join(entry.path, 'pubspec.yaml'),
-      );
-      if (memberName != null) names.add(memberName);
+    try {
+      await for (final entry in membersDir.list()) {
+        if (entry is! Directory) continue;
+        final memberName = await _packageNameFromFile(
+          _join(entry.path, 'pubspec.yaml'),
+        );
+        if (memberName != null) names.add(memberName);
+      }
+    } on Exception {
+      // Unreadable packages/ dir (e.g. permission denied): degrade to
+      // whatever was already gathered rather than throwing.
     }
   }
 
@@ -60,8 +67,8 @@ Future<Set<String>> projectPackagesFromDir(String rootDir) async {
 
 Future<String?> _packageNameFromFile(String path) async {
   final file = File(path);
-  if (!await file.exists()) return null;
   try {
+    if (!await file.exists()) return null;
     return packageNameFromPubspec(await file.readAsString());
   } on Exception {
     return null;
