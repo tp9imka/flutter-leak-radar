@@ -717,4 +717,176 @@ void main() {
       },
     );
   });
+
+  group('renderMarkdownReport — negative anchorHopIndex guard', () {
+    test('never crashes on a malformed negative anchorHopIndex from JSON; '
+        'degrades to omitting the anchor-hop line', () {
+      final json = {
+        'className': 'GroupCallBloc',
+        'libraryUri': 'package:my_app/call.dart',
+        'instanceCount': 2,
+        'retainedShallowBytes': 100,
+        'representativePath': {
+          'rootKind': 'timer',
+          'hops': [
+            {'className': '_Timer'},
+            {'className': 'GroupCallBloc', 'field': '_callback'},
+          ],
+        },
+        'rootKind': 'timer',
+        'confidence': 'heuristic',
+        'signature': 'r>GroupCallBloc',
+        'anchorHopIndex': -1,
+      };
+      final cluster = GraphLeakCluster.fromJson(json);
+      expect(cluster.anchorHopIndex, -1);
+
+      final result = _result(
+        [cluster],
+        anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+      );
+
+      expect(
+        () => renderMarkdownReport(result, github: false),
+        returnsNormally,
+      );
+
+      final report = renderMarkdownReport(result, github: false);
+      // The cluster itself still renders — only the anchor-hop line (which
+      // has no honest meaning for a negative index) is omitted.
+      expect(report, contains('GroupCallBloc'));
+      expect(report, isNot(contains('your code holds')));
+      expect(report, isNot(contains('your code retains')));
+    });
+  });
+
+  group('renderMarkdownReport — markdown escaping', () {
+    test("escapes '<'/'>' in a plain-text class name so GitHub's HTML "
+        'sanitizer cannot swallow it (e.g. an unresolved VM class name)', () {
+      final cluster = _anchoredCluster(
+        className: '<unknown>',
+        signature: 'r>unknown',
+        anchorLibrary: 'package:my_app/x.dart',
+      );
+      final report = renderMarkdownReport(
+        _result(
+          [cluster],
+          anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+        ),
+        github: false,
+      );
+
+      // The raw, unescaped form must never appear in a plain-text
+      // (non-code-span) position — that's exactly what a sanitizer strips.
+      expect(report, isNot(contains('**1. <unknown>**')));
+      expect(report, contains('&lt;unknown&gt;'));
+    });
+
+    test('escapes a pipe in a class name so it cannot break a markdown table '
+        'row', () {
+      final cluster = _anchoredCluster(
+        className: 'Weird|Class',
+        signature: 'r>weird',
+        anchorLibrary: 'package:my_app/x.dart',
+      );
+      final report = renderMarkdownReport(
+        _result(
+          [cluster],
+          anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+        ),
+        github: false,
+      );
+
+      // The full cluster table renders this class name as a plain table
+      // cell; an unescaped pipe would add a spurious cell boundary.
+      expect(report, contains(r'Weird\|Class'));
+    });
+
+    test('escapes a stray backtick in a nearest-known signature so it cannot '
+        'terminate the surrounding code span early', () {
+      final cluster = _anchoredCluster(
+        className: 'GroupCallBloc',
+        signature: 'r>GroupCallBloc',
+        anchorLibrary: 'package:my_app/call.dart',
+      );
+      final delta = ClusterDelta(
+        cluster: cluster,
+        novelty: ClusterNovelty.newCluster,
+        instanceDelta: 2,
+        bytesDelta: 100,
+        nearestKnownSignature: 'sig`with`backtick',
+      );
+      final comparison = BaselineComparison(
+        baselineComparable: true,
+        deltas: [delta],
+        gone: const [],
+        currentTotalShallowBytes: 100,
+        baselineTotalShallowBytes: 0,
+        currentClusters: [cluster],
+      );
+      final report = renderMarkdownReport(
+        _result(
+          [cluster],
+          anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+        ),
+        comparison: comparison,
+        github: false,
+      );
+
+      expect(report, isNot(contains('`sig`with`backtick`')));
+      expect(report, contains("sig'with'backtick"));
+    });
+  });
+
+  group('renderMarkdownReport — deterministic tie-break', () {
+    test('orders identically-sized clusters by signature for reproducible '
+        'output', () {
+      final clusterB = _anchoredCluster(
+        className: 'BOwner',
+        signature: 'r>BOwner',
+        anchorLibrary: 'package:my_app/b.dart',
+        retainedShallowBytes: 500,
+        instanceCount: 5,
+      );
+      final clusterA = _anchoredCluster(
+        className: 'AOwner',
+        signature: 'r>AOwner',
+        anchorLibrary: 'package:my_app/a.dart',
+        retainedShallowBytes: 500,
+        instanceCount: 5,
+      );
+      // Deliberately inserted B-before-A so a passing test proves the sort
+      // is keying on signature, not incidentally on list order.
+      final report = renderMarkdownReport(
+        _result(
+          [clusterB, clusterA],
+          anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+        ),
+        github: false,
+      );
+
+      expect(report.indexOf('AOwner') < report.indexOf('BOwner'), isTrue);
+      expect(report, contains('**1. AOwner**'));
+      expect(report, contains('**2. BOwner**'));
+    });
+  });
+
+  group('renderMarkdownReport — empty gate violations guard', () {
+    test('never throws when a failed gate carries no violation strings', () {
+      const gate = GateResult(passed: false, violations: []);
+
+      expect(
+        () =>
+            renderMarkdownReport(_result(const []), gate: gate, github: false),
+        returnsNormally,
+      );
+
+      final report = renderMarkdownReport(
+        _result(const []),
+        gate: gate,
+        github: false,
+      );
+      expect(report.split('\n').first, contains('❌ gate failed'));
+    });
+  });
 }

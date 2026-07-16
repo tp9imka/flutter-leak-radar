@@ -306,56 +306,75 @@ void main() {
       },
     );
 
-    test('unreadable baseline file with a gate → tool failure (2)', () async {
-      final code = await _run(
-        [
-          'dump.data',
-          '--package',
-          'my_app',
-          '--baseline',
-          'missing.json',
-          '--fail-on-new-clusters',
-        ],
-        out: StringBuffer(),
-        err: StringBuffer(),
-        files: _FakeFiles(),
-      );
-      expect(code, AnalyzeExit.toolFailure);
-    });
+    for (final format in ['text', 'json', 'md', 'github']) {
+      test('unreadable baseline file with a gate → tool failure (2), report '
+          'still reaches stdout ($format)', () async {
+        final out = StringBuffer();
+        final code = await _run(
+          [
+            'dump.data',
+            '--package',
+            'my_app',
+            '--format',
+            format,
+            '--baseline',
+            'missing.json',
+            '--fail-on-new-clusters',
+          ],
+          out: out,
+          err: StringBuffer(),
+          files: _FakeFiles(),
+        );
+        expect(code, AnalyzeExit.toolFailure);
+        // CRITICAL: a caller reading only stdout (many CI wrappers do) must
+        // still get the leak report, even though the baseline path failed.
+        expect(out.toString(), isNotEmpty);
+        expect(out.toString(), contains('LeakyState'));
+      });
 
-    test('incomparable baseline + baseline-dependent gate → tool failure (2), '
-        'never all-NEW', () async {
-      final files = _FakeFiles();
-      await files.write(
-        'future.json',
-        jsonEncode({
-          'schemaVersion': 2,
-          'createdAt': '2026-01-01T00:00:00.000Z',
-          'clusters': <Object?>[],
-        }),
+      test(
+        'incomparable baseline + baseline-dependent gate → tool failure (2), '
+        'never all-NEW, report still reaches stdout ($format)',
+        () async {
+          final files = _FakeFiles();
+          await files.write(
+            'future.json',
+            jsonEncode({
+              'schemaVersion': 2,
+              'createdAt': '2026-01-01T00:00:00.000Z',
+              'clusters': <Object?>[],
+            }),
+          );
+          final out = StringBuffer();
+          final err = StringBuffer();
+          final code = await _run(
+            [
+              'dump.data',
+              '--package',
+              'my_app',
+              '--format',
+              format,
+              '--baseline',
+              'future.json',
+              '--fail-on-new-clusters',
+            ],
+            out: out,
+            err: err,
+            files: files,
+          );
+          expect(code, AnalyzeExit.toolFailure);
+          expect(
+            err.toString(),
+            contains('baseline not comparable (schemaVersion 2)'),
+          );
+          // Must NOT have run the gate and failed it as if everything were
+          // new.
+          expect(err.toString(), isNot(contains('Gate FAILED')));
+          expect(out.toString(), isNotEmpty);
+          expect(out.toString(), contains('LeakyState'));
+        },
       );
-      final err = StringBuffer();
-      final code = await _run(
-        [
-          'dump.data',
-          '--package',
-          'my_app',
-          '--baseline',
-          'future.json',
-          '--fail-on-new-clusters',
-        ],
-        out: StringBuffer(),
-        err: err,
-        files: files,
-      );
-      expect(code, AnalyzeExit.toolFailure);
-      expect(
-        err.toString(),
-        contains('baseline not comparable (schemaVersion 2)'),
-      );
-      // Must NOT have run the gate and failed it as if everything were new.
-      expect(err.toString(), isNot(contains('Gate FAILED')));
-    });
+    }
 
     test(
       'incomparable baseline with only a total gate degrades to absent',

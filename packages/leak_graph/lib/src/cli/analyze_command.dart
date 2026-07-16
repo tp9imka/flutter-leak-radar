@@ -89,7 +89,13 @@ Future<int> runAnalyze(
       config.gatingRequested ||
       (wantsRichReport && config.baselinePath != null);
 
+  // A failure building the comparison (missing/unreadable/incomparable
+  // baseline) is recorded but NOT returned yet — the primary report must
+  // still reach stdout below before the command exits. Returning early here
+  // silently drops the whole report for every format, which is worse than
+  // the gate/baseline failure it was trying to report.
   BaselineComparison? comparison;
+  int? comparisonFailureExit;
   if (needsComparison) {
     final built = await _buildComparison(
       config: config,
@@ -97,15 +103,19 @@ Future<int> runAnalyze(
       readText: readText,
       err: err,
     );
-    if (built.comparison == null) return built.exitCode;
     comparison = built.comparison;
+    if (comparison == null) comparisonFailureExit = built.exitCode;
   }
   final gate = (config.gatingRequested && comparison != null)
       ? evaluateGate(comparison, config.gate)
       : null;
 
-  // The primary report goes to stdout; gate/baseline diagnostics never do —
-  // text stays byte-stable, the others render richer detail.
+  // The primary report always reaches stdout — even when the baseline/gate
+  // path above already failed — because a caller that only reads stdout
+  // (many CI wrappers do) must still see the report it can act on. Gate/
+  // baseline diagnostics never go to stdout: text stays byte-stable, the
+  // others render richer detail from whatever comparison/gate is available
+  // (possibly none, when the baseline path failed).
   out.writeln(switch (config.format) {
     CliOutputFormat.text => renderReport(result, top: config.top),
     CliOutputFormat.json => renderJson(result),
@@ -148,12 +158,16 @@ Future<int> runAnalyze(
     );
   }
 
+  // Now that the report has reached stdout and any file writes ran, resolve
+  // the actual outcome — honoring a comparison-build failure recorded above.
+  if (comparisonFailureExit != null) return comparisonFailureExit;
+
   if (!config.gatingRequested) return AnalyzeExit.ok;
   if (gate == null) {
     // Unreachable in practice: gatingRequested implies needsComparison was
-    // true above, so either a gate was computed here or an earlier
-    // usage/tool-failure return already fired. Kept defensive rather than
-    // asserting non-null.
+    // true above, so either a gate was computed here or comparisonFailureExit
+    // was already returned above. Kept defensive rather than asserting
+    // non-null.
     return AnalyzeExit.toolFailure;
   }
 

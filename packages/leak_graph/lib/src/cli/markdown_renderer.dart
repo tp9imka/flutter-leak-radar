@@ -78,7 +78,13 @@ String renderMarkdownReport(
 
 String _verdictLine(GraphAnalysisResult result, GateResult? gate) {
   if (gate != null && !gate.passed) {
-    return '❌ gate failed: ${gate.violations.first}';
+    final violations = gate.violations;
+    // A failed gate should always carry at least one violation string, but
+    // a hand-built or future GateResult might not — degrade to an honest
+    // fallback rather than crashing on `.first` of an empty list.
+    return violations.isEmpty
+        ? '❌ gate failed (no violation details available)'
+        : '❌ gate failed: ${violations.first}';
   }
   if (result.clusters.isEmpty) return '✅ no leak clusters';
   final count = result.clusters.length;
@@ -135,6 +141,12 @@ _HighlightSelection _selectHighlights(
 
 /// Sorts [candidates] NEW-first (largest first), then by shallow bytes
 /// descending, and returns at most the top 3.
+///
+/// The final tiebreaker (signature, ascending) makes the order fully
+/// deterministic even when two clusters tie on both bytes and instance
+/// count — `List.sort` gives no stability guarantee, so without this the
+/// featured order (and thus which 3 clusters get shown) could vary between
+/// otherwise-identical runs.
 List<_Highlight> _topByNewOrWorst(List<_Highlight> candidates) {
   final sorted = [...candidates]
     ..sort((a, b) {
@@ -145,7 +157,11 @@ List<_Highlight> _topByNewOrWorst(List<_Highlight> candidates) {
         a.cluster.retainedShallowBytes,
       );
       if (byBytes != 0) return byBytes;
-      return b.cluster.instanceCount.compareTo(a.cluster.instanceCount);
+      final byInstances = b.cluster.instanceCount.compareTo(
+        a.cluster.instanceCount,
+      );
+      if (byInstances != 0) return byInstances;
+      return a.cluster.signature.compareTo(b.cluster.signature);
     });
   return sorted.take(3).toList();
 }
@@ -167,8 +183,8 @@ void _writeLargestOverallLine(
 
   final origin = _originOf(worst, result.anchorRollups);
   buf.writeln(
-    'largest overall: `${worst.className}` ${_originLabel(origin)} — '
-    '${worst.instanceCount} instances, '
+    'largest overall: `${_escapeCode(worst.className)}` '
+    '${_originLabel(origin)} — ${worst.instanceCount} instances, '
     '${_kbShallow(worst.retainedShallowBytes)} (see details)',
   );
   buf.writeln();
@@ -203,14 +219,18 @@ void _writeHighlight(
   final origin = _originOf(cluster, anchorRollups);
   buf
     ..writeln(
-      '**$rank. ${cluster.className}** — `$package` '
-      '${_originLabel(origin)}',
+      '**$rank. ${_escapePlain(cluster.className)}** — '
+      '`${_escapeCode(package)}` ${_originLabel(origin)}',
     )
     ..writeln(
       '- ${cluster.instanceCount} instances retained, '
       '${cluster.retainedShallowBytes} B shallow',
-    )
-    ..writeln('- ${_anchorLine(cluster)}');
+    );
+
+  final anchorLine = _anchorLine(cluster);
+  if (anchorLine != null) {
+    buf.writeln('- $anchorLine');
+  }
 
   final delta = highlight.delta;
   if (delta != null && delta.novelty == ClusterNovelty.newCluster) {
@@ -218,7 +238,7 @@ void _writeHighlight(
     buf.writeln(
       nearest == null
           ? '- 🆕 new cluster'
-          : '- 🆕 new cluster — nearest known: `$nearest`',
+          : '- 🆕 new cluster — nearest known: `${_escapeCode(nearest)}`',
     );
   } else if (delta != null && delta.novelty == ClusterNovelty.grown) {
     buf.writeln(
@@ -229,7 +249,8 @@ void _writeHighlight(
   buf.writeln();
 }
 
-/// Describes where the caller's own code holds the leak.
+/// Describes where the caller's own code holds the leak, or null when there
+/// is nothing honest to say.
 ///
 /// When [GraphLeakCluster.anchorHopIndex] names an app-owned hop, this is the
 /// field on that hop's class that leads onward to the leaked object (a
@@ -237,13 +258,18 @@ void _writeHighlight(
 /// holding field lives on the NEXT hop). When there is no anchor — the
 /// leaked object IS the app class, with no internal SDK leaf underneath it —
 /// this instead names the retaining root kind, since there is no field to
-/// point to.
-String _anchorLine(GraphLeakCluster cluster) {
+/// point to. A negative index can never be produced by the analyzer, but
+/// [GraphLeakCluster.fromJson] accepts any int and this function is
+/// reachable from a public API — rather than crash indexing
+/// `hops[anchorIndex]` with a negative index, this degrades to omitting the
+/// line entirely (the caller drops the bullet rather than showing it).
+String? _anchorLine(GraphLeakCluster cluster) {
   final anchorIndex = cluster.anchorHopIndex;
   if (anchorIndex == null) {
-    return 'your code retains this `${cluster.className}` instance '
-        'directly via a ${cluster.rootKind.label} root';
+    return 'your code retains this `${_escapeCode(cluster.className)}` '
+        'instance directly via a ${cluster.rootKind.label} root';
   }
+  if (anchorIndex < 0) return null;
 
   final hops = cluster.representativePath.hops;
   final anchorClassName = anchorIndex < hops.length
@@ -253,9 +279,10 @@ String _anchorLine(GraphLeakCluster cluster) {
       ? _fieldLabel(hops[anchorIndex + 1])
       : null;
 
+  final escapedClassName = _escapeCode(anchorClassName);
   return holdsAt == null
-      ? 'your code holds this via `$anchorClassName`'
-      : 'your code holds it at `$anchorClassName.$holdsAt`';
+      ? 'your code holds this via `$escapedClassName`'
+      : 'your code holds it at `$escapedClassName.${_escapeCode(holdsAt)}`';
 }
 
 String? _fieldLabel(GraphHop hop) {
@@ -266,6 +293,27 @@ String? _fieldLabel(GraphHop hop) {
 
 String? _packageOf(Uri? libraryUri) =>
     libraryUri == null ? null : _packageNameOf.packageOf(libraryUri);
+
+/// Escapes [text] for a plain (non-code-span) markdown position: a bold
+/// headline or a table cell.
+///
+/// Class/package names come straight from the analyzed heap — an unresolved
+/// VM class can render as a literal `<unknown>`, and a generic type's own
+/// name can contain `<>` too. Left unescaped, GitHub's HTML sanitizer treats
+/// `<...>` as a tag and silently strips it — the exact failure mode that
+/// made the top suspect's name vanish above the fold. `|` is escaped
+/// separately because it would otherwise open a spurious extra cell in a
+/// markdown table row.
+String _escapePlain(String text) =>
+    text.replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('|', r'\|');
+
+/// Escapes [text] for placement inside a single backtick code span.
+///
+/// A backtick can never legitimately appear in a Dart identifier, so a
+/// stray one — only reachable from malformed/adversarial input, e.g. a
+/// hand-built `nearestKnownSignature` — is replaced rather than allowed to
+/// terminate the span early and corrupt everything that follows it.
+String _escapeCode(String text) => text.replaceAll('`', "'");
 
 /// The origin the analyzer already computed for [cluster]'s anchor package.
 ///
@@ -330,9 +378,10 @@ void _writeClusterTableDetails(StringBuffer buf, GraphAnalysisResult result) {
       final package = _packageOf(cluster.libraryUri) ?? '(unknown)';
       final origin = _originOf(cluster, result.anchorRollups);
       buf.writeln(
-        '| ${cluster.className} | $package | ${_originLabel(origin)} | '
-        '${cluster.instanceCount} | ${cluster.retainedShallowBytes} B '
-        'shallow | ${cluster.rootKind.label} | ${cluster.confidence.name} |',
+        '| ${_escapePlain(cluster.className)} | ${_escapePlain(package)} | '
+        '${_originLabel(origin)} | ${cluster.instanceCount} | '
+        '${cluster.retainedShallowBytes} B shallow | '
+        '${cluster.rootKind.label} | ${cluster.confidence.name} |',
       );
     }
   }
@@ -369,7 +418,7 @@ void _writeRollupTable(StringBuffer buf, List<PackageRollup> rollups) {
   buf.writeln('|---|---|---|---|---|---|');
   for (final rollup in rollups) {
     buf.writeln(
-      '| ${rollup.package} | ${_originLabel(rollup.origin)} | '
+      '| ${_escapePlain(rollup.package)} | ${_originLabel(rollup.origin)} | '
       '${rollup.classCount} | ${rollup.instanceCount} | '
       '${rollup.shallowBytes} B shallow | ${rollup.clusterCount} |',
     );
@@ -416,8 +465,8 @@ void _writeGoneDetails(StringBuffer buf, BaselineComparison? comparison) {
     buf.writeln('|---|---|---|---|');
     for (final gone in comparison.gone) {
       buf.writeln(
-        '| ${gone.className} | ${gone.signature} | ${gone.instanceCount} | '
-        '${gone.retainedShallowBytes} B shallow |',
+        '| ${_escapePlain(gone.className)} | ${_escapePlain(gone.signature)} '
+        '| ${gone.instanceCount} | ${gone.retainedShallowBytes} B shallow |',
       );
     }
   }
