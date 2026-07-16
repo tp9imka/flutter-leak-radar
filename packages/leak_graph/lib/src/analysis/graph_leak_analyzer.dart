@@ -3,26 +3,42 @@ import '../model/class_path_distribution.dart';
 import '../model/class_root_profile.dart';
 import '../model/graph_analysis_result.dart';
 import '../model/graph_retaining_path.dart';
+import '../model/package_rollup.dart';
 import '../model/root_kind.dart';
 import 'app_package_set.dart';
+import 'class_origin.dart';
 import 'clustering.dart';
 import 'live_tree.dart';
 import 'shortest_retaining_paths.dart';
 
+/// Package key used when a library URI resolves to no package (malformed or
+/// non-`package:`/`dart:` URI).
+const String _unknownPackage = '(unknown)';
+
 /// Pairs each retaining-path [links] entry with its class name from
-/// [classNames] by POSITION.
+/// [classNames] and, when supplied, its library uri from [libraryUris] by
+/// POSITION.
 ///
-/// [classNames] is parallel to [links] (same order, same length). Positional
-/// pairing is required because two hops can be value-equal (repeated container
-/// or array-index slots); a value-based lookup would alias them to the first
-/// match and corrupt the path and its cluster signature.
-List<GraphHop> buildHops(List<PathLink> links, List<String> classNames) {
+/// [classNames] (and optional [libraryUris]) are parallel to [links] (same
+/// order, same length). Positional pairing is required because two hops can be
+/// value-equal (repeated container or array-index slots); a value-based lookup
+/// would alias them to the first match and corrupt the path and its cluster
+/// signature. A shorter or absent [libraryUris] leaves later hops with a null
+/// [GraphHop.libraryUri].
+List<GraphHop> buildHops(
+  List<PathLink> links,
+  List<String> classNames, [
+  List<Uri>? libraryUris,
+]) {
   return [
     for (final entry in links.asMap().entries)
       GraphHop(
         className: entry.key < classNames.length ? classNames[entry.key] : '',
         field: entry.value.field,
         index: entry.value.index,
+        libraryUri: libraryUris != null && entry.key < libraryUris.length
+            ? libraryUris[entry.key]
+            : null,
       ),
   ];
 }
@@ -57,8 +73,15 @@ GraphRetainingPath? retainingPathForClass(
         return '';
       }
     }).toList();
+    final libraryUris = links.map((l) {
+      try {
+        return graph.node(l.nodeId).libraryUri;
+      } catch (_) {
+        return Uri();
+      }
+    }).toList();
     return GraphRetainingPath(
-      hops: buildHops(links, classNames),
+      hops: buildHops(links, classNames, libraryUris),
       rootKind: paths.rootKindOf(id),
     );
   }
@@ -195,7 +218,7 @@ final class GraphLeakAnalyzer {
         }
       }
 
-      final hops = buildHops(pathLinks, pathClassNames);
+      final hops = buildHops(pathLinks, pathClassNames, pathLibraries);
       final path = GraphRetainingPath(hops: hops, rootKind: rootKind);
       // Signature anchored at the owner (root -> anchor) so two owners with the
       // same owner+root path cluster regardless of which internal leaf BFS
@@ -224,6 +247,7 @@ final class GraphLeakAnalyzer {
           attributionLibraryUri: anchorIndex != null
               ? pathLibraries[anchorIndex]
               : null,
+          anchorHopIndex: anchorIndex,
         ),
       );
     }
@@ -307,6 +331,38 @@ final class GraphLeakAnalyzer {
       maxSignatureDepth: options.maxSignatureDepth,
     );
 
+    // Rollups summarize the REPORTED clusters, re-keyed by package: only
+    // survivor records whose signature produced an emitted cluster count, so
+    // the per-package instance/byte/cluster totals stay consistent with what
+    // the run actually reports.
+    final classifier = OriginClassifier(
+      projectPackages: appSet?.names ?? const {},
+    );
+    final emittedSignatures = {for (final c in clusters) c.signature};
+    final rollupRecords = [
+      for (final r in survivors)
+        if (emittedSignatures.contains(r.signature)) r,
+    ];
+    final anchorRollups = _buildRollups(
+      rollupRecords,
+      classifier,
+      (r) => r.attributionLibraryUri ?? r.libraryUri,
+    );
+    final declaredRollups = _buildRollups(
+      rollupRecords,
+      classifier,
+      (r) => r.libraryUri,
+    );
+
+    // Disabled filtering takes precedence: when no package is treated as
+    // project-owned, an explicit list did not actually drive filtering, so it
+    // would be dishonest to report explicitConfig.
+    final appPackageSource = options.disableAppFilter
+        ? AppPackageSource.disabled
+        : (options.appPackages.isNotEmpty
+              ? AppPackageSource.explicitConfig
+              : AppPackageSource.autoDetected);
+
     return GraphAnalysisResult(
       clusters: clusters,
       stats: GraphAnalysisStats(
@@ -320,8 +376,60 @@ final class GraphLeakAnalyzer {
       ),
       classRootProfiles: classRootProfiles,
       classPathDistributions: classPathDistributions,
+      anchorRollups: anchorRollups,
+      declaredRollups: declaredRollups,
+      appPackageSource: appPackageSource,
     );
   }
+}
+
+/// Aggregates [records] into one [PackageRollup] per package, keyed by
+/// `packageOf(keyUri(record))` (null → [_unknownPackage]).
+///
+/// The same leaked set produces the anchor vs declared rollups; only [keyUri]
+/// differs (the retaining anchor library vs the record's declaring library).
+/// Sorted by shallow bytes then instances descending, package name ascending,
+/// for stable output.
+List<PackageRollup> _buildRollups(
+  List<LeakRecord> records,
+  OriginClassifier classifier,
+  Uri Function(LeakRecord) keyUri,
+) {
+  final classNames = <String, Set<String>>{};
+  final signatures = <String, Set<String>>{};
+  final instances = <String, int>{};
+  final bytes = <String, int>{};
+  final origins = <String, ClassOrigin>{};
+
+  for (final record in records) {
+    final uri = keyUri(record);
+    final package = classifier.packageOf(uri) ?? _unknownPackage;
+    origins.putIfAbsent(package, () => classifier.classify(uri));
+    (classNames[package] ??= <String>{}).add(record.className);
+    (signatures[package] ??= <String>{}).add(record.signature);
+    instances[package] = (instances[package] ?? 0) + 1;
+    bytes[package] = (bytes[package] ?? 0) + record.shallowSize;
+  }
+
+  final rollups = [
+    for (final package in instances.keys)
+      PackageRollup(
+        package: package,
+        origin: origins[package]!,
+        classCount: classNames[package]!.length,
+        instanceCount: instances[package]!,
+        shallowBytes: bytes[package]!,
+        clusterCount: signatures[package]!.length,
+      ),
+  ];
+  rollups.sort((a, b) {
+    final byBytes = b.shallowBytes.compareTo(a.shallowBytes);
+    if (byBytes != 0) return byBytes;
+    final byInstances = b.instanceCount.compareTo(a.instanceCount);
+    if (byInstances != 0) return byInstances;
+    return a.package.compareTo(b.package);
+  });
+  return rollups;
 }
 
 /// Default cap on how many classes get a materialized
@@ -457,8 +565,15 @@ GraphRetainingPath _representativePath(
       return '';
     }
   }).toList();
+  final libraryUris = links.map((l) {
+    try {
+      return graph.node(l.nodeId).libraryUri;
+    } catch (_) {
+      return Uri();
+    }
+  }).toList();
   return GraphRetainingPath(
-    hops: buildHops(links, classNames),
+    hops: buildHops(links, classNames, libraryUris),
     rootKind: paths.rootKindOf(nodeId),
   );
 }
@@ -541,7 +656,14 @@ List<ClassPathDistribution> buildClassPathDistributions(
         return '';
       }
     }).toList();
-    final hops = buildHops(links, classNames);
+    final libraryUris = links.map((l) {
+      try {
+        return graph.node(l.nodeId).libraryUri;
+      } catch (_) {
+        return Uri();
+      }
+    }).toList();
+    final hops = buildHops(links, classNames, libraryUris);
     final signature = pathSignature(hops, maxDepth: maxSignatureDepth);
 
     final bySig = acc.putIfAbsent(className, () => {});

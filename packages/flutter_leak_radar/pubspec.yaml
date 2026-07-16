@@ -20,7 +20,7 @@ dependencies:
   vm_service: ^15.0.0
   meta: ^1.15.0
   share_plus: ">=10.0.0 <14.0.0"
-  leak_graph: ^0.2.2
+  leak_graph: ^0.3.0
   radar_ui: ^0.3.0
 dev_dependencies:
   flutter_test:

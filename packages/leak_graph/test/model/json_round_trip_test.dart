@@ -13,6 +13,17 @@ void main() {
       }
     });
 
+    test('GraphHop preserves libraryUri across JSON (equality ignores it)', () {
+      final hop = GraphHop(
+        className: 'A',
+        field: 'f',
+        libraryUri: Uri.parse('package:app/a.dart'),
+      );
+      final decoded = GraphHop.fromJson(hop.toJson());
+      expect(decoded, equals(hop));
+      expect(decoded.libraryUri, Uri.parse('package:app/a.dart'));
+    });
+
     test('GraphRetainingPath', () {
       const path = GraphRetainingPath(
         hops: [
@@ -57,6 +68,34 @@ void main() {
       );
 
       expect(GraphLeakCluster.fromJson(cluster.toJson()), equals(cluster));
+    });
+
+    test('GraphLeakCluster with leafClassName + anchorHopIndex', () {
+      const path = GraphRetainingPath(
+        hops: [
+          GraphHop(className: '_Timer'),
+          GraphHop(className: '_LeakyScreenState', field: '_callback'),
+          GraphHop(className: '_ControllerSubscription', field: '_sub'),
+        ],
+        rootKind: RootKind.timer,
+      );
+      final cluster = GraphLeakCluster(
+        className: '_LeakyScreenState',
+        libraryUri: Uri.parse('package:app/leaky.dart'),
+        instanceCount: 2,
+        retainedShallowBytes: 256,
+        representativePath: path,
+        rootKind: RootKind.timer,
+        confidence: LeakConfidence.confirmed,
+        signature: '_Timer>_LeakyScreenState._callback',
+        leafClassName: '_ControllerSubscription',
+        anchorHopIndex: 1,
+      );
+
+      final decoded = GraphLeakCluster.fromJson(cluster.toJson());
+      expect(decoded, equals(cluster));
+      expect(decoded.leafClassName, '_ControllerSubscription');
+      expect(decoded.anchorHopIndex, 1);
     });
 
     test('GraphLeakCluster with a null libraryUri', () {

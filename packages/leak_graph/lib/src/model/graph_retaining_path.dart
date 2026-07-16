@@ -7,14 +7,32 @@ final class GraphHop {
   final String? field;
   final int? index;
 
-  const GraphHop({required this.className, this.field, this.index});
+  /// Library that declared this hop's class, e.g. `package:app/foo.dart`.
+  ///
+  /// Attribution detail only: it lets a serialized bundle render where app
+  /// code sits on the path. Deliberately EXCLUDED from [==]/[hashCode] and
+  /// [pathSignature] so cluster identity (which keys on structure) never
+  /// shifts when a hop gains or loses a library uri. Null when unknown.
+  final Uri? libraryUri;
+
+  const GraphHop({
+    required this.className,
+    this.field,
+    this.index,
+    this.libraryUri,
+  });
 
   factory GraphHop.fromJson(Map<String, Object?> json) => GraphHop(
     className: json['className'] as String,
     field: json['field'] as String?,
     index: json['index'] as int?,
+    libraryUri: json['libraryUri'] == null
+        ? null
+        : Uri.parse(json['libraryUri'] as String),
   );
 
+  // libraryUri is intentionally not part of == / hashCode: equality stays
+  // structural (className/field/index) so attribution can never move a cluster.
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -30,6 +48,7 @@ final class GraphHop {
     'className': className,
     if (field != null) 'field': field,
     if (index != null) 'index': index,
+    if (libraryUri != null) 'libraryUri': libraryUri.toString(),
   };
 }
 
