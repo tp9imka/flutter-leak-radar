@@ -213,9 +213,97 @@ void main() {
         MetricSample(tMicros: 100, value: 74310),
         MetricSample(tMicros: 400, value: 80000),
       ]);
+      // The gap spans from the last measured sample to the next one, matching
+      // radar_ci's sampler encoding — so series_assessment's _mergedIntervals
+      // never drops it and never bridges the outage.
       expect(series.gaps, const [
-        SeriesGap(startMicros: 200, endMicros: 300, reason: 'e1'),
+        SeriesGap(startMicros: 100, endMicros: 400, reason: 'e1'),
       ]);
+    });
+
+    test('a lone unmeasured tick spans a nonzero-width gap to its '
+        'neighbours', () {
+      // A single not-measured instant between two measured ones used to encode
+      // a zero-width gap (start == end), which series_assessment dropped as
+      // malformed — letting the native lane bridge the outage. It must now span
+      // from the last measured sample to the next, exactly like a wider gap.
+      final builder = TimelineBuilder()
+        ..add(
+          const NativeSampleSnapshot(
+            tMicros: 100,
+            values: {TriageColumn.nativePssKb: SampleValue.measured(1000)},
+          ),
+        )
+        ..add(
+          const NativeSampleSnapshot(
+            tMicros: 200,
+            values: {TriageColumn.nativePssKb: SampleValue.unmeasured('miss')},
+          ),
+        )
+        ..add(
+          const NativeSampleSnapshot(
+            tMicros: 300,
+            values: {TriageColumn.nativePssKb: SampleValue.measured(2000)},
+          ),
+        );
+
+      final series = builder.build().columns[TriageColumn.nativePssKb]!;
+      expect(series.gaps, const [
+        SeriesGap(startMicros: 100, endMicros: 300, reason: 'miss'),
+      ]);
+      expect(
+        series.gaps.single.endMicros,
+        greaterThan(series.gaps.single.startMicros),
+      );
+    });
+
+    test('assessSeries does not bridge a native outage (honesty)', () {
+      // Two 6-sample ascents separated by one unmeasured tick. Bridged, the
+      // whole run reads as monotonicGrowth; split at the outage, neither region
+      // has enough samples to certify — so the gate must not read green off an
+      // unmeasured stretch.
+      const second = 1000000;
+      final builder = TimelineBuilder();
+      var t = 0;
+      var value = 1000;
+      void measured() {
+        builder.add(
+          NativeSampleSnapshot(
+            tMicros: t,
+            values: {TriageColumn.nativePssKb: SampleValue.measured(value)},
+          ),
+        );
+        t += 60 * second;
+        value += 1000;
+      }
+
+      for (var i = 0; i < 6; i++) {
+        measured();
+      }
+      builder.add(
+        NativeSampleSnapshot(
+          tMicros: t,
+          values: const {
+            TriageColumn.nativePssKb: SampleValue.unmeasured('device gone'),
+          },
+        ),
+      );
+      t += 60 * second;
+      for (var i = 0; i < 6; i++) {
+        measured();
+      }
+
+      final series = builder.build().columns[TriageColumn.nativePssKb]!;
+      final assessment = assessSeries(
+        series,
+        const AssessOptions(
+          settle: Duration.zero,
+          minSamples: 8,
+          minSpan: Duration(minutes: 2),
+        ),
+      );
+      expect(assessment.verdict, isNot(SeriesVerdict.monotonicGrowth));
+      expect(assessment.verdict, SeriesVerdict.insufficientData);
     });
 
     test('a column unmeasured in every snapshot is a gap-only series', () {

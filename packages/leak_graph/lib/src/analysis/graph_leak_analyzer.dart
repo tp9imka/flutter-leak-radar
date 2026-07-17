@@ -90,7 +90,12 @@ GraphRetainingPath? retainingPathForClass(
 
 /// Configuration for a single [GraphLeakAnalyzer.analyze] run.
 final class GraphAnalysisOptions {
-  /// Explicit package names that belong to the app under analysis.
+  /// Explicit BARE package names that belong to the app under analysis
+  /// (e.g. `'my_app'`), NOT library URIs (`'package:my_app/'`).
+  ///
+  /// An entry containing `:` or `/` matches no class — every candidate is
+  /// suppressed, so the run falsely reads "no leaks" — and is reported in
+  /// [GraphAnalysisResult.stats]'s `warnings`.
   ///
   /// When empty, [AppPackageSet.autoDetect] derives the set from the graph's
   /// library URIs, excluding SDK and framework packages.
@@ -151,6 +156,20 @@ final class GraphLeakAnalyzer {
         allLibraryUris.add(graph.node(id).libraryUri);
       } catch (_) {
         warnings.add('Node id $id missing from graph; skipped.');
+      }
+    }
+
+    // appPackages takes BARE names ('my_app'), not library URIs. An entry with
+    // ':' or '/' (e.g. 'package:my_app/') can never match a class's package,
+    // so every candidate would be suppressed and the run would falsely read
+    // "no leaks". Warn rather than silently produce a false negative.
+    for (final entry in options.appPackages) {
+      if (entry.contains(':') || entry.contains('/')) {
+        warnings.add(
+          'appPackages entry "$entry" looks like a library URI, but '
+          'appPackages wants bare package names (e.g. "my_app", not '
+          '"package:my_app/"); this entry matches no class and is ignored.',
+        );
       }
     }
 

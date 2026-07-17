@@ -88,7 +88,7 @@ the result.
 
 ```shell
 # 1. Capture a run (spawn the app and attach automatically):
-dart run radar_ci run --cmd "flutter run --profile -d <device>" -o run.json
+dart run radar_ci run --cmd "flutter run --machine --profile -d <device>" -o run.json
 
 # 2. Gate it — exit 3 fails the build on a real leak:
 dart run radar_ci gate run.json
@@ -102,7 +102,7 @@ one host-wall-clock timeline inside `run.json`:
 
 ```shell
 # Sample dumpsys meminfo / /proc / fd / thread trends alongside the Dart lane:
-dart run radar_ci run --cmd "flutter run --profile -d <device>" \
+dart run radar_ci run --cmd "flutter run --machine --profile -d <device>" \
   --native-package com.example.app -o run.json
 
 # Also fail on native growth (opt-in); report shows a per-column native table:

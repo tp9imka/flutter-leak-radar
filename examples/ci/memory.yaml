@@ -57,7 +57,7 @@ jobs:
       - name: Capture main run
         run: |
           dart run radar_ci run \
-            --cmd "flutter run --profile -d linux" \
+            --cmd "flutter run --machine --profile -d linux" \
             --duration 5m --sample-interval 5s \
             -o run.json                                   # <-- adjust the --cmd
 
@@ -102,7 +102,7 @@ jobs:
       - name: Capture PR run
         run: |
           dart run radar_ci run \
-            --cmd "flutter run --profile -d linux" \
+            --cmd "flutter run --machine --profile -d linux" \
             --duration 5m --sample-interval 5s \
             -o run.json                                   # <-- adjust the --cmd
 
@@ -155,7 +155,7 @@ jobs:
 #        run: |
 #          git checkout ${{ github.event.pull_request.base.sha }}
 #          flutter pub get
-#          dart run radar_ci run --cmd "flutter run --profile -d linux" \
+#          dart run radar_ci run --cmd "flutter run --machine --profile -d linux" \
 #            --duration 5m --sample-interval 5s -o base.json    # <-- adjust
 #          dart run radar_ci gate base.json --write-baseline baseline.json
 #
@@ -164,7 +164,7 @@ jobs:
 #        run: |
 #          git checkout ${{ github.event.pull_request.head.sha }}
 #          flutter pub get
-#          dart run radar_ci run --cmd "flutter run --profile -d linux" \
+#          dart run radar_ci run --cmd "flutter run --machine --profile -d linux" \
 #            --duration 5m --sample-interval 5s -o head.json    # <-- adjust
 #          dart run radar_ci gate head.json --baseline baseline.json
 #

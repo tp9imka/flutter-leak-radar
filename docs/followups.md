@@ -13,10 +13,13 @@ phase plans in [`docs/plans/`](plans/) (`2026-07-17-phase-{a,b,c}-*.md`).
 
 **Phase A — attribution (whose leak is it):**
 - `leak_graph` **0.3.0** — `ClassOrigin` / `OriginClassifier`, `GraphHop.libraryUri`
-  (excluded from `pathSignature`, so cluster identity is stable), anchor
-  plumb-through (`attributionClassName`/`LibraryUri`, `anchorHopIndex`),
-  `PackageRollup` anchor/declared rollups, and a pubspec-reading
-  `package:leak_graph/io.dart` entrypoint. All new JSON carries `schemaVersion`.
+  (excluded from `==`/`hashCode`), anchor plumb-through
+  (`attributionClassName`/`LibraryUri`, `anchorHopIndex`), `PackageRollup`
+  anchor/declared rollups, and a pubspec-reading `package:leak_graph/io.dart`
+  entrypoint. Owner attribution anchors the `pathSignature` at the app owner
+  (root→anchor), so **every app-anchored cluster re-keys versus 0.2.2** —
+  pre-0.3.0 baselines/exports are not signature-comparable (re-baseline). All
+  new JSON carries `schemaVersion`.
 - `flutter_leak_radar` **0.3.0** — `LeakFinding.origin` + shallow `bytes`,
   populated `LeakReport.heapBytes`, and a reported `projectPackageSource`
   detection chain (explicit → rootLib → autoDetect → none).

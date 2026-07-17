@@ -6,10 +6,11 @@ import 'package:radar_native/radar_native.dart';
 import '../perfetto/perfetto_trace_processor_parser.dart';
 import '../perfetto/trace_processor_runner.dart';
 
-/// Exit codes, matching the `symbolize`/`capture` verb contract.
+/// Exit codes — the initiative-wide contract (see `radar_ci`'s `GateExit`):
+/// 0 ok / 1 usage error / 2 tool failure.
 const int _exitOk = 0;
-const int _exitToolFailure = 1;
-const int _exitUsage = 2;
+const int _exitUsage = 1;
+const int _exitToolFailure = 2;
 
 /// How many callsite rows the Markdown "top growth" table shows before
 /// truncating — the JSON output always carries them all.
@@ -31,8 +32,8 @@ const int _maxCallsiteRows = 25;
 ///
 /// [runner] is an injectable seam; when omitted a process-backed
 /// `trace_processor` is resolved from `--tp-bin` then `RADAR_TP_BIN` (no
-/// bare-name fallback). A missing binary exits 2; a `trace_processor` process
-/// failure exits 1.
+/// bare-name fallback). A missing binary exits 1 (usage); a `trace_processor`
+/// process failure exits 2 (tool failure).
 Future<int> runDiff(
   List<String> args, {
   TraceProcessorRunner? runner,

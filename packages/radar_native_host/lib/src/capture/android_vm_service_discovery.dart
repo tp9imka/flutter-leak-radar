@@ -8,6 +8,16 @@ final _dartVmServiceRegExp = RegExp(
   r'((http|//)[a-zA-Z0-9:/=_\-\.\[\]]+)',
 );
 
+/// Matches the modern `A Dart VM Service on <device> is available at: <url>`
+/// wording newer `flutter run`/`flutter attach` prints (the device name may
+/// contain spaces). Neither the `listening on` nor `Observatory` regex above
+/// matches it, so without this a first-time user's flagship spawn path never
+/// discovers the URI and times out.
+final _dartVmServiceAvailableRegExp = RegExp(
+  r'A Dart VM Service on .+ is available at:\s*'
+  r'((http|//)[a-zA-Z0-9:/=_\-\.\[\]]+)',
+);
+
 /// Tolerates the older `Observatory listening on <url>` wording emitted
 /// by pre-VM-service Flutter builds.
 final _observatoryRegExp = RegExp(
@@ -43,6 +53,7 @@ List<DeviceVmServiceUri> parseLogcatVmServiceUris(String logcat) => [
 DeviceVmServiceUri? _parseLine(String line) {
   final match =
       _dartVmServiceRegExp.firstMatch(line) ??
+      _dartVmServiceAvailableRegExp.firstMatch(line) ??
       _observatoryRegExp.firstMatch(line);
   if (match == null) return null;
 

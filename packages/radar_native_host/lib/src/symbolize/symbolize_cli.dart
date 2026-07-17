@@ -53,23 +53,23 @@ Future<int> runSymbolize(
     parsed = _parseArgs(args);
   } on FormatException catch (e) {
     errSink.writeln(e.message);
-    return 2;
+    return 1;
   }
 
   if (parsed.trace == null) {
     errSink.writeln('Missing required --trace <capture.pftrace>');
-    return 2;
+    return 1;
   }
   if (parsed.out == null) {
     errSink.writeln('Missing required --out <symbols.json>');
-    return 2;
+    return 1;
   }
   final soPaths = _collectSoPaths(parsed.soPaths, parsed.soDirs);
   if (soPaths.isEmpty) {
     errSink.writeln(
       'No .so files given — pass --so <path> and/or --so-dir <dir>',
     );
-    return 2;
+    return 1;
   }
 
   TraceProcessorRunner effectiveRunner;
@@ -82,7 +82,7 @@ Future<int> runSymbolize(
         'trace_processor not found — pass --tp-bin <path> or set '
         'RADAR_TP_BIN',
       );
-      return 2;
+      return 1;
     }
     effectiveRunner = ProcessTraceProcessorRunner(binaryPath: tpBin);
   }
@@ -130,13 +130,13 @@ Future<int> runSymbolize(
     return 0;
   } on SymbolizeToolException catch (e) {
     errSink.writeln('symbolization tool failed: ${e.message}\n${e.stderr}');
-    return 1;
+    return 2;
   } on TraceProcessorException catch (e) {
     errSink.writeln('trace_processor failed: ${e.message}\n${e.stderr}');
-    return 1;
+    return 2;
   } on ProcessException catch (e) {
     errSink.writeln(_missingToolMessage(e.executable));
-    return 1;
+    return 2;
   }
 }
 

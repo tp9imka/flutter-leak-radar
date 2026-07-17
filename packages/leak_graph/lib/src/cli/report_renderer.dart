@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../model/graph_analysis_result.dart';
 import '../model/graph_retaining_path.dart';
+import '../model/package_rollup.dart';
 
 /// Renders a human-readable ranked report of leak clusters.
 ///
@@ -17,6 +18,10 @@ String renderReport(GraphAnalysisResult result, {int top = 20}) {
   buf.writeln(
     'Leak clusters: $total found${suppressed > 0 ? ', $suppressed suppressed by --top limit' : ''}',
   );
+  final source = result.appPackageSource;
+  if (source != null) {
+    buf.writeln('App packages: ${appPackageSourceLabel(source)}');
+  }
   buf.writeln();
 
   for (var i = 0; i < shown; i++) {

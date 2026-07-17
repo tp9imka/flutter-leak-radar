@@ -99,6 +99,32 @@ void main() {
       expect(report, contains('heuristic'));
     });
 
+    test('prints the app-package detection source when known', () {
+      const stats = GraphAnalysisStats(
+        totalObjects: 1,
+        reachableObjects: 1,
+        leakCandidates: 0,
+        clusters: 0,
+        suppressedByAppFilter: 0,
+        warnings: [],
+      );
+      const result = GraphAnalysisResult(
+        clusters: [],
+        stats: stats,
+        appPackageSource: AppPackageSource.disabled,
+      );
+
+      expect(renderReport(result), contains('App packages: disabled'));
+    });
+
+    test('omits the detection-source line when the source is unknown', () {
+      // A hand-built (older-export) result carries no source — no false line.
+      expect(
+        renderReport(_singleClusterResult()),
+        isNot(contains('App packages:')),
+      );
+    });
+
     test('includes confidence label confirmed for confirmed clusters', () {
       const path = GraphRetainingPath(
         hops: [

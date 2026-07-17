@@ -78,6 +78,21 @@ void main() {
       expect(uris.single.path, '/AbCdEf12=/');
     });
 
+    test(
+      'parses the modern "A Dart VM Service on … is available at:" line',
+      () {
+        const line =
+            'A Dart VM Service on sdk gphone64 arm64 is available at: '
+            'http://127.0.0.1:9101/Ab9=/\n';
+        final uris = parseLogcatVmServiceUris(line);
+
+        expect(uris, hasLength(1));
+        expect(uris.single.host, '127.0.0.1');
+        expect(uris.single.port, 9101);
+        expect(uris.single.path, '/Ab9=/');
+      },
+    );
+
     test('returns an empty list when logcat has no VM-service line', () {
       expect(parseLogcatVmServiceUris(_noiseOnlyLogcat), isEmpty);
     });

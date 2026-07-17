@@ -637,6 +637,35 @@ void main() {
       expect(output, contains('no native lane'));
       expect(output, isNot(contains('GATE PASSED')));
     });
+
+    test('--gate-native on a run that measured zero native samples refuses '
+        '(exit 2, never green off no data)', () async {
+      final run = runDoc(
+        series: gatedSeries(),
+        nativeTimeline: nativeTimeline(empty: {TriageColumn.nativePssKb}),
+      );
+      final (code, output) = await runNative(run, ['--gate-native']);
+      expect(code, GateExit.toolFailure);
+      expect(output, contains('⛔ gate not evaluated'));
+      expect(output, contains('zero'));
+      expect(output, isNot(contains('GATE PASSED')));
+    });
+
+    test('--gate-native with partial coverage still passes on the measured '
+        'columns', () async {
+      // One column measured (short → insufficientData), one all-gap. Partial
+      // coverage is an honest insufficientData-pass, not a refusal.
+      final run = runDoc(
+        series: gatedSeries(),
+        nativeTimeline: nativeTimeline(
+          short: {TriageColumn.nativePssKb},
+          empty: {TriageColumn.threads},
+        ),
+      );
+      final (code, output) = await runNative(run, ['--gate-native']);
+      expect(code, GateExit.ok);
+      expect(output, contains('GATE PASSED'));
+    });
   });
 
   group('evaluateVerdictGate (pure)', () {

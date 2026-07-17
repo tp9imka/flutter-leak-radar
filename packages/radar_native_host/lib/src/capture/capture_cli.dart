@@ -8,10 +8,11 @@ import 'adb_runner.dart';
 import 'capture_preflight.dart';
 import 'native_heap_capture.dart';
 
-/// Exit codes, matching the `symbolize`/`sample` verb contract.
+/// Exit codes — the initiative-wide contract (see `radar_ci`'s `GateExit`):
+/// 0 ok / 1 usage error / 2 tool failure.
 const int _exitOk = 0;
-const int _exitToolFailure = 1;
-const int _exitUsage = 2;
+const int _exitUsage = 1;
+const int _exitToolFailure = 2;
 
 /// Runs `radar_capture`: gates a heapprofd capture on the device
 /// preconditions, drives the capture, and then proves the pulled trace
@@ -28,15 +29,15 @@ const int _exitUsage = 2;
 /// Contract, each failure naming the gate that blocked it:
 /// - preflight BEFORE capture — device API level >= 29
 ///   ([PreflightCheck.deviceApiLevel]) and the package profileable/debuggable
-///   ([PreflightCheck.packageProfileable]); a failure exits 2 without ever
+///   ([PreflightCheck.packageProfileable]); a failure exits 1 without ever
 ///   starting the capture;
 /// - the capture itself runs via [NativeHeapCapture]; an `adb`-level failure
-///   ([AdbException]) exits 1;
+///   ([AdbException]) exits 2;
 /// - post-capture VALIDATION — the trace is parsed through the real
 ///   `trace_processor` seam and must contain at least one heap_profile
-///   allocation ([PreflightCheck.capturedHeapData]); an empty trace exits 2 (a
+///   allocation ([PreflightCheck.capturedHeapData]); an empty trace exits 1 (a
 ///   byte-size guard would not have caught it), a `trace_processor` process
-///   failure exits 1.
+///   failure exits 2.
 ///
 /// [adb], [capture], and [validator] are injectable seams; when omitted, real
 /// process-backed implementations are constructed, with `trace_processor`

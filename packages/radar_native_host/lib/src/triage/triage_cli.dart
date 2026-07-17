@@ -6,10 +6,11 @@ import 'package:radar_trace/radar_trace.dart';
 
 import 'triage_render.dart';
 
-/// Exit codes, matching the `symbolize`/`capture`/`diff` verb contract.
+/// Exit codes — the initiative-wide contract (see `radar_ci`'s `GateExit`):
+/// 0 ok / 1 usage error / 2 tool failure.
 const int _exitOk = 0;
-const int _exitToolFailure = 1;
-const int _exitUsage = 2;
+const int _exitUsage = 1;
+const int _exitToolFailure = 2;
 
 /// Runs `radar_triage session_dir/`: loads the session's `timeline.json`,
 /// runs the C1 router over it, and renders the verdict — the router summary
@@ -25,8 +26,8 @@ const int _exitUsage = 2;
 /// staying honest when a column was measured in one session but not the other
 /// (never fabricating a delta across the missing side).
 ///
-/// Exit 2 on a usage error or a session directory with no `timeline.json`
-/// (naming the directory); exit 1 on a corrupt `timeline.json`; exit 0 on
+/// Exit 1 on a usage error or a session directory with no `timeline.json`
+/// (naming the directory); exit 2 on a corrupt `timeline.json`; exit 0 on
 /// success. [options] tunes the underlying [triage] assessment.
 Future<int> runTriage(
   List<String> args, {

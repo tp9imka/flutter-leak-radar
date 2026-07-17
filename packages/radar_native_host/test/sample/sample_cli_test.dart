@@ -137,17 +137,20 @@ void main() {
   });
 
   group('runSample usage', () {
-    test('missing --package returns exit 2 and writes nothing', () async {
-      final err = StringBuffer();
-      final code = await runSample(
-        ['--out', dir],
-        err: err,
-        out: StringBuffer(),
-      );
-      expect(code, 2);
-      expect(err.toString(), contains('--package'));
-      expect(File('$dir/timeline.json').existsSync(), isFalse);
-    });
+    test(
+      'missing --package returns exit 1 (usage) and writes nothing',
+      () async {
+        final err = StringBuffer();
+        final code = await runSample(
+          ['--out', dir],
+          err: err,
+          out: StringBuffer(),
+        );
+        expect(code, 1);
+        expect(err.toString(), contains('--package'));
+        expect(File('$dir/timeline.json').existsSync(), isFalse);
+      },
+    );
   });
 
   group('runSample happy path', () {
@@ -196,8 +199,10 @@ void main() {
       final series = readTimeline(dir).columns[TriageColumn.nativePssKb]!;
       expect(series.samples.map((s) => s.tMicros), [0, 10000000]);
       expect(series.gaps, hasLength(1));
-      expect(series.gaps.single.startMicros, 5000000);
-      expect(series.gaps.single.endMicros, 5000000);
+      // The gap spans the last measured sample to the next (matching the Dart
+      // lane), so a lone unmeasured tick is never a droppable zero-width gap.
+      expect(series.gaps.single.startMicros, 0);
+      expect(series.gaps.single.endMicros, 10000000);
       // A dead pid is not a device outage: every wait stays at the interval.
       expect(clock.delays, everyElement(const Duration(seconds: 5)));
     });
@@ -251,10 +256,11 @@ void main() {
       final series = readTimeline(dir).columns[TriageColumn.nativePssKb]!;
       // Measured before (t=0) and after (t=40) the outage.
       expect(series.samples.map((s) => s.tMicros), containsAll([0, 40000000]));
-      // One coalesced gap covering the three outage ticks (t=5,10,20).
+      // One coalesced gap spanning the last measured sample to the next, over
+      // the three outage ticks (t=5,10,20).
       expect(series.gaps, hasLength(1));
-      expect(series.gaps.single.startMicros, 5000000);
-      expect(series.gaps.single.endMicros, 20000000);
+      expect(series.gaps.single.startMicros, 0);
+      expect(series.gaps.single.endMicros, 40000000);
       expect(series.gaps.single.reason, contains('device unreachable'));
       // Backoff grew: 5s → 10s → 20s across the three outage waits.
       expect(
@@ -423,8 +429,9 @@ void main() {
       expect(err.toString(), contains('periodic flush failed'));
     });
 
-    test('5 consecutive flush failures ends with endReason=error, '
-        'but the strict final flush still persists everything', () async {
+    test('5 consecutive flush failures end with endReason=error and a '
+        'tool-failure exit, but the strict final flush still persists '
+        'everything', () async {
       final clock = FakeClock();
       final sampler = FakeSampler();
       final adb = ScriptedPidAdb((_) => pidResult(100));
@@ -442,7 +449,9 @@ void main() {
         err: err,
       );
 
-      expect(code, 0);
+      // A session the loop ended on an internal error is a tool failure, not a
+      // silent success — an overnight `sample && triage` chain must see it.
+      expect(code, 2);
       expect(readMeta(dir)['endReason'], 'error');
       // The in-memory builder survived; the final flush wrote all six ticks.
       expect(sampleCount(readTimeline(dir), TriageColumn.nativePssKb), 6);

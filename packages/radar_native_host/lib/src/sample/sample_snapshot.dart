@@ -257,26 +257,31 @@ final class TimelineBuilder {
   ) {
     final samples = <MetricSample>[];
     final gaps = <SeriesGap>[];
-    int? gapStart;
-    int? gapEnd;
+
+    int? lastGoodMicros;
+    int? firstNullMicros;
+    int? lastNullMicros;
     String? gapReason;
 
-    // A lone unmeasured snapshot yields a zero-width gap (startMicros ==
-    // endMicros): it still marks a real not-measured instant, so downstream
-    // consumers must not treat a zero-width gap as negligible — it breaks
-    // sample continuity exactly like a wider one.
-    void closeGap() {
-      final start = gapStart;
-      if (start == null) return;
+    // A gap spans from the last measured sample to the next one — the same
+    // nonzero-width encoding radar_ci's sampler.dart uses. Even a lone
+    // not-measured tick between two readings becomes a nonzero-width gap.
+    // series_assessment's `_mergedIntervals` discards zero-width gaps as
+    // malformed, so the earlier "lone tick" encoding let the native lane
+    // silently bridge an outage the Dart lane would split on (and so certify
+    // monotonicGrowth across unmeasured stretches); this one never does.
+    void flushGap(int? endMicros) {
+      final firstNull = firstNullMicros;
+      if (firstNull == null) return;
       gaps.add(
         SeriesGap(
-          startMicros: start,
-          endMicros: gapEnd ?? start,
+          startMicros: lastGoodMicros ?? firstNull,
+          endMicros: endMicros ?? lastNullMicros ?? firstNull,
           reason: gapReason ?? 'not measured',
         ),
       );
-      gapStart = null;
-      gapEnd = null;
+      firstNullMicros = null;
+      lastNullMicros = null;
       gapReason = null;
     }
 
@@ -285,17 +290,18 @@ final class TimelineBuilder {
       if (reading == null) continue;
       final value = reading.value;
       if (reading.measured && value != null) {
+        flushGap(snapshot.tMicros);
         samples.add(
           MetricSample(tMicros: snapshot.tMicros, value: value.toDouble()),
         );
-        closeGap();
+        lastGoodMicros = snapshot.tMicros;
       } else {
-        gapStart ??= snapshot.tMicros;
+        firstNullMicros ??= snapshot.tMicros;
         gapReason ??= reading.error;
-        gapEnd = snapshot.tMicros;
+        lastNullMicros = snapshot.tMicros;
       }
     }
-    closeGap();
+    flushGap(null);
 
     return MetricSeries(
       name: column.name,

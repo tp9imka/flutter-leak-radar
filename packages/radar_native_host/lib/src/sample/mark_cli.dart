@@ -3,10 +3,11 @@ import 'dart:io';
 import 'sample_clock.dart';
 import 'session_store.dart';
 
-/// Exit codes, matching the `symbolize`/`sample` verb contract.
+/// Exit codes — the initiative-wide contract (see `radar_ci`'s `GateExit`):
+/// 0 ok / 1 usage error / 2 tool failure.
 const int _exitOk = 0;
-const int _exitToolFailure = 1;
-const int _exitUsage = 2;
+const int _exitUsage = 1;
+const int _exitToolFailure = 2;
 
 /// Runs `radar_mark`: appends a labelled [TriageMark] to a live session's
 /// `timeline.json`.
@@ -19,8 +20,8 @@ const int _exitUsage = 2;
 /// append takes the same session lock and re-reads the current timeline inside
 /// it, so it never clobbers snapshots a concurrent flush just wrote.
 ///
-/// [lock] and [clock] are injectable seams. Returns 0 on success, 2 on a usage
-/// error (missing `--session`/label), 1 on a tool failure (a corrupt or
+/// [lock] and [clock] are injectable seams. Returns 0 on success, 1 on a usage
+/// error (missing `--session`/label), 2 on a tool failure (a corrupt or
 /// unwritable `timeline.json`).
 Future<int> runMark(
   List<String> args, {
