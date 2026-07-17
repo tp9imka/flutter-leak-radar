@@ -16,6 +16,20 @@ final class ClassCountDiff {
 
   const ClassCountDiff({required this.before, required this.after});
 
+  /// Encodes the diff plus its derived deltas.
+  ///
+  /// The [instanceDelta]/[bytesDelta] are serialized (not just the before/after
+  /// counts) so a CI consumer reads the growth verdict directly without
+  /// recomputing it — the numbers in the JSON are the numbers that were
+  /// measured.
+  Map<String, Object?> toJson() => {
+    'className': after.className,
+    'before': before.toJson(),
+    'after': after.toJson(),
+    'instanceDelta': instanceDelta,
+    'bytesDelta': bytesDelta,
+  };
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -24,6 +38,18 @@ final class ClassCountDiff {
   @override
   int get hashCode => Object.hash(before, after);
 }
+
+/// Serialization version stamped into [encodeDiffReport].
+const int kClassCountDiffReportSchemaVersion = 1;
+
+/// Wraps a list of [ClassCountDiff] in a schema-stamped JSON-ready envelope.
+///
+/// Emitted by the `diff` CLI. The `schemaVersion` lets a reader refuse a newer
+/// major format instead of silently mis-parsing it.
+Map<String, Object?> encodeDiffReport(List<ClassCountDiff> diffs) => {
+  'schemaVersion': kClassCountDiffReportSchemaVersion,
+  'diffs': [for (final d in diffs) d.toJson()],
+};
 
 /// Diffs two class histograms and returns per-class deltas sorted by
 /// [ClassCountDiff.instanceDelta] descending (largest grower first).

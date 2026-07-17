@@ -64,5 +64,36 @@ void main() {
       final c = parseCliArgs(['dump.data']);
       expect(c.confirm, isFalse);
     });
+
+    test('format defaults to text', () {
+      final c = parseCliArgs(['dump.data']);
+      expect(c.format, CliOutputFormat.text);
+    });
+
+    test('--format accepts text, json, md, github', () {
+      expect(
+        parseCliArgs(['dump.data', '--format', 'text']).format,
+        CliOutputFormat.text,
+      );
+      expect(
+        parseCliArgs(['dump.data', '--format', 'json']).format,
+        CliOutputFormat.json,
+      );
+      expect(
+        parseCliArgs(['dump.data', '--format', 'md']).format,
+        CliOutputFormat.markdown,
+      );
+      expect(
+        parseCliArgs(['dump.data', '--format', 'github']).format,
+        CliOutputFormat.github,
+      );
+    });
+
+    test('--format rejects an unknown value', () {
+      expect(
+        () => parseCliArgs(['dump.data', '--format', 'yaml']),
+        throwsFormatException,
+      );
+    });
   });
 }
