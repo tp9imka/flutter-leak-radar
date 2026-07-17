@@ -137,17 +137,20 @@ void main() {
   });
 
   group('runSample usage', () {
-    test('missing --package returns exit 2 and writes nothing', () async {
-      final err = StringBuffer();
-      final code = await runSample(
-        ['--out', dir],
-        err: err,
-        out: StringBuffer(),
-      );
-      expect(code, 2);
-      expect(err.toString(), contains('--package'));
-      expect(File('$dir/timeline.json').existsSync(), isFalse);
-    });
+    test(
+      'missing --package returns exit 1 (usage) and writes nothing',
+      () async {
+        final err = StringBuffer();
+        final code = await runSample(
+          ['--out', dir],
+          err: err,
+          out: StringBuffer(),
+        );
+        expect(code, 1);
+        expect(err.toString(), contains('--package'));
+        expect(File('$dir/timeline.json').existsSync(), isFalse);
+      },
+    );
   });
 
   group('runSample happy path', () {
@@ -423,8 +426,9 @@ void main() {
       expect(err.toString(), contains('periodic flush failed'));
     });
 
-    test('5 consecutive flush failures ends with endReason=error, '
-        'but the strict final flush still persists everything', () async {
+    test('5 consecutive flush failures end with endReason=error and a '
+        'tool-failure exit, but the strict final flush still persists '
+        'everything', () async {
       final clock = FakeClock();
       final sampler = FakeSampler();
       final adb = ScriptedPidAdb((_) => pidResult(100));
@@ -442,7 +446,9 @@ void main() {
         err: err,
       );
 
-      expect(code, 0);
+      // A session the loop ended on an internal error is a tool failure, not a
+      // silent success — an overnight `sample && triage` chain must see it.
+      expect(code, 2);
       expect(readMeta(dir)['endReason'], 'error');
       // The in-memory builder survived; the final flush wrote all six ticks.
       expect(sampleCount(readTimeline(dir), TriageColumn.nativePssKb), 6);

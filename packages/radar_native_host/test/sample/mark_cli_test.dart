@@ -70,32 +70,32 @@ void main() {
     expect(readTimeline(dir).marks.single.label, 'start');
   });
 
-  test('missing --session returns exit 2', () async {
+  test('missing --session returns exit 1 (usage)', () async {
     final err = StringBuffer();
     final code = await mark(['reconnect'], err: err);
-    expect(code, 2);
+    expect(code, 1);
     expect(err.toString(), contains('--session'));
   });
 
-  test('missing label returns exit 2', () async {
+  test('missing label returns exit 1 (usage)', () async {
     final err = StringBuffer();
     final code = await mark(['--session', dir], err: err);
-    expect(code, 2);
+    expect(code, 1);
     expect(err.toString(), contains('label'));
   });
 
-  test('an unknown flag returns exit 2', () async {
+  test('an unknown flag returns exit 1 (usage)', () async {
     final err = StringBuffer();
     final code = await mark(['--session', dir, '--bogus', 'x'], err: err);
-    expect(code, 2);
+    expect(code, 1);
     expect(err.toString(), contains('Unknown argument'));
   });
 
-  test('a corrupt timeline.json returns exit 1', () async {
+  test('a corrupt timeline.json returns exit 2 (tool failure)', () async {
     File('$dir/timeline.json').writeAsStringSync('{ not json');
     final err = StringBuffer();
     final code = await mark(['--session', dir, 'x'], err: err);
-    expect(code, 1);
+    expect(code, 2);
     expect(err.toString(), contains('timeline.json'));
   });
 }

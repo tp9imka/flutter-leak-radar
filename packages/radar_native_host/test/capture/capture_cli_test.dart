@@ -94,7 +94,7 @@ void main() {
     });
 
     test(
-      'old SDK: exit 2 naming the deviceApiLevel check, no capture',
+      'old SDK: exit 1 (usage) naming the deviceApiLevel check, no capture',
       () async {
         final oldAdb = _ScriptedAdb({
           'ro.build.version.sdk': '28\n',
@@ -111,7 +111,7 @@ void main() {
           err: err,
         );
 
-        expect(code, 2);
+        expect(code, 1);
         expect(err.toString(), contains('deviceApiLevel'));
         expect(err.toString(), contains('29'));
         expect(capture.request, isNull);
@@ -119,7 +119,7 @@ void main() {
     );
 
     test(
-      'not profileable: exit 2 naming the packageProfileable check',
+      'not profileable: exit 1 (usage) naming the packageProfileable check',
       () async {
         final userAdb = _ScriptedAdb({
           'ro.build.version.sdk': '33\n',
@@ -137,13 +137,13 @@ void main() {
           err: err,
         );
 
-        expect(code, 2);
+        expect(code, 1);
         expect(err.toString(), contains('packageProfileable'));
         expect(capture.request, isNull);
       },
     );
 
-    test('empty capture: post-capture validation fails, exit 2 naming '
+    test('empty capture: post-capture validation fails, exit 1 (usage) naming '
         'capturedHeapData', () async {
       final capture = _FakeCapture();
       final err = StringBuffer();
@@ -156,7 +156,7 @@ void main() {
         err: err,
       );
 
-      expect(code, 2);
+      expect(code, 1);
       expect(err.toString(), contains('capturedHeapData'));
       // The capture DID run — validation is what failed.
       expect(capture.request, isNotNull);
@@ -187,7 +187,7 @@ void main() {
       expect(capture.request!.durationMs, 20000);
     });
 
-    test('missing --package: exit 2 usage error', () async {
+    test('missing --package: exit 1 usage error', () async {
       final err = StringBuffer();
       final code = await runCapture(
         ['--out', '/tmp/cap.pftrace'],
@@ -197,11 +197,11 @@ void main() {
         err: err,
       );
 
-      expect(code, 2);
+      expect(code, 1);
       expect(err.toString(), contains('--package'));
     });
 
-    test('missing --out: exit 2 usage error', () async {
+    test('missing --out: exit 1 usage error', () async {
       final err = StringBuffer();
       final code = await runCapture(
         ['--package', 'com.x'],
@@ -211,7 +211,7 @@ void main() {
         err: err,
       );
 
-      expect(code, 2);
+      expect(code, 1);
       expect(err.toString(), contains('--out'));
     });
   });

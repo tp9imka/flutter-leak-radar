@@ -13,10 +13,11 @@ import 'sample_snapshot.dart';
 import 'session_store.dart';
 import 'thread_sampler.dart';
 
-/// Exit codes, matching the `symbolize` verb contract.
+/// Exit codes — the initiative-wide contract (see `radar_ci`'s `GateExit`):
+/// 0 ok / 1 usage error / 2 tool failure.
 const int _exitOk = 0;
-const int _exitToolFailure = 1;
-const int _exitUsage = 2;
+const int _exitUsage = 1;
+const int _exitToolFailure = 2;
 
 /// Longest an outage backoff ever grows to, so even during a device outage the
 /// loop probes at least once a minute and keeps flushing.
@@ -94,7 +95,11 @@ NativeSampler defaultNativeSampler(AdbRunner adb, String? serial) =>
 ///   plus a gap tick, then sampling resumes on the new pid;
 /// - a flush every `--flush-every`, so a crash loses at most one interval;
 /// - SIGINT/SIGTERM → a final flush and exit 0: an interrupted overnight
-///   session is still a valid session.
+///   session is still a valid session;
+/// - an internal error that ends the loop early (a dead flush sink, an
+///   unforeseen throw) → the partial session is still finalised, but the verb
+///   returns a tool-failure exit so a downstream chain never reads a
+///   died-at-hour-one night as success.
 ///
 /// [adb], [clock], [buildSampler], [lock], and [interrupts] are injectable
 /// seams; when omitted, real process/OS-backed implementations are used. [now]
@@ -207,7 +212,11 @@ Future<int> runSample(
     '${parsed.outDir} — ${_countSamples(timeline)} samples, '
     '${timeline.marks.length} marks, ended $endReason',
   );
-  return _exitOk;
+  // A session the loop ended on an internal error is a tool failure, not a
+  // success: an overnight `radar_sample … && radar_triage …` chain must not
+  // read a session that died at hour one as green. `completed`/`interrupted`
+  // are both valid, exit-0 outcomes — a Ctrl-C'd overnight run is still data.
+  return endReason == 'error' ? _exitToolFailure : _exitOk;
 }
 
 /// Writes the final `timeline.json` and end-stamped `meta.json` — the extracted

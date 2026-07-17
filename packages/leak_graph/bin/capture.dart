@@ -17,6 +17,10 @@ import 'package:vm_service/vm_service_io.dart';
 ///   adb logcat | grep -i "VM service"     # -> http://127.0.0.1:DEVPORT/TOKEN=/
 ///   adb forward tcp:8181 tcp:DEVPORT
 ///   dart run leak_graph:capture --uri http://127.0.0.1:8181/TOKEN=/ -o heap.data
+///
+/// Exit codes follow the initiative-wide contract: 0 ok, 1 usage error (bad
+/// flags or a missing `--uri`), 2 tool failure (could not connect, or the
+/// target VM had no isolates).
 Future<void> main(List<String> argv) async {
   final parser = _buildParser();
 
@@ -25,7 +29,7 @@ Future<void> main(List<String> argv) async {
     args = parser.parse(argv);
   } on FormatException catch (e) {
     stderr.writeln('${e.message}\n\n${parser.usage}');
-    exit(2);
+    exit(1);
   }
 
   final uri = args['uri'] as String?;
@@ -35,7 +39,7 @@ Future<void> main(List<String> argv) async {
       'Usage: dart run leak_graph:capture --uri <vm-service-uri> [-o out.data]\n\n'
       '${parser.usage}',
     );
-    exit(uri == null && !(args['help'] as bool) ? 2 : 0);
+    exit(uri == null && !(args['help'] as bool) ? 1 : 0);
   }
 
   final wsUri = _toWebSocketUri(uri);
@@ -50,7 +54,7 @@ Future<void> main(List<String> argv) async {
       'Is the app running in debug/profile and the port forwarded?\n'
       '  adb forward tcp:8181 tcp:<devicePort>',
     );
-    exit(1);
+    exit(2);
   }
 
   try {
@@ -58,7 +62,7 @@ Future<void> main(List<String> argv) async {
     final isolates = vm.isolates ?? const <IsolateRef>[];
     if (isolates.isEmpty) {
       stderr.writeln('No isolates found on the target VM.');
-      exit(1);
+      exit(2);
     }
     final isolate = _selectIsolate(isolates, args['isolate'] as String?);
     stderr.writeln('Target isolate: ${isolate.name} (${isolate.id})');

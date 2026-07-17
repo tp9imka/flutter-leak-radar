@@ -76,6 +76,23 @@ rates are never cross-compared. The same session JSON imports into **Radar
 Desktop**'s Device Monitor pane, and `radar_ci run --native-package` co-drives
 this sampling during a full CI run (see [`radar_ci`](../radar_ci/)).
 
+## Exit codes
+
+Every verb (`sample`, `mark`, `capture`, `diff`, `triage`, `symbolize`) follows
+the initiative-wide contract, so a retry-on-tool-failure CI wrapper behaves the
+same whichever verb it drives:
+
+| Code | Meaning |
+|---|---|
+| `0` | Success. |
+| `1` | Usage error — a bad flag, a missing required argument, an unknown `--format`, a session directory with no `timeline.json`, or a capture precondition that a different invocation would fix (device API too low, package not profileable, an empty capture, a `trace_processor` binary that was never configured). |
+| `2` | Tool failure — a genuine runtime failure that a retry might clear: a corrupt/unwritable `timeline.json`, an `adb` or `trace_processor` process error, or a `sample` session the loop ended on an internal error (`endReason: error`). |
+
+`sample` returns `0` for both a `completed` and an interrupted (`Ctrl-C`)
+session — an interrupted overnight run is still valid data — and only `2` when
+the loop itself failed. This matches `radar_ci`'s `GateExit` (which adds `3` for
+a gate-threshold violation) and `leak_graph`'s `analyze`/`leak_diff`/`capture`.
+
 ## Internal package
 
 `radar_native_host` is **not published to pub.dev** (`publish_to: none`). It

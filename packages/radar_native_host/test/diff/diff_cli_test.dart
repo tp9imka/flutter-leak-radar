@@ -97,43 +97,43 @@ void main() {
       expect(out.toString(), contains('|'));
     });
 
-    test('missing second trace: exit 2 usage', () async {
+    test('missing second trace: exit 1 usage', () async {
       final err = StringBuffer();
       final code = await runDiff(['before.pftrace'], runner: runner, err: err);
-      expect(code, 2);
+      expect(code, 1);
       expect(err.toString(), contains('two'));
     });
 
-    test('unknown --format: exit 2 usage', () async {
+    test('unknown --format: exit 1 usage', () async {
       final err = StringBuffer();
       final code = await runDiff(
         ['before.pftrace', 'after.pftrace', '--format', 'yaml'],
         runner: runner,
         err: err,
       );
-      expect(code, 2);
+      expect(code, 1);
       expect(err.toString(), contains('format'));
     });
 
-    test('no trace_processor and no injected runner: exit 2 usage', () async {
+    test('no trace_processor and no injected runner: exit 1 usage', () async {
       final err = StringBuffer();
       final code = await runDiff(
         ['before.pftrace', 'after.pftrace'],
         env: const {},
         err: err,
       );
-      expect(code, 2);
+      expect(code, 1);
       expect(err.toString(), contains('trace_processor'));
     });
 
-    test('trace_processor failure: exit 1 tool failure', () async {
+    test('trace_processor failure: exit 2 tool failure', () async {
       final err = StringBuffer();
       final code = await runDiff(
         ['before.pftrace', 'after.pftrace'],
         runner: _ThrowingRunner(),
         err: err,
       );
-      expect(code, 1);
+      expect(code, 2);
       expect(err.toString(), contains('trace_processor'));
     });
   });

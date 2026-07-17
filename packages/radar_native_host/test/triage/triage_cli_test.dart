@@ -67,19 +67,22 @@ void main() {
       expect(verdict['bucket'], 'nativeMalloc');
     });
 
-    test('missing timeline.json: exit 2 naming the directory', () async {
-      final dir = Directory.systemTemp.createTempSync('radar_triage_empty_');
-      addTearDown(() => dir.deleteSync(recursive: true));
-      final err = StringBuffer();
+    test(
+      'missing timeline.json: exit 1 (usage) naming the directory',
+      () async {
+        final dir = Directory.systemTemp.createTempSync('radar_triage_empty_');
+        addTearDown(() => dir.deleteSync(recursive: true));
+        final err = StringBuffer();
 
-      final code = await runTriage([dir.path], err: err);
+        final code = await runTriage([dir.path], err: err);
 
-      expect(code, 2);
-      expect(err.toString(), contains('no timeline.json'));
-      expect(err.toString(), contains(dir.path));
-    });
+        expect(code, 1);
+        expect(err.toString(), contains('no timeline.json'));
+        expect(err.toString(), contains(dir.path));
+      },
+    );
 
-    test('corrupt timeline.json: exit 1', () async {
+    test('corrupt timeline.json: exit 2 (tool failure)', () async {
       final dir = Directory.systemTemp.createTempSync('radar_triage_bad_');
       addTearDown(() => dir.deleteSync(recursive: true));
       File('${dir.path}/timeline.json').writeAsStringSync('{ not json');
@@ -87,15 +90,15 @@ void main() {
 
       final code = await runTriage([dir.path], err: err);
 
-      expect(code, 1);
+      expect(code, 2);
       expect(err.toString(), contains('corrupt'));
     });
 
-    test('unknown --format: exit 2', () async {
+    test('unknown --format: exit 1 (usage)', () async {
       final dir = _writeSession(const TriageTimeline());
       final err = StringBuffer();
       final code = await runTriage([dir, '--format', 'xml'], err: err);
-      expect(code, 2);
+      expect(code, 1);
       expect(err.toString(), contains('format'));
     });
   });
@@ -155,7 +158,7 @@ void main() {
       expect(out.toString(), contains('Still leaking'));
     });
 
-    test('a bad --compare directory: exit 2 naming it', () async {
+    test('a bad --compare directory: exit 1 (usage) naming it', () async {
       final before = _writeSession(const TriageTimeline());
       final err = StringBuffer();
 
@@ -165,7 +168,7 @@ void main() {
         '/nonexistent/session',
       ], err: err);
 
-      expect(code, 2);
+      expect(code, 1);
       expect(err.toString(), contains('--compare'));
       expect(err.toString(), contains('no timeline.json'));
     });
