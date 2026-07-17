@@ -96,6 +96,7 @@ Future<int> runAnalyze(
   // the gate/baseline failure it was trying to report.
   BaselineComparison? comparison;
   int? comparisonFailureExit;
+  String? comparisonFailureReason;
   if (needsComparison) {
     final built = await _buildComparison(
       config: config,
@@ -104,31 +105,51 @@ Future<int> runAnalyze(
       err: err,
     );
     comparison = built.comparison;
-    if (comparison == null) comparisonFailureExit = built.exitCode;
+    if (comparison == null) {
+      comparisonFailureExit = built.exitCode;
+      comparisonFailureReason = built.failureReason;
+    }
   }
   final gate = (config.gatingRequested && comparison != null)
       ? evaluateGate(comparison, config.gate)
       : null;
 
+  // A gate was actually REQUESTED (--fail-on-new-clusters / --max-*) but
+  // could not be evaluated — distinct from "no gate requested" (which
+  // renders `⚠ N clusters (no gate)`). Without this, a stdout-only CI reader
+  // sees a line indistinguishable from never having asked for a gate at
+  // all, even though the run is about to exit with a failure code.
+  final gateUnavailableReason =
+      config.gatingRequested && comparisonFailureExit != null
+      ? (comparisonFailureReason ?? 'baseline could not be evaluated')
+      : null;
+
   // The primary report always reaches stdout — even when the baseline/gate
   // path above already failed — because a caller that only reads stdout
   // (many CI wrappers do) must still see the report it can act on. Gate/
-  // baseline diagnostics never go to stdout: text stays byte-stable, the
+  // baseline diagnostics never go to stdout: text stays byte-stable (it
+  // never discussed gate status, so this scenario cannot mislead it), the
   // others render richer detail from whatever comparison/gate is available
-  // (possibly none, when the baseline path failed).
+  // (possibly none, when the baseline path failed) plus the distinct
+  // gate-unavailable verdict when applicable.
   out.writeln(switch (config.format) {
     CliOutputFormat.text => renderReport(result, top: config.top),
-    CliOutputFormat.json => renderJson(result),
+    CliOutputFormat.json =>
+      gateUnavailableReason == null
+          ? renderJson(result)
+          : _renderJsonWithGateUnavailable(result, gateUnavailableReason),
     CliOutputFormat.markdown => renderMarkdownReport(
       result,
       comparison: comparison,
       gate: gate,
+      gateUnavailableReason: gateUnavailableReason,
       github: false,
     ),
     CliOutputFormat.github => renderMarkdownReport(
       result,
       comparison: comparison,
       gate: gate,
+      gateUnavailableReason: gateUnavailableReason,
       github: true,
     ),
   });
@@ -188,8 +209,12 @@ Future<int> runAnalyze(
 /// Returns a null comparison with a non-zero [exitCode] when the gate cannot be
 /// evaluated honestly: a baseline-dependent gate without a baseline is a usage
 /// error (1); an unreadable or incomparable baseline that a gate needs is a
-/// tool failure (2).
-Future<({BaselineComparison? comparison, int exitCode})> _buildComparison({
+/// tool failure (2). [failureReason] is a short, human-readable summary of
+/// why (populated exactly when [comparison] is null) — callers thread it
+/// into the rendered report's verdict line so a requested-but-unevaluated
+/// gate never reads like no gate was requested at all.
+Future<({BaselineComparison? comparison, int exitCode, String? failureReason})>
+_buildComparison({
   required CliConfig config,
   required GraphAnalysisResult result,
   required TextReader readText,
@@ -203,11 +228,16 @@ Future<({BaselineComparison? comparison, int exitCode})> _buildComparison({
         'A baseline-dependent gate was requested but no --baseline was '
         'provided. Pass --baseline <file> or drop the gate.',
       );
-      return (comparison: null, exitCode: AnalyzeExit.usage);
+      return (
+        comparison: null,
+        exitCode: AnalyzeExit.usage,
+        failureReason: 'no --baseline was provided',
+      );
     }
     return (
       comparison: BaselineComparison.withoutBaseline(result),
       exitCode: AnalyzeExit.ok,
+      failureReason: null,
     );
   }
 
@@ -216,7 +246,13 @@ Future<({BaselineComparison? comparison, int exitCode})> _buildComparison({
     raw = await readText(baselinePath);
   } on FileSystemException catch (e) {
     err.writeln('Error reading baseline: ${e.message} — ${e.path}');
-    return (comparison: null, exitCode: AnalyzeExit.toolFailure);
+    return (
+      comparison: null,
+      exitCode: AnalyzeExit.toolFailure,
+      failureReason:
+          'could not read baseline "$baselinePath" '
+          '(${e.message})',
+    );
   }
 
   final LeakBaseline baseline;
@@ -226,13 +262,18 @@ Future<({BaselineComparison? comparison, int exitCode})> _buildComparison({
     );
   } on Object catch (e) {
     err.writeln('Error parsing baseline "$baselinePath": $e');
-    return (comparison: null, exitCode: AnalyzeExit.toolFailure);
+    return (
+      comparison: null,
+      exitCode: AnalyzeExit.toolFailure,
+      failureReason: 'could not parse baseline "$baselinePath"',
+    );
   }
 
   if (isBaselineComparable(baseline.schemaVersion)) {
     return (
       comparison: compareToBaseline(result, baseline),
       exitCode: AnalyzeExit.ok,
+      failureReason: null,
     );
   }
 
@@ -246,13 +287,30 @@ Future<({BaselineComparison? comparison, int exitCode})> _buildComparison({
       'Cannot evaluate a baseline-dependent gate against an incomparable '
       'baseline; refusing rather than reporting every cluster as new.',
     );
-    return (comparison: null, exitCode: AnalyzeExit.toolFailure);
+    return (
+      comparison: null,
+      exitCode: AnalyzeExit.toolFailure,
+      failureReason:
+          'baseline not comparable '
+          '(schemaVersion ${baseline.schemaVersion})',
+    );
   }
   return (
     comparison: BaselineComparison.withoutBaseline(result),
     exitCode: AnalyzeExit.ok,
+    failureReason: null,
   );
 }
+
+/// Encodes [result] as JSON with an extra `gateUnavailable` key naming
+/// [reason] — used only for the `--format json` stdout envelope when a
+/// requested gate could not be evaluated. The `--json <file>` side-write and
+/// the success path both keep calling [renderJson] directly and are
+/// untouched by this.
+String _renderJsonWithGateUnavailable(
+  GraphAnalysisResult result,
+  String reason,
+) => jsonEncode({...result.toJson(), 'gateUnavailable': reason});
 
 Future<HeapGraphView> _loadGraphFromFile(String path) =>
     loadHeapGraph(File(path));

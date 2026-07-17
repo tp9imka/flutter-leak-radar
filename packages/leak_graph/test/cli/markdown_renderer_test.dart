@@ -889,4 +889,74 @@ void main() {
       expect(report.split('\n').first, contains('❌ gate failed'));
     });
   });
+
+  group('renderMarkdownReport — gate requested but unavailable', () {
+    final cluster = _anchoredCluster(
+      className: 'GroupCallBloc',
+      signature: 'r>GroupCallBloc',
+      anchorLibrary: 'package:my_app/call.dart',
+    );
+    GraphAnalysisResult resultWithCluster() => _result(
+      [cluster],
+      anchorRollups: [_rollup('my_app', ClassOrigin.project)],
+    );
+
+    for (final github in [false, true]) {
+      test('verdict line is a distinct honest variant naming the reason '
+          '(github: $github), never the misleading "(no gate)" line', () {
+        final report = renderMarkdownReport(
+          resultWithCluster(),
+          gateUnavailableReason: 'could not read baseline "missing.json"',
+          github: github,
+        );
+
+        expect(
+          report.split('\n').first,
+          '❌ gate requested but could not be evaluated: '
+          'could not read baseline "missing.json"',
+        );
+        // Must never look like "no gate was ever requested".
+        expect(report, isNot(contains('(no gate)')));
+      });
+    }
+
+    test('takes priority over "no leak clusters" — a real evaluation failure '
+        'must never look like a clean success', () {
+      final report = renderMarkdownReport(
+        _result(const []),
+        gateUnavailableReason: 'no --baseline was provided',
+        github: false,
+      );
+
+      expect(
+        report.split('\n').first,
+        '❌ gate requested but could not be evaluated: '
+        'no --baseline was provided',
+      );
+      expect(report, isNot(contains('no leak clusters')));
+    });
+
+    test(
+      'an actually-evaluated failed gate still wins over a stray '
+      'gateUnavailableReason (defensive ordering, not reachable via the CLI)',
+      () {
+        const gate = GateResult(
+          passed: false,
+          violations: ['new clusters 1 exceeds limit 0'],
+        );
+        final report = renderMarkdownReport(
+          resultWithCluster(),
+          gate: gate,
+          gateUnavailableReason: 'should not surface',
+          github: false,
+        );
+
+        expect(
+          report.split('\n').first,
+          '❌ gate failed: new clusters 1 exceeds limit 0',
+        );
+        expect(report, isNot(contains('should not surface')));
+      },
+    );
+  });
 }

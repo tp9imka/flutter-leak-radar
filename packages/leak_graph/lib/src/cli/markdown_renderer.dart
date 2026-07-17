@@ -35,14 +35,23 @@ const _packageNameOf = OriginClassifier(projectPackages: {});
 /// featured ones, one extra "largest overall" line names it. When there are
 /// no project-anchored clusters at all, the featured slots fall back to the
 /// worst clusters overall instead of leaving the view empty.
+///
+/// [gateUnavailableReason] names why a REQUESTED gate could not be
+/// evaluated at all (e.g. an unreadable baseline file) — pass this instead
+/// of leaving [gate] null in that situation. Without it, the verdict line
+/// would fall back to `⚠ N clusters (no gate)`, which reads exactly like no
+/// gate was ever requested — falsely reassuring a stdout-only CI reader when
+/// the run actually failed to evaluate one. Ignored when [gate] is
+/// non-null: an actually-evaluated result always wins over a stray reason.
 String renderMarkdownReport(
   GraphAnalysisResult result, {
   BaselineComparison? comparison,
   GateResult? gate,
+  String? gateUnavailableReason,
   required bool github,
 }) {
   final buf = StringBuffer()
-    ..writeln(_verdictLine(result, gate))
+    ..writeln(_verdictLine(result, gate, gateUnavailableReason))
     ..writeln();
 
   final selection = _selectHighlights(result, comparison);
@@ -76,7 +85,11 @@ String renderMarkdownReport(
   return buf.toString().trimRight();
 }
 
-String _verdictLine(GraphAnalysisResult result, GateResult? gate) {
+String _verdictLine(
+  GraphAnalysisResult result,
+  GateResult? gate,
+  String? gateUnavailableReason,
+) {
   if (gate != null && !gate.passed) {
     final violations = gate.violations;
     // A failed gate should always carry at least one violation string, but
@@ -85,6 +98,14 @@ String _verdictLine(GraphAnalysisResult result, GateResult? gate) {
     return violations.isEmpty
         ? '❌ gate failed (no violation details available)'
         : '❌ gate failed: ${violations.first}';
+  }
+  if (gate == null && gateUnavailableReason != null) {
+    // A gate WAS requested but could not be evaluated (e.g. an unreadable
+    // baseline) — this must read distinctly from "no gate requested" below,
+    // and must never be shadowed by the "no leak clusters" success line
+    // either: the run genuinely failed to answer the question it was asked.
+    return '❌ gate requested but could not be evaluated: '
+        '$gateUnavailableReason';
   }
   if (result.clusters.isEmpty) return '✅ no leak clusters';
   final count = result.clusters.length;

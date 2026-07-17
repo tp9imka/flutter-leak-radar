@@ -517,4 +517,94 @@ void main() {
       expect(decoded['clusters'], isA<List<Object?>>());
     });
   });
+
+  group('gate requested but unavailable — verdict line', () {
+    for (final format in ['md', 'github']) {
+      test('a requested gate that could not be evaluated reads as a distinct '
+          'failure, never as "(no gate)" ($format)', () async {
+        final out = StringBuffer();
+        final code = await _run(
+          [
+            'dump.data',
+            '--package',
+            'my_app',
+            '--format',
+            format,
+            '--baseline',
+            'missing.json',
+            '--fail-on-new-clusters',
+          ],
+          out: out,
+          err: StringBuffer(),
+          files: _FakeFiles(),
+        );
+
+        expect(code, AnalyzeExit.toolFailure);
+        final verdict = out.toString().split('\n').first;
+        expect(
+          verdict,
+          startsWith(
+            '❌ gate requested but could not be '
+            'evaluated:',
+          ),
+        );
+        // The exact misleading line the coordinator flagged must be gone.
+        expect(out.toString(), isNot(contains('(no gate)')));
+      });
+    }
+
+    test('--format json includes the failure in the envelope', () async {
+      final out = StringBuffer();
+      final code = await _run(
+        [
+          'dump.data',
+          '--package',
+          'my_app',
+          '--format',
+          'json',
+          '--baseline',
+          'missing.json',
+          '--fail-on-new-clusters',
+        ],
+        out: out,
+        err: StringBuffer(),
+        files: _FakeFiles(),
+      );
+
+      expect(code, AnalyzeExit.toolFailure);
+      final decoded = jsonDecode(out.toString()) as Map<String, Object?>;
+      expect(decoded['clusters'], isA<List<Object?>>());
+      expect(decoded['gateUnavailable'], isA<String>());
+      expect(decoded['gateUnavailable'], contains('baseline'));
+    });
+
+    test('--format text is unaffected — it never discussed gate status, so '
+        'this scenario cannot mislead it', () async {
+      final withFailingGate = StringBuffer();
+      await _run(
+        [
+          'dump.data',
+          '--package',
+          'my_app',
+          '--format',
+          'text',
+          '--baseline',
+          'missing.json',
+          '--fail-on-new-clusters',
+        ],
+        out: withFailingGate,
+        err: StringBuffer(),
+        files: _FakeFiles(),
+      );
+
+      final plain = StringBuffer();
+      await _run(
+        ['dump.data', '--package', 'my_app', '--format', 'text'],
+        out: plain,
+        err: StringBuffer(),
+      );
+
+      expect(withFailingGate.toString(), plain.toString());
+    });
+  });
 }
