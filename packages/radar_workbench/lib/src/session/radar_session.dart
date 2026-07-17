@@ -8,6 +8,7 @@ import '../perf/perf_data_controller.dart';
 import '../shell/radar_view.dart';
 import 'session_persistence.dart';
 import 'snapshot_store.dart';
+import 'triage_store.dart';
 
 /// Process-wide holder for the workbench's controllers and view selection.
 ///
@@ -58,6 +59,21 @@ class RadarSession {
   /// Currently selected left-rail destination; persisted across rebuilds.
   RadarView currentView = RadarView.snapshotDiff;
 
+  /// Cross-session leak-triage baseline for this session: the store loaded from
+  /// disk plus any explicit ACKs made during the session. The clusters view
+  /// compares the current cluster set against this to derive NEW/KNOWN/ACK/GONE.
+  /// The disk copy additionally folds current signatures in as KNOWN on save
+  /// (see [SessionPersistence]); this in-session field is left un-promoted so
+  /// signatures stay NEW for the whole current session.
+  TriageStore triage = TriageStore.empty;
+
+  /// Non-null (and notified) when the durable store refused to load a session
+  /// written by a newer build. While set, persistence is suppressed so the
+  /// unreadable file is not overwritten; the shell surfaces the message and the
+  /// user can [dismissRestoreRefusal] to start fresh.
+  final ValueNotifier<String?> restoreRefusal = ValueNotifier<String?>(null);
+
+  SnapshotStore? _store;
   SessionPersistence? _persistence;
   bool _initialized = false;
   bool _storeAttached = false;
@@ -77,24 +93,48 @@ class RadarSession {
   }) async {
     if (_storeAttached) return;
     _storeAttached = true;
+    _store = store;
     final persistence = SessionPersistence(
       store: store,
       memory: memory,
       readView: () => currentView,
+      readTriage: () => triage,
     );
     _persistence = persistence;
     final session = await persistence.load();
-    if (session != null && session.bundles.isNotEmpty) {
-      currentView = session.view;
-      memory.rehydrate(session);
-      onRestored?.call();
+    if (session != null) {
+      // Seed the triage baseline even when there are no bundles to rehydrate —
+      // cross-session identity is independent of whether snapshots restored.
+      triage = session.triage;
+      if (session.bundles.isNotEmpty) {
+        currentView = session.view;
+        memory.rehydrate(session);
+        onRestored?.call();
+      }
     }
+    // Surface a refusal (session written by a newer build) so the shell can
+    // show it; a refusal returns a null session and would otherwise be silent.
+    restoreRefusal.value = store.restoreRefusal;
     persistence.start();
+  }
+
+  /// Clears a [restoreRefusal] by dropping the unreadable stored session, so
+  /// persistence resumes fresh. The user's explicit "start new" action.
+  Future<void> dismissRestoreRefusal() async {
+    await _store?.clear();
+    restoreRefusal.value = null;
   }
 
   /// Updates the active view and schedules a debounced persist.
   void selectView(RadarView view) {
     currentView = view;
+    _persistence?.schedule();
+  }
+
+  /// Applies an explicit triage change (an ACK from the clusters view) to the
+  /// in-session baseline and schedules a debounced persist so it survives.
+  void updateTriage(TriageStore next) {
+    triage = next;
     _persistence?.schedule();
   }
 }

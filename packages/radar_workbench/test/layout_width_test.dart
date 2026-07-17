@@ -49,6 +49,54 @@ MemoryController _controller() => MemoryController(
   connection: FakeRadarConnection(),
 )..debugAdd(_snap());
 
+GraphLeakCluster _cluster() => GraphLeakCluster(
+  className: 'SomeVeryLongLeakyOwnerStateClassName',
+  libraryUri: Uri.parse('dart:async'),
+  instanceCount: 12,
+  retainedShallowBytes: 400000,
+  representativePath: GraphRetainingPath(
+    hops: [
+      GraphHop(
+        className: 'SomeVeryLongLeakyOwnerStateClassName',
+        field: '_subscriptionWithAVeryLongFieldName',
+        libraryUri: Uri.parse('package:my_app/screens/leaky_screen.dart'),
+      ),
+      const GraphHop(className: 'StreamSubscription'),
+    ],
+    rootKind: RootKind.stream,
+  ),
+  rootKind: RootKind.stream,
+  confidence: LeakConfidence.confirmed,
+  signature: 'sig-1',
+  leafClassName: 'StreamSubscription',
+  anchorHopIndex: 0,
+);
+
+MemoryController _clustersController() =>
+    MemoryController(
+      snapshotSource: FakeSnapshotSource(),
+      connection: FakeRadarConnection(),
+    )..debugAdd(
+      SnapshotBundle(
+        id: 1,
+        capturedAt: DateTime(2026),
+        label: 's',
+        histogram: const [],
+        analysisResult: GraphAnalysisResult(
+          clusters: [_cluster()],
+          stats: const GraphAnalysisStats(
+            totalObjects: 0,
+            reachableObjects: 0,
+            leakCandidates: 0,
+            clusters: 1,
+            suppressedByAppFilter: 0,
+            warnings: ['heap capture truncated at 500k objects'],
+          ),
+          resolvedAppPackages: const ['my_app'],
+        ),
+      ),
+    );
+
 Widget _wrap(Widget child, Size size) => MediaQuery(
   data: MediaQueryData(size: size),
   child: MaterialApp(
@@ -88,6 +136,24 @@ void main() {
       expect(tester.takeException(), isNull);
       // Toggle to flat then grouped to exercise both list layouts.
       await tester.tap(find.text('flat'));
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final size in sizes) {
+    testWidgets('LeakClustersView has no overflow at ${size.width}px', (
+      tester,
+    ) async {
+      await _pumpAt(
+        tester,
+        LeakClustersView(controller: _clustersController()),
+        size,
+      );
+      expect(tester.takeException(), isNull);
+      // Expanding a row exercises the warnings strip + path tile + meta-line
+      // layout at the narrowest widths.
+      await tester.tap(find.text('SomeVeryLongLeakyOwnerStateClassName'));
       await tester.pump();
       expect(tester.takeException(), isNull);
     });

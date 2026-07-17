@@ -38,6 +38,7 @@ class DesktopRail extends StatelessWidget {
               DesktopView.dumps,
               DesktopView.histogram,
               DesktopView.paths,
+              DesktopView.clusters,
               DesktopView.compare,
               DesktopView.trends,
             ])

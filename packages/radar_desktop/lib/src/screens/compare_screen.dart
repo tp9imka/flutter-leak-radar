@@ -48,6 +48,13 @@ class _CompareScreenState extends State<CompareScreen> {
       builder: (context, _) {
         final dumps = _wc.dumps;
         final diff = _wc.memory.diff ?? const <ClassCountDiff>[];
+        final comparison = _wc.memory.comparison;
+        final triage = comparison == null
+            ? const <String, TriageDisplay>{}
+            : triageDisplayByClassName(
+                comparison.analysisResult.clusters,
+                _wc.triage,
+              );
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -95,6 +102,7 @@ class _CompareScreenState extends State<CompareScreen> {
                             diffs: diff,
                             absolute: false,
                             summary: const SizedBox.shrink(),
+                            triage: triage,
                             selected: _selectedClass,
                             onSelected: (c) =>
                                 setState(() => _selectedClass = c),

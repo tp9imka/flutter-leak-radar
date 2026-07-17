@@ -5,8 +5,10 @@ import 'package:leak_graph/leak_graph.dart';
 import 'package:radar_ui/radar_ui.dart';
 
 import '../capture/snapshot_bundle.dart';
+import '../session/triage_store.dart';
 import 'class_detail_panel.dart';
 import 'diff_table.dart';
+import 'leak_clusters_view.dart';
 import 'mem_format.dart';
 import 'memory_controller.dart';
 import 'package_group_scaffold.dart';
@@ -20,10 +22,15 @@ class SnapshotsView extends StatefulWidget {
     super.key,
     required this.controller,
     required this.onExport,
+    this.triage = TriageStore.empty,
   });
 
   final MemoryController controller;
   final Future<void> Function(SnapshotBundle bundle) onExport;
+
+  /// Cross-session triage baseline; drives the per-class NEW/KNOWN/ACK chips on
+  /// diff rows (computed from the comparison snapshot's clusters).
+  final TriageStore triage;
 
   @override
   State<SnapshotsView> createState() => _SnapshotsViewState();
@@ -136,6 +143,10 @@ class _SnapshotsViewState extends State<SnapshotsView> {
             classAnchors: classAnchorsFor(comparison.analysisResult),
             projectPackages: comparison.analysisResult.resolvedAppPackages
                 .toSet(),
+            triage: triageDisplayByClassName(
+              comparison.analysisResult.clusters,
+              widget.triage,
+            ),
             summary: againstEmpty
                 ? _ShowAllSummary(snapshot: comparison)
                 : _DiffSummary(pair: _c.pair!),

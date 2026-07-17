@@ -13,6 +13,9 @@ enum RadarView {
   /// Retaining paths derived from the latest diff's grown classes.
   retainingPaths,
 
+  /// Ranked leak clusters (the analyzer's highest-signal output) + warnings.
+  leakClusters,
+
   // ── Performance ───────────────────────────────────────────────────────────
   /// Dense sortable+searchable traces table.
   traces,
