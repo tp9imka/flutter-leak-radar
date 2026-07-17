@@ -1,15 +1,23 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leak_graph/leak_graph.dart';
+import 'package:path/path.dart' as p;
+import 'package:radar_desktop/src/seams/file_snapshot_store.dart';
 import 'package:radar_desktop/src/workspace/workspace_controller.dart';
 import 'package:radar_workbench/radar_workbench.dart';
 
-SnapshotBundle _bundle(String label) => SnapshotBundle(
+SnapshotBundle _bundle(
+  String label, {
+  List<GraphLeakCluster> clusters = const [],
+}) => SnapshotBundle(
   capturedAt: DateTime(2026, 1, 1),
   label: label,
   histogram: const [],
-  analysisResult: const GraphAnalysisResult(
-    clusters: [],
-    stats: GraphAnalysisStats(
+  analysisResult: GraphAnalysisResult(
+    clusters: clusters,
+    stats: const GraphAnalysisStats(
       totalObjects: 0,
       reachableObjects: 0,
       leakCandidates: 0,
@@ -19,6 +27,21 @@ SnapshotBundle _bundle(String label) => SnapshotBundle(
     ),
   ),
 );
+
+GraphLeakCluster _cluster(String signature, String className) =>
+    GraphLeakCluster(
+      className: className,
+      libraryUri: Uri.parse('package:my_app/x.dart'),
+      instanceCount: 1,
+      retainedShallowBytes: 10,
+      representativePath: const GraphRetainingPath(
+        hops: [GraphHop(className: 'Owner')],
+        rootKind: RootKind.stream,
+      ),
+      rootKind: RootKind.stream,
+      confidence: LeakConfidence.heuristic,
+      signature: signature,
+    );
 
 void main() {
   test('addExisting populates memory, focuses it, and records meta', () {
@@ -70,5 +93,54 @@ void main() {
     wc2.rehydrate(session);
     expect(wc2.memory.snapshots.map((s) => s.label), contains('a'));
     expect(wc2.dumps.map((d) => d.label), contains('a'));
+  });
+
+  test(
+    'acknowledging a cluster persists the note and rehydrate restores it',
+    () {
+      final wc = WorkspaceController();
+      wc.addExisting(
+        _bundle('a', clusters: [_cluster('sigA', 'LeakyThing')]),
+        source: DumpSource.file,
+      );
+      // The synchronous fold in _persist runs before its first await, so the
+      // acked store is reflected in toSession immediately.
+      wc.updateTriage(
+        wc.triage.acknowledge('sigA', note: 'BUG-1', now: DateTime(2026, 7, 1)),
+      );
+      final session = wc.toSession();
+      expect(
+        session.triage.entryFor('sigA')!.status,
+        TriageStatus.acknowledged,
+      );
+      expect(session.triage.entryFor('sigA')!.note, 'BUG-1');
+
+      final wc2 = WorkspaceController();
+      wc2.rehydrate(session);
+      expect(wc2.triage.entryFor('sigA')!.note, 'BUG-1');
+    },
+  );
+
+  test('restore surfaces a newer-schema refusal', () async {
+    final dir = Directory.systemTemp.createTempSync('radar_wc_refusal');
+    addTearDown(() {
+      if (dir.existsSync()) dir.deleteSync(recursive: true);
+    });
+    File(p.join(dir.path, 'radar_desktop_session.json')).writeAsStringSync(
+      jsonEncode({
+        'version': kSessionSchemaVersion + 1,
+        'bundles': const <Object?>[],
+        'selectedIds': const <Object?>[],
+        'view': 'leakClusters',
+      }),
+    );
+    final wc = WorkspaceController(
+      store: FileSnapshotStore(directory: () async => dir),
+    );
+
+    await wc.restore();
+
+    expect(wc.restoreRefusal, isNotNull);
+    expect(wc.restoreRefusal, contains('newer'));
   });
 }

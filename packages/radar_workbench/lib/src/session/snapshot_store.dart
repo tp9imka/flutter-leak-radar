@@ -94,6 +94,8 @@ final class PersistedSession {
 /// when their backend is unavailable.
 abstract interface class SnapshotStore {
   /// Writes the current session. Called (debounced) after each mutation.
+  /// Implementations MUST suppress the write while [restoreRefusal] is
+  /// non-null, so a session written by a newer build is never overwritten.
   Future<void> persist(PersistedSession session);
 
   /// Reads the last persisted session, or null if none / unavailable.
@@ -101,6 +103,13 @@ abstract interface class SnapshotStore {
 
   /// Drops all persisted state.
   Future<void> clear();
+
+  /// A human-readable reason the last [restore] refused to load a session it
+  /// found — currently only "written by a newer build" (see
+  /// [UnsupportedSessionVersionException]). Null when the last restore
+  /// succeeded or found nothing. While non-null, [persist] is suppressed and
+  /// hosts should surface the message; [clear] resets it.
+  String? get restoreRefusal;
 }
 
 /// In-memory [SnapshotStore] for tests and for runtimes with no durable backend
@@ -111,10 +120,15 @@ final class InMemorySnapshotStore implements SnapshotStore {
   /// Number of [persist] calls — useful for asserting debounce behaviour.
   int persistCount = 0;
 
+  /// Settable in tests to exercise the persistence-suppression path.
+  @override
+  String? restoreRefusal;
+
   PersistedSession? get last => _last;
 
   @override
   Future<void> persist(PersistedSession session) async {
+    if (restoreRefusal != null) return;
     _last = session;
     persistCount++;
   }
@@ -123,5 +137,8 @@ final class InMemorySnapshotStore implements SnapshotStore {
   Future<PersistedSession?> restore() async => _last;
 
   @override
-  Future<void> clear() async => _last = null;
+  Future<void> clear() async {
+    _last = null;
+    restoreRefusal = null;
+  }
 }

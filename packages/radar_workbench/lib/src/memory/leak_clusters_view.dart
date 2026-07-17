@@ -78,6 +78,37 @@ List<GraphLeakCluster> rankLeakClusters(
   return ranked;
 }
 
+/// Cross-session chip per class name for a diff table, derived from the focused
+/// [clusters] and the session [triage]. A class is keyed to its most
+/// attention-worthy signature (NEW > KNOWN > ACK), so a class with any
+/// still-unhandled leak reads NEW/KNOWN rather than ACK. Absent from the map
+/// (its default) means no chip.
+Map<String, TriageDisplay> triageDisplayByClassName(
+  Iterable<GraphLeakCluster> clusters,
+  TriageStore triage,
+) {
+  final displays = triage.displayFor(clusters.map((c) => c.signature));
+  final byName = <String, TriageDisplay>{};
+  for (final c in clusters) {
+    final display = displays[c.signature] ?? TriageDisplay.fresh;
+    final existing = byName[c.className];
+    byName[c.className] = existing == null
+        ? display
+        : _moreAttention(existing, display);
+  }
+  return byName;
+}
+
+int _attentionRank(TriageDisplay display) => switch (display) {
+  TriageDisplay.fresh => 3,
+  TriageDisplay.known => 2,
+  TriageDisplay.gone => 1,
+  TriageDisplay.acknowledged => 0,
+};
+
+TriageDisplay _moreAttention(TriageDisplay a, TriageDisplay b) =>
+    _attentionRank(a) >= _attentionRank(b) ? a : b;
+
 /// The analyzer's highest-signal output made visible: ranked leak clusters for
 /// the focused snapshot, each expandable to its representative retaining path,
 /// with capture warnings surfaced in an alert strip so failures stop being
@@ -211,6 +242,7 @@ class _LeakClustersBodyState extends State<_LeakClustersBody> {
       _triage = _triage.acknowledge(
         cluster.signature,
         note: result.note,
+        className: cluster.className,
         now: widget.clock(),
       );
     });

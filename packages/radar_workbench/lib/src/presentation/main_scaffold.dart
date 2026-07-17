@@ -43,11 +43,15 @@ class _LeakRadarMainScaffoldState extends State<LeakRadarMainScaffold> {
     // changes (see MemoryController), so the capture toolbar re-enables as soon
     // as the connection is ready.
     _session.memory.addListener(_onSessionChanged);
+    // Rebuild when a refused restore surfaces (a session written by a newer
+    // build) — this does not touch the memory controller.
+    _session.restoreRefusal.addListener(_onSessionChanged);
   }
 
   @override
   void dispose() {
     _session.memory.removeListener(_onSessionChanged);
+    _session.restoreRefusal.removeListener(_onSessionChanged);
     super.dispose();
   }
 
@@ -64,6 +68,7 @@ class _LeakRadarMainScaffoldState extends State<LeakRadarMainScaffold> {
       RadarView.snapshotDiff => SnapshotsView(
         controller: _session.memory,
         onExport: (bundle) => _session.exporter.export(bundle),
+        triage: _session.triage,
       ),
       RadarView.classHistogram => ClassHistogramView(
         controller: _session.memory,
@@ -89,11 +94,27 @@ class _LeakRadarMainScaffoldState extends State<LeakRadarMainScaffold> {
 
   @override
   Widget build(BuildContext context) {
+    final refusal = _session.restoreRefusal.value;
     return Theme(
       data: radarDarkTheme(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (refusal != null)
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: RadarBanner(
+                message: refusal,
+                severity: RadarSeverity.warning,
+                action: OutlinedButton(
+                  onPressed: () async {
+                    await _session.dismissRestoreRefusal();
+                    if (mounted) setState(() {});
+                  },
+                  child: const Text('Start new'),
+                ),
+              ),
+            ),
           ConnectionBar(connection: _session.connection),
           Expanded(
             child: Row(

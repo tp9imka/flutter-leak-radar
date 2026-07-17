@@ -146,6 +146,67 @@ void main() {
         TriageStatus.acknowledged,
       );
     });
+
+    test('pins firstSeen across saves — no within-session drift', () async {
+      final store = InMemorySnapshotStore();
+      final memory = MemoryController(
+        snapshotSource: FakeSnapshotSource(),
+        connection: FakeRadarConnection(),
+      )..debugAdd(_snap(['sigA']));
+      var clock = now;
+      final persistence = SessionPersistence(
+        store: store,
+        memory: memory,
+        readView: () => RadarView.leakClusters,
+        readTriage: () => TriageStore.empty,
+        clock: () => clock,
+      );
+
+      await persistence.flush();
+      clock = now.add(const Duration(minutes: 5));
+      await persistence.flush();
+
+      // The second save must NOT re-stamp firstSeen to the later clock.
+      expect(store.last!.triage.entryFor('sigA')!.firstSeen, now);
+    });
+
+    test(
+      'HAZARD: a save with no focused snapshot never stamps goneSince',
+      () async {
+        final store = InMemorySnapshotStore();
+        await store.persist(
+          PersistedSession(
+            bundles: const [],
+            selectedIds: const [],
+            view: RadarView.leakClusters,
+            triage: TriageStore.empty.upsert(
+              TriageEntry(
+                signature: 'sigA',
+                firstSeen: now,
+                status: TriageStatus.known,
+              ),
+            ),
+          ),
+        );
+        // No bundle added → memory.focused is null → current set is UNKNOWN.
+        final memory = MemoryController(
+          snapshotSource: FakeSnapshotSource(),
+          connection: FakeRadarConnection(),
+        );
+        final persistence = SessionPersistence(
+          store: store,
+          memory: memory,
+          readView: () => RadarView.leakClusters,
+          readTriage: () => TriageStore.empty,
+          clock: () => now,
+        );
+        await persistence.load();
+        await persistence.flush();
+
+        // sigA must NOT be marked gone just because the current set was empty.
+        expect(store.last!.triage.entryFor('sigA')!.goneSince, isNull);
+      },
+    );
   });
 
   group('RadarSession triage lifecycle', () {

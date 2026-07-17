@@ -67,6 +67,13 @@ class RadarSession {
   /// signatures stay NEW for the whole current session.
   TriageStore triage = TriageStore.empty;
 
+  /// Non-null (and notified) when the durable store refused to load a session
+  /// written by a newer build. While set, persistence is suppressed so the
+  /// unreadable file is not overwritten; the shell surfaces the message and the
+  /// user can [dismissRestoreRefusal] to start fresh.
+  final ValueNotifier<String?> restoreRefusal = ValueNotifier<String?>(null);
+
+  SnapshotStore? _store;
   SessionPersistence? _persistence;
   bool _initialized = false;
   bool _storeAttached = false;
@@ -86,6 +93,7 @@ class RadarSession {
   }) async {
     if (_storeAttached) return;
     _storeAttached = true;
+    _store = store;
     final persistence = SessionPersistence(
       store: store,
       memory: memory,
@@ -104,7 +112,17 @@ class RadarSession {
         onRestored?.call();
       }
     }
+    // Surface a refusal (session written by a newer build) so the shell can
+    // show it; a refusal returns a null session and would otherwise be silent.
+    restoreRefusal.value = store.restoreRefusal;
     persistence.start();
+  }
+
+  /// Clears a [restoreRefusal] by dropping the unreadable stored session, so
+  /// persistence resumes fresh. The user's explicit "start new" action.
+  Future<void> dismissRestoreRefusal() async {
+    await _store?.clear();
+    restoreRefusal.value = null;
   }
 
   /// Updates the active view and schedules a debounced persist.

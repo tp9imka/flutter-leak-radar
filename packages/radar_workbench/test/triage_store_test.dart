@@ -86,13 +86,14 @@ void main() {
     );
   });
 
-  group('lifecycle: recordSeen (fresh → known on save)', () {
+  group('lifecycle: foldSeen (fresh → known on save)', () {
     test('a first-seen signature is stamped KNOWN with firstSeen=now', () {
-      final promoted = TriageStore.empty.recordSeen(['sigA'], t1);
+      final promoted = TriageStore.empty.foldSeen({'sigA': 'Leaky'}, t1);
       final e = promoted.entryFor('sigA');
       expect(e, isNotNull);
       expect(e!.status, TriageStatus.known);
       expect(e.firstSeen, t1);
+      expect(e.className, 'Leaky');
     });
 
     test('models "NEW this session, KNOWN next session"', () {
@@ -100,7 +101,7 @@ void main() {
       const baseline = TriageStore.empty;
       expect(baseline.displayFor(['sigA'])['sigA'], TriageDisplay.fresh);
       // On save, sigA is folded in as KNOWN and written to disk.
-      final promoted = baseline.recordSeen(['sigA'], t0);
+      final promoted = baseline.foldSeen({'sigA': 'Leaky'}, t0);
       // Session 2 loads the promoted store: sigA now reads KNOWN.
       expect(promoted.displayFor(['sigA'])['sigA'], TriageDisplay.known);
     });
@@ -109,10 +110,59 @@ void main() {
       final store = TriageStore.empty.upsert(
         entry('sigA', status: TriageStatus.acknowledged, firstSeen: t0),
       );
-      final promoted = store.recordSeen(['sigA'], t1);
+      final promoted = store.foldSeen({'sigA': 'Leaky'}, t1);
       final e = promoted.entryFor('sigA')!;
       expect(e.status, TriageStatus.acknowledged);
       expect(e.firstSeen, t0);
+    });
+
+    test('stamps goneSince ONCE for a signature that went absent', () {
+      final store = TriageStore.empty.upsert(entry('sigGone', firstSeen: t0));
+      // sigGone is absent from the current set → stamped gone at t1.
+      final first = store.foldSeen(const {}, t1);
+      expect(first.entryFor('sigGone')!.goneSince, t1);
+      // A later save must NOT re-stamp it (goneSince stays t1, not t2).
+      final t2 = DateTime(2026, 7, 3, 9);
+      final second = first.foldSeen(const {}, t2);
+      expect(second.entryFor('sigGone')!.goneSince, t1);
+    });
+
+    test(
+      'clears goneSince when a signature reappears (regression → KNOWN)',
+      () {
+        final store = TriageStore.empty.upsert(
+          entry('sigA', firstSeen: t0).copyWith(goneSince: t0),
+        );
+        final folded = store.foldSeen({'sigA': 'Leaky'}, t1);
+        expect(folded.entryFor('sigA')!.goneSince, isNull);
+        expect(folded.displayFor(['sigA'])['sigA'], TriageDisplay.known);
+      },
+    );
+  });
+
+  group('overlayAcks', () {
+    test(
+      'folds acknowledged entries from a source store, pinning firstSeen',
+      () {
+        final disk = TriageStore.empty.upsert(entry('sigA', firstSeen: t0));
+        final display = TriageStore.empty.acknowledge(
+          'sigA',
+          note: 'BUG-7',
+          now: t1,
+        );
+        final merged = disk.overlayAcks(display);
+        final e = merged.entryFor('sigA')!;
+        expect(e.status, TriageStatus.acknowledged);
+        expect(e.note, 'BUG-7');
+        // firstSeen comes from the disk store, not the ACK's clock.
+        expect(e.firstSeen, t0);
+      },
+    );
+
+    test('ignores non-acknowledged source entries', () {
+      final disk = TriageStore.empty;
+      final display = TriageStore.empty.upsert(entry('sigA'));
+      expect(disk.overlayAcks(display).entryFor('sigA'), isNull);
     });
   });
 

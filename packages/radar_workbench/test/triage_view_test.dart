@@ -74,11 +74,15 @@ TriageEntry _entry(
   String signature, {
   TriageStatus status = TriageStatus.known,
   String? note,
+  String? className,
+  DateTime? goneSince,
 }) => TriageEntry(
   signature: signature,
   firstSeen: DateTime(2026, 6, 1),
   status: status,
   note: note,
+  className: className,
+  goneSince: goneSince,
 );
 
 void main() {
@@ -142,6 +146,48 @@ void main() {
           .dy;
       final rowDy = tester.getTopLeft(find.text('StillLeaky')).dy;
       expect(goneDy, lessThan(rowDy));
+    });
+
+    testWidgets('GONE row names the class and shows "fixed since <date>" when '
+        'a retirement date is known', (tester) async {
+      _setSize(tester, const Size(1280, 800));
+      final baseline = TriageStore.empty.upsert(
+        _entry(
+          'sigGone',
+          className: 'FixedLeak',
+          goneSince: DateTime(2026, 6, 15),
+        ),
+      );
+      await tester.pumpWidget(
+        _wrap(
+          LeakClustersView(
+            controller: _controller([_cluster(signature: 'other')]),
+            initialTriage: baseline,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('FixedLeak'), findsOneWidget);
+      expect(find.text('fixed since 2026-06-15'), findsOneWidget);
+    });
+
+    testWidgets('GONE row reads "fixed" (no date) before a retirement date is '
+        'stamped', (tester) async {
+      _setSize(tester, const Size(1280, 800));
+      final baseline = TriageStore.empty.upsert(
+        _entry('sigGone', className: 'FixedLeak'),
+      );
+      await tester.pumpWidget(
+        _wrap(
+          LeakClustersView(
+            controller: _controller([_cluster(signature: 'other')]),
+            initialTriage: baseline,
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('fixed'), findsOneWidget);
     });
 
     testWidgets('no GONE section when every known signature is still present', (

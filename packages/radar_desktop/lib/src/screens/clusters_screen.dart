@@ -18,6 +18,8 @@ class ClustersScreen extends StatelessWidget {
     builder: (context, _) => LeakClustersView(
       controller: workspace.memory,
       projectContext: workspace.projectContext,
+      initialTriage: workspace.triage,
+      onTriageChanged: workspace.updateTriage,
     ),
   );
 }

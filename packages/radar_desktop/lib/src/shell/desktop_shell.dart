@@ -33,7 +33,7 @@ import 'desktop_window_chrome.dart';
 /// the right. Owns the workspace and routes the selected [DesktopView] to its
 /// real screen; locked (perf/stability) views never activate while offline.
 class DesktopShell extends StatefulWidget {
-  const DesktopShell({super.key, this.connection, this.tools});
+  const DesktopShell({super.key, this.connection, this.tools, this.workspace});
 
   /// The live VM service connection driving PERFORMANCE/STABILITY. Injectable
   /// for tests; when null, the shell owns its own [VmServiceUriConnection].
@@ -45,12 +45,17 @@ class DesktopShell extends StatefulWidget {
   /// its own [ToolsController].
   final ToolsController? tools;
 
+  /// The offline workspace. Injectable for tests (e.g. to seed a durable store
+  /// or a restore refusal); when null, the shell owns its own.
+  final WorkspaceController? workspace;
+
   @override
   State<DesktopShell> createState() => _DesktopShellState();
 }
 
 class _DesktopShellState extends State<DesktopShell> {
-  final WorkspaceController _workspace = WorkspaceController();
+  late final WorkspaceController _workspace =
+      widget.workspace ?? WorkspaceController();
   late final ToolsController _tools = widget.tools ?? ToolsController();
 
   /// Seams read [_tools.resolvedPath] lazily on every call, so a Locate/
@@ -123,7 +128,8 @@ class _DesktopShellState extends State<DesktopShell> {
     _tools.removeListener(_onToolsChanged);
     if (widget.tools == null) _tools.dispose();
     _perf.dispose();
-    _workspace.dispose();
+    // Only dispose a workspace we created; an injected one belongs to the test.
+    if (widget.workspace == null) _workspace.dispose();
     _android.dispose();
     super.dispose();
   }
@@ -222,6 +228,24 @@ class _DesktopShellState extends State<DesktopShell> {
               onScanDevice: _android.canCapture
                   ? () => discovery.discoverWsUri(serial: _readyDeviceSerial)
                   : null,
+            ),
+            ListenableBuilder(
+              listenable: _workspace,
+              builder: (context, _) {
+                final refusal = _workspace.restoreRefusal;
+                if (refusal == null) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: RadarBanner(
+                    message: refusal,
+                    severity: RadarSeverity.warning,
+                    action: OutlinedButton(
+                      onPressed: _workspace.startNewSession,
+                      child: const Text('Start new'),
+                    ),
+                  ),
+                );
+              },
             ),
             Expanded(
               child: Row(

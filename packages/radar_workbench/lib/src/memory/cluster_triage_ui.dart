@@ -120,19 +120,54 @@ class _GoneSection extends StatelessWidget {
             for (final entry in entries)
               Padding(
                 padding: const EdgeInsets.only(left: 22, top: 2),
-                child: Text(
-                  entry.note ?? entry.signature,
-                  style: RadarTypography.monoLabel.copyWith(
-                    color: RadarColors.text60,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: _GoneRow(entry: entry),
               ),
           ],
         ),
       ),
     );
   }
+}
+
+/// One fixed-signature line: what was fixed (class name, else note, else the
+/// raw signature) plus an honest `fixed since <date>` when the retirement date
+/// is known (it is stamped on the next save, so it may be absent the very first
+/// session a fix is observed).
+class _GoneRow extends StatelessWidget {
+  const _GoneRow({required this.entry});
+
+  final TriageEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = entry.className ?? entry.note ?? entry.signature;
+    final since = entry.goneSince;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: RadarTypography.monoLabel.copyWith(
+              color: RadarColors.text60,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          since == null ? 'fixed' : 'fixed since ${_fmtDate(since)}',
+          style: RadarTypography.monoLabel.copyWith(color: RadarColors.accent),
+        ),
+      ],
+    );
+  }
+}
+
+String _fmtDate(DateTime dt) {
+  final local = dt.toLocal();
+  final month = local.month.toString().padLeft(2, '0');
+  final day = local.day.toString().padLeft(2, '0');
+  return '${local.year}-$month-$day';
 }
 
 /// The per-row overflow menu carrying the ACK action.
