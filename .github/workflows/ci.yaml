@@ -214,11 +214,35 @@ jobs:
               --format github
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # Keep the raw run.json around for anyone debugging a selftest regression.
-      - name: Upload run.json artifacts
+      # On failure, fold each fixture's fate — the URI the run dialed, whether
+      # the fixture process was still alive, and its captured stdout+stderr —
+      # into the job summary, so a red run is diagnosable without a re-run.
+      - name: Dump fixture diagnostics on failure
+        if: failure()
+        run: |
+          {
+            echo '## radar_ci memory selftest — FAILED'
+            echo
+            if [ -f "$RADAR_E2E_OUT/fixtures.diagnostics.log" ]; then
+              echo '### Fixture diagnostics (dialed URI, liveness, output)'
+              echo
+              echo '```'
+              cat "$RADAR_E2E_OUT/fixtures.diagnostics.log"
+              echo '```'
+            else
+              echo '_No fixture diagnostics were written — the failure was' \
+                'before both fixtures announced their URIs (see the job log)._'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Keep the raw run.json + fixture diagnostics around for anyone debugging
+      # a selftest regression.
+      - name: Upload selftest artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: radar-ci-memory-selftest
-          path: e2e-artifacts/*.run.json
+          path: |
+            e2e-artifacts/*.run.json
+            e2e-artifacts/fixtures.diagnostics.log
           if-no-files-found: warn
