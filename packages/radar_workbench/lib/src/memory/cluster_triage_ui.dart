@@ -109,7 +109,10 @@ class _GoneSection extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Fixed since last session · ${entries.length}',
+                  // The header stays date-agnostic; each row carries the
+                  // honest per-entry "fixed since <date>". Some GONE entries
+                  // may be older than the last session.
+                  'Fixed · ${entries.length}',
                   style: RadarTypography.monoLabel.copyWith(
                     color: RadarColors.accent,
                   ),

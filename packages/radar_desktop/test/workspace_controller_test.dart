@@ -143,4 +143,40 @@ void main() {
     expect(wc.restoreRefusal, isNotNull);
     expect(wc.restoreRefusal, contains('newer'));
   });
+
+  test(
+    'restore seeds triage from a bundle-less (triage-only) session',
+    () async {
+      final dir = Directory.systemTemp.createTempSync('radar_wc_triage_only');
+      addTearDown(() {
+        if (dir.existsSync()) dir.deleteSync(recursive: true);
+      });
+      // A session with recorded fixes but no dumps left.
+      final triage = TriageStore.empty.acknowledge(
+        'sigA',
+        note: 'BUG-1',
+        className: 'FixedLeak',
+        now: DateTime(2026, 7, 1),
+      );
+      File(p.join(dir.path, 'radar_desktop_session.json')).writeAsStringSync(
+        jsonEncode(
+          PersistedSession(
+            bundles: const [],
+            selectedIds: const [],
+            view: RadarView.leakClusters,
+            triage: triage,
+          ).toJson(),
+        ),
+      );
+      final wc = WorkspaceController(
+        store: FileSnapshotStore(directory: () async => dir),
+      );
+
+      await wc.restore();
+
+      // The triage baseline is seeded even though no bundles rehydrated.
+      expect(wc.triage.entryFor('sigA')!.note, 'BUG-1');
+      expect(wc.memory.snapshots, isEmpty);
+    },
+  );
 }

@@ -138,12 +138,10 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.textContaining('Fixed since last session'), findsOneWidget);
+      expect(find.textContaining('Fixed ·'), findsOneWidget);
       expect(find.text('fixed the stream leak'), findsOneWidget);
 
-      final goneDy = tester
-          .getTopLeft(find.textContaining('Fixed since last session'))
-          .dy;
+      final goneDy = tester.getTopLeft(find.textContaining('Fixed ·')).dy;
       final rowDy = tester.getTopLeft(find.text('StillLeaky')).dy;
       expect(goneDy, lessThan(rowDy));
     });
@@ -203,7 +201,7 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(find.textContaining('Fixed since last session'), findsNothing);
+      expect(find.textContaining('Fixed ·'), findsNothing);
     });
   });
 
@@ -263,8 +261,8 @@ void main() {
       await tester.tap(find.text('Since last session'));
       await tester.pump();
 
-      // The hidden KNOWN row did not leak into a "fixed since last session".
-      expect(find.textContaining('Fixed since last session'), findsNothing);
+      // The hidden KNOWN row did not leak into the "fixed" section.
+      expect(find.textContaining('Fixed ·'), findsNothing);
     });
   });
 

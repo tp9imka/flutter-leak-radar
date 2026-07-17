@@ -247,7 +247,14 @@ class WorkspaceController extends ChangeNotifier {
     if (session != null && session.bundles.isNotEmpty) {
       rehydrate(session);
     } else {
-      // Surface a refusal (or the no-op) without a bundle set to rehydrate.
+      // Seed the triage baseline even when there are no bundles to rehydrate,
+      // so a triage-only session (fixes recorded, dumps pruned) is not dropped
+      // — symmetric with RadarSession.attachStore and the DTD restore.
+      if (session != null) {
+        _triage = session.triage;
+        _diskTriage = session.triage;
+      }
+      // Surface a refusal (or the seeded triage) without a bundle set.
       notifyListeners();
     }
   }
