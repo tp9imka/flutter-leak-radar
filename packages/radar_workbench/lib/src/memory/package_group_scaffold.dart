@@ -495,6 +495,25 @@ Map<String, AnchorHop> classAnchorHopsFromClusters(
   return hops;
 }
 
+/// The hop index app code holds [profile]'s representative path at, resolved
+/// from [result]'s dominant-cluster anchor hops — but only when that anchor
+/// path STRUCTURALLY matches the representative path (never guessed), so the
+/// "yours" highlight is never applied to a path the index doesn't describe.
+///
+/// Returns null when there is no profile, no representative path, or no
+/// matching anchor. Cheap: [classAnchorHopsFor] is memoized per analysis, so
+/// every call site can share it. Mirrors `RetainingPathsView`'s local rule.
+int? representativeAnchorHopIndexFor(
+  GraphAnalysisResult result,
+  ClassRootProfile? profile,
+) {
+  final path = profile?.representativePath;
+  if (path == null) return null;
+  final anchor = classAnchorHopsFor(result)[profile!.className];
+  if (anchor == null) return null;
+  return anchor.path == path ? anchor.index : null;
+}
+
 /// The dominant (most retained shallow bytes) app-anchored cluster per class,
 /// keeping only clusters whose [GraphLeakCluster.anchorHopIndex] is in range.
 Map<String, GraphLeakCluster> _dominantAnchoredClusters(

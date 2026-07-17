@@ -101,6 +101,15 @@ class _CompareScreenState extends State<CompareScreen> {
                           child: DiffTable(
                             diffs: diff,
                             absolute: false,
+                            // Mirror the DevTools wiring so the S1 "which are
+                            // MINE" grouping is live on desktop Compare too.
+                            classAnchors: comparison == null
+                                ? const {}
+                                : classAnchorsFor(comparison.analysisResult),
+                            projectPackages: comparison == null
+                                ? const {}
+                                : comparison.analysisResult.resolvedAppPackages
+                                      .toSet(),
                             summary: const SizedBox.shrink(),
                             triage: triage,
                             selected: _selectedClass,
@@ -121,8 +130,18 @@ class _CompareScreenState extends State<CompareScreen> {
 
   Widget _detailFor(String? className) {
     final comparison = _wc.memory.comparison;
+    // The hop chips classify origin from the resolved project set — wire it at
+    // every state so they agree with the diff row chips (never DEPENDENCY for a
+    // class the row calls YOURS).
+    final projectPackages = comparison == null
+        ? const <String>{}
+        : comparison.analysisResult.resolvedAppPackages.toSet();
     if (className == null || comparison == null) {
-      return const ClassDetailPanel(className: null, profile: null);
+      return ClassDetailPanel(
+        className: null,
+        profile: null,
+        projectPackages: projectPackages,
+      );
     }
     ClassRootProfile? profile;
     for (final p in comparison.analysisResult.classRootProfiles) {
@@ -142,6 +161,11 @@ class _CompareScreenState extends State<CompareScreen> {
       className: className,
       profile: profile,
       distribution: dist,
+      projectPackages: projectPackages,
+      representativeAnchorHopIndex: representativeAnchorHopIndexFor(
+        comparison.analysisResult,
+        profile,
+      ),
     );
   }
 
