@@ -2,7 +2,7 @@ name: leak_graph
 description: >-
   Pure-Dart library for loading VM heap snapshots and analysing object
   retaining paths to surface memory leaks.
-version: 0.2.2
+version: 0.3.0
 repository: https://github.com/tp9imka/flutter-leak-radar
 issue_tracker: https://github.com/tp9imka/flutter-leak-radar/issues
 homepage: https://tp9imka.github.io/flutter-leak-radar/
@@ -14,6 +14,14 @@ topics:
 
 executables:
   leak_capture: capture
+  # `analyze` does not collide with anything on activation: `dart analyze` is a
+  # dart subcommand (never a bare PATH binary), and there is no system
+  # `analyze(1)`, so no `leak_analyze` alias is needed.
+  analyze: analyze
+  # `diff` IS namespaced: a bare `diff` executable would collide with the
+  # ubiquitous system `diff(1)` on PATH, so the histogram-diff CLI activates as
+  # `leak_diff`.
+  leak_diff: diff
 
 environment:
   sdk: ">=3.10.0 <4.0.0"

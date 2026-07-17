@@ -13,7 +13,7 @@ usable in CLI tools, servers, isolates, and Flutter apps alike.
 
 ```yaml
 dependencies:
-  radar_trace: ^0.1.0
+  radar_trace: ^0.2.0
 ```
 
 ---
@@ -195,7 +195,7 @@ final tracer = Tracer(recorder: recorder);
 | Package | Purpose |
 |---|---|
 | [`flutter_perf_radar`](https://pub.dev/packages/flutter_perf_radar) | Flutter facade: frame timing, jank, stall detection, `TracedSubtree`, overlay badge. Wraps `radar_trace`. |
-| [`radar`](https://pub.dev/packages/radar) | Umbrella: one import for both `flutter_leak_radar` + `flutter_perf_radar`. |
+| [`radarscope`](https://pub.dev/packages/radarscope) | Umbrella: one import across the Memory, Performance, and Stability radars. |
 | [`flutter_leak_radar`](https://pub.dev/packages/flutter_leak_radar) | On-device memory leak detector — heap growth, precise retention, overlay. |
 
 ---

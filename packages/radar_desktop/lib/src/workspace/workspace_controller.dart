@@ -8,8 +8,10 @@ import '../seams/desktop_snapshot_exporter.dart';
 import '../seams/disconnected_connection.dart';
 import '../seams/file_snapshot_store.dart';
 import '../seams/offline_snapshot_source.dart';
+import 'desktop_project_context.dart';
 import 'dump_meta.dart';
 
+export 'desktop_project_context.dart';
 export 'dump_meta.dart';
 
 /// Owns the offline workspace: a `radar_workbench` [MemoryController] (built
@@ -17,8 +19,11 @@ export 'dump_meta.dart';
 /// selection, recent files, and the "analyzing…" flag. Screens read
 /// [memory] for the reused views and this controller for workspace actions.
 class WorkspaceController extends ChangeNotifier {
-  WorkspaceController({SnapshotAnalyzer analyzer = const SnapshotAnalyzer()})
-    : _analyzer = analyzer {
+  WorkspaceController({
+    SnapshotAnalyzer analyzer = const SnapshotAnalyzer(),
+    FileSnapshotStore? store,
+  }) : _analyzer = analyzer,
+       _store = store ?? FileSnapshotStore() {
     _connection = DisconnectedRadarConnection();
     memory = MemoryController(
       snapshotSource: const OfflineSnapshotSource(),
@@ -29,7 +34,7 @@ class WorkspaceController extends ChangeNotifier {
   final SnapshotAnalyzer _analyzer;
   late final DisconnectedRadarConnection _connection;
   final DesktopSnapshotExporter _exporter = const DesktopSnapshotExporter();
-  final FileSnapshotStore _store = FileSnapshotStore();
+  final FileSnapshotStore _store;
 
   /// The reused workbench controller — pass to `ClassHistogramView`,
   /// `RetainingPathsView`, `DiffTable`, etc.
@@ -41,11 +46,59 @@ class WorkspaceController extends ChangeNotifier {
   bool _analyzing = false;
   String? _analyzingName;
 
+  /// Cross-session leak triage. [_triage] is the in-session display store (the
+  /// loaded baseline + ACKs) the cluster/diff views read; [_diskTriage] is the
+  /// accumulating mirror folded on each save so `firstSeen` is pinned.
+  TriageStore _triage = TriageStore.empty;
+  TriageStore _diskTriage = TriageStore.empty;
+  String? _restoreRefusal;
+
+  String? _projectRoot;
+  DesktopProjectContext _projectContext = DesktopProjectContext();
+
   bool get analyzing => _analyzing;
   String? get analyzingName => _analyzingName;
   List<int> get trendSelection => List.unmodifiable(_trend);
   List<String> get recentPaths => List.unmodifiable(_recent);
   int? get activeDumpId => memory.focusedId;
+
+  /// The in-session triage baseline the cluster/diff views compare against.
+  TriageStore get triage => _triage;
+
+  /// Non-null when the stored session was refused (written by a newer build);
+  /// the shell surfaces it and persistence is suppressed until [startNewSession].
+  String? get restoreRefusal => _restoreRefusal;
+
+  /// Applies an explicit triage change (an ACK) and persists it.
+  void updateTriage(TriageStore next) {
+    _triage = next;
+    notifyListeners();
+    unawaited(_persist());
+  }
+
+  /// Clears a [restoreRefusal] by dropping the unreadable stored session, so
+  /// persistence resumes fresh.
+  Future<void> startNewSession() async {
+    await _store.clear();
+    _restoreRefusal = null;
+    notifyListeners();
+  }
+
+  /// The chosen on-disk project folder used to resolve "yours" attribution and
+  /// open hop sources in an editor. Null until the user picks one.
+  String? get projectRoot => _projectRoot;
+
+  /// The desktop project identity fed to `RetainingPathsView` — detection +
+  /// source opening for the current [projectRoot].
+  ProjectContext get projectContext => _projectContext;
+
+  /// Points the project context at [root] (or clears it with null), rebuilding
+  /// the context so the paths view re-resolves attribution and opening.
+  void setProjectRoot(String? root) {
+    _projectRoot = root;
+    _projectContext = DesktopProjectContext(projectRoot: root);
+    notifyListeners();
+  }
 
   /// Dumps in capture order (matches `memory.snapshots`). Tolerant of a
   /// snapshot whose metadata hasn't been written yet: [addExisting] calls
@@ -143,12 +196,14 @@ class WorkspaceController extends ChangeNotifier {
     unawaited(_persist());
   }
 
-  /// Serializes the current workspace (bundles + the memory view) for
-  /// persistence. Dump metadata is recomputed from the bundles on rehydrate.
+  /// Serializes the current workspace (bundles + the memory view + the folded
+  /// triage mirror) for persistence. Dump metadata is recomputed from the
+  /// bundles on rehydrate.
   PersistedSession toSession() => PersistedSession(
     bundles: memory.snapshots,
     selectedIds: memory.selectedIds,
     view: RadarView.snapshotDiff,
+    triage: _diskTriage,
   );
 
   /// Restores a persisted session into an EMPTY controller (rebuilds meta
@@ -157,6 +212,8 @@ class WorkspaceController extends ChangeNotifier {
     // memory.rehydrate preserves the bundles' ids; rebuild the row metadata
     // from the restored snapshots.
     memory.rehydrate(session);
+    _triage = session.triage;
+    _diskTriage = session.triage;
     _meta.clear();
     for (final s in memory.snapshots) {
       _meta[s.id] = DumpMeta(
@@ -178,20 +235,54 @@ class WorkspaceController extends ChangeNotifier {
     if (bundle != null) await _exporter.export(bundle);
   }
 
-  /// Auto-restore the last session on launch.
+  bool _restored = false;
+  bool _restoreComplete = false;
+
+  /// Auto-restore the last session on launch. Idempotent: a second call (e.g.
+  /// the shell re-running it after an injected pre-restore) is a no-op.
   Future<void> restore() async {
+    if (_restored) return;
+    _restored = true;
     final session = await _store.restore();
-    if (session != null && session.bundles.isNotEmpty) rehydrate(session);
+    _restoreRefusal = _store.restoreRefusal;
+    // Restore has loaded whatever was on disk — the controller's state is now
+    // authoritative, so an empty state may safely persist (see [_persist]).
+    _restoreComplete = true;
+    if (session != null && session.bundles.isNotEmpty) {
+      rehydrate(session);
+    } else {
+      // Seed the triage baseline even when there are no bundles to rehydrate,
+      // so a triage-only session (fixes recorded, dumps pruned) is not dropped
+      // — symmetric with RadarSession.attachStore and the DTD restore.
+      if (session != null) {
+        _triage = session.triage;
+        _diskTriage = session.triage;
+      }
+      // Surface a refusal (or the seeded triage) without a bundle set.
+      notifyListeners();
+    }
   }
 
   /// Persists the current session. Called explicitly after the mutations
   /// that change the bundle *set* ([addExisting], [removeDump], [clearAll],
   /// [rehydrate]) — not after pure view-state changes like [openDump] or
   /// [selectComparePair] — so a multi-MB session isn't re-serialized on every
-  /// memory notification. Skips empty sessions so a fresh, not-yet-restored
-  /// controller never clobbers a previously saved one.
+  /// memory notification. Skips an empty state only *before* [restore]
+  /// completes, so a fresh, not-yet-restored controller never clobbers a saved
+  /// session — but deleting the last dump and triage-only sessions (empty
+  /// bundles + recorded fixes) do persist, matching the DevTools/DTD contract.
   Future<void> _persist() async {
-    if (memory.snapshots.isEmpty) return;
+    if (memory.snapshots.isEmpty && !_restoreComplete) return;
+    final focused = memory.focused;
+    _diskTriage = foldSessionTriage(
+      diskStore: _diskTriage,
+      displayStore: _triage,
+      // Null (no focused snapshot) skips the fold — see [foldSessionTriage].
+      classNameBySignature: focused == null
+          ? null
+          : classNamesBySignature(focused),
+      now: DateTime.now(),
+    );
     await _store.persist(toSession());
   }
 

@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radar_desktop/src/app/desktop_view.dart';
 import 'package:radar_desktop/src/onboarding/first_run_guide_controller.dart';
+import 'package:radar_desktop/src/screens/device_monitor_screen.dart';
 import 'package:radar_desktop/src/screens/dumps_screen.dart';
+import 'package:radar_desktop/src/screens/live_memory_controller.dart';
 import 'package:radar_desktop/src/screens/tools_screen.dart';
 import 'package:radar_desktop/src/screens/trends_screen.dart';
 import 'package:radar_desktop/src/seams/vm_service_uri_connection.dart';
@@ -188,6 +190,30 @@ void main() {
   });
 
   testWidgets(
+    'the Device Monitor destination routes to DeviceMonitorScreen offline '
+    '(import-first is not connection-gated)',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DesktopShell(tools: _fakeTools(), guide: _seenGuide()),
+        ),
+      );
+
+      // DEVICE sits below the memory/perf/stability/android groups — scroll
+      // it into view before tapping. `pump` (not `pumpAndSettle`): the
+      // shell now hosts `FirstRunGuide`, whose glow-pulse
+      // `AnimationController` repeats forever once built — even while the
+      // guide is closed — so `pumpAndSettle` would never settle.
+      await tester.ensureVisible(find.text('Device Monitor'));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Device Monitor'));
+      await tester.pump();
+
+      expect(find.byType(DeviceMonitorScreen), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'the Tools destination routes to ToolsScreen even while offline',
     (tester) async {
       await tester.pumpWidget(
@@ -300,6 +326,47 @@ void main() {
         expect(find.byType(DumpsScreen), findsOneWidget);
       },
     );
+
+    testWidgets('connecting while parked on Device Monitor starts live polling '
+        'immediately (no nav-away-and-back)', (tester) async {
+      final live = LiveMemoryController(
+        poll: () async => (heapUsage: 1, externalUsage: 1),
+      );
+      final connection = VmServiceUriConnection(
+        connect: (_) async => _FakeVmService(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DesktopShell(
+            connection: connection,
+            tools: _fakeTools(),
+            liveMemory: live,
+            guide: _seenGuide(),
+          ),
+        ),
+      );
+
+      // Park on the Device Monitor while still offline. `pump` (not
+      // `pumpAndSettle`): the shell's `FirstRunGuide` glow-pulse
+      // `AnimationController` repeats forever once built, so
+      // `pumpAndSettle` would never settle.
+      await tester.ensureVisible(find.text('Device Monitor'));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Device Monitor'));
+      await tester.pump();
+      expect(live.isPolling, isFalse);
+
+      // Connect while already on the pane — polling must begin here, not
+      // only on the next navigation into the pane.
+      await connection.connect('ws://x');
+      await tester.pump();
+      expect(live.isPolling, isTrue);
+
+      // Cancel the periodic timer before teardown asserts no pending timers.
+      live.stop();
+      addTearDown(live.dispose);
+    });
 
     testWidgets('disposing the shell does not dispose an injected connection', (
       tester,

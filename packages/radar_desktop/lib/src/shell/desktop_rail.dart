@@ -57,6 +57,7 @@ class DesktopRail extends StatelessWidget {
                     DesktopView.dumps,
                     DesktopView.histogram,
                     DesktopView.paths,
+                    DesktopView.clusters,
                     DesktopView.compare,
                     DesktopView.trends,
                   ])
@@ -112,6 +113,11 @@ class DesktopRail extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: 14),
+            // Import-first, so always active even offline; its live tab gates
+            // itself on the connection internally.
+            _group('DEVICE'),
+            _item(DesktopView.deviceMonitor, enabled: true),
             const SizedBox(height: 14),
             KeyedSubtree(
               key: toolsGroupKey,

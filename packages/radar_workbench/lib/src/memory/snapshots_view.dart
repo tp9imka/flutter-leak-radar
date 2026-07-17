@@ -5,10 +5,13 @@ import 'package:leak_graph/leak_graph.dart';
 import 'package:radar_ui/radar_ui.dart';
 
 import '../capture/snapshot_bundle.dart';
+import '../session/triage_store.dart';
 import 'class_detail_panel.dart';
 import 'diff_table.dart';
+import 'leak_clusters_view.dart';
 import 'mem_format.dart';
 import 'memory_controller.dart';
+import 'package_group_scaffold.dart';
 
 const _log = 'leakRadarDevTools.snapshotsView';
 
@@ -19,10 +22,15 @@ class SnapshotsView extends StatefulWidget {
     super.key,
     required this.controller,
     required this.onExport,
+    this.triage = TriageStore.empty,
   });
 
   final MemoryController controller;
   final Future<void> Function(SnapshotBundle bundle) onExport;
+
+  /// Cross-session triage baseline; drives the per-class NEW/KNOWN/ACK chips on
+  /// diff rows (computed from the comparison snapshot's clusters).
+  final TriageStore triage;
 
   @override
   State<SnapshotsView> createState() => _SnapshotsViewState();
@@ -31,10 +39,25 @@ class SnapshotsView extends StatefulWidget {
 class _SnapshotsViewState extends State<SnapshotsView> {
   String? _selectedClass;
 
+  // The current diff, cached by pair identity so a selection change (which
+  // rebuilds this view) does not recompute the diff and thus lets the child
+  // DiffTable's grouping memo stay warm.
+  List<ClassCountDiff> _diff = const [];
+  String? _diffKey;
+
   MemoryController get _c => widget.controller;
 
+  /// Stable identity for the current diff selection: baseline+comparison ids,
+  /// or `abs-<id>` for a single snapshot against an empty baseline.
+  String _pairKey(SnapshotBundle comparison) {
+    final baseline = _c.pair?.baseline;
+    return baseline == null
+        ? 'abs-${comparison.id}'
+        : '${baseline.id}-${comparison.id}';
+  }
+
   ClassCountDiff? _diffFor(String className) {
-    for (final d in _c.diff ?? const <ClassCountDiff>[]) {
+    for (final d in _diff) {
       if (d.after.className == className) return d;
     }
     return null;
@@ -100,7 +123,12 @@ class _SnapshotsViewState extends State<SnapshotsView> {
       );
     }
     final againstEmpty = _c.comparingAgainstEmpty;
-    final diff = _c.diff ?? const <ClassCountDiff>[];
+    final pairKey = _pairKey(comparison);
+    if (_diffKey != pairKey) {
+      _diff = _c.diff ?? const <ClassCountDiff>[];
+      _diffKey = pairKey;
+    }
+    final diff = _diff;
     final selectedDiff = _selectedClass == null
         ? null
         : _diffFor(_selectedClass!);
@@ -109,8 +137,16 @@ class _SnapshotsViewState extends State<SnapshotsView> {
       children: [
         Expanded(
           child: DiffTable(
+            key: ValueKey('diff-$pairKey'),
             diffs: diff,
             absolute: againstEmpty,
+            classAnchors: classAnchorsFor(comparison.analysisResult),
+            projectPackages: comparison.analysisResult.resolvedAppPackages
+                .toSet(),
+            triage: triageDisplayByClassName(
+              comparison.analysisResult.clusters,
+              widget.triage,
+            ),
             summary: againstEmpty
                 ? _ShowAllSummary(snapshot: comparison)
                 : _DiffSummary(pair: _c.pair!),
@@ -125,6 +161,12 @@ class _SnapshotsViewState extends State<SnapshotsView> {
             className: _selectedClass,
             profile: _profileFor(_selectedClass, comparison),
             distribution: _distributionFor(_selectedClass, comparison),
+            projectPackages: comparison.analysisResult.resolvedAppPackages
+                .toSet(),
+            representativeAnchorHopIndex: representativeAnchorHopIndexFor(
+              comparison.analysisResult,
+              _profileFor(_selectedClass, comparison),
+            ),
             headerTrailing: selectedDiff == null
                 ? null
                 : againstEmpty

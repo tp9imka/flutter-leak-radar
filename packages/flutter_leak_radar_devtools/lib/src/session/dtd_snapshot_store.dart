@@ -5,6 +5,8 @@ import 'package:devtools_extensions/devtools_extensions.dart';
 import 'package:dtd/dtd.dart';
 import 'package:radar_workbench/radar_workbench.dart';
 
+import 'dtd_session_manifest.dart';
+
 /// [SnapshotStore] backed by the Dart Tooling Daemon (DTD) file system service.
 ///
 /// DevTools disposes this extension's iframe when another DevTools tab is
@@ -24,6 +26,11 @@ final class DtdSnapshotStore implements SnapshotStore {
   /// Bundle ids already written this session, so a re-persist after mutations
   /// only rewrites the small manifest, not every (multi-MB) bundle file.
   final Set<int> _writtenIds = {};
+
+  String? _refusal;
+
+  @override
+  String? get restoreRefusal => _refusal;
 
   Future<DartToolingDaemon?> _connection() async {
     final conn = dtdManager.connection;
@@ -63,6 +70,9 @@ final class DtdSnapshotStore implements SnapshotStore {
 
   @override
   Future<void> persist(PersistedSession session) async {
+    // Suppress writes while refusing a newer-schema session, so it is not
+    // overwritten before the user chooses to start fresh.
+    if (_refusal != null) return;
     final dtd = await _connection();
     if (dtd == null) return;
     final base = await _baseDir();
@@ -78,12 +88,7 @@ final class DtdSnapshotStore implements SnapshotStore {
       }
       await dtd.writeFileAsString(
         base.resolve(_manifestName),
-        jsonEncode({
-          'version': 1,
-          'bundleIds': [for (final b in session.bundles) b.id],
-          'selectedIds': session.selectedIds,
-          'view': session.view.name,
-        }),
+        jsonEncode(buildSessionManifest(session)),
       );
     } on Exception {
       // Sandbox/permission denied or missing dir — degrade to in-memory only.
@@ -101,14 +106,12 @@ final class DtdSnapshotStore implements SnapshotStore {
         base.resolve(_manifestName),
       )).content;
       if (manifestStr == null || manifestStr.isEmpty) return null;
-      final manifest = jsonDecode(manifestStr) as Map<String, Object?>;
+      final manifest = parseSessionManifest(
+        jsonDecode(manifestStr) as Map<String, Object?>,
+      );
 
-      final ids = [
-        for (final e in (manifest['bundleIds'] as List? ?? const []))
-          (e as num).toInt(),
-      ];
       final bundles = <SnapshotBundle>[];
-      for (final id in ids) {
+      for (final id in manifest.bundleIds) {
         final content = (await dtd.readFileAsString(
           base.resolve('$_filePrefix$id.json'),
         )).content;
@@ -121,20 +124,22 @@ final class DtdSnapshotStore implements SnapshotStore {
           _writtenIds.add(id);
         }
       }
-      if (bundles.isEmpty) return null;
 
-      final viewName = manifest['view'] as String?;
+      // A triage-only session (fixes recorded, all bundles pruned) is still
+      // worth restoring — do not drop it just because there are no bundles.
+      if (bundles.isEmpty && manifest.triage.entries.isEmpty) return null;
+
       return PersistedSession(
         bundles: bundles,
-        selectedIds: [
-          for (final e in (manifest['selectedIds'] as List? ?? const []))
-            (e as num).toInt(),
-        ],
-        view: RadarView.values.firstWhere(
-          (v) => v.name == viewName,
-          orElse: () => RadarView.snapshotDiff,
-        ),
+        selectedIds: manifest.selectedIds,
+        view: manifest.view,
+        triage: manifest.triage,
       );
+    } on UnsupportedSessionVersionException catch (e) {
+      // A newer build wrote this session — refuse it (and suppress writes so
+      // it is not overwritten) rather than truncating.
+      _refusal = e.toString();
+      return null;
     } on Exception {
       // Manifest missing (first run), permission denied, or corrupt JSON —
       // start fresh rather than surfacing an error.
@@ -144,6 +149,7 @@ final class DtdSnapshotStore implements SnapshotStore {
 
   @override
   Future<void> clear() async {
+    _refusal = null;
     final dtd = await _connection();
     if (dtd == null) return;
     final base = await _baseDir();
@@ -154,12 +160,15 @@ final class DtdSnapshotStore implements SnapshotStore {
       // empty manifest orphans (ignores) any leftover bundle files.
       await dtd.writeFileAsString(
         base.resolve(_manifestName),
-        jsonEncode({
-          'version': 1,
-          'bundleIds': const <int>[],
-          'selectedIds': const <int>[],
-          'view': RadarView.snapshotDiff.name,
-        }),
+        jsonEncode(
+          buildSessionManifest(
+            const PersistedSession(
+              bundles: [],
+              selectedIds: [],
+              view: RadarView.snapshotDiff,
+            ),
+          ),
+        ),
       );
     } on Exception {
       // ignore — best-effort clear.

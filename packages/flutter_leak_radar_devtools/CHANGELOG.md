@@ -1,3 +1,19 @@
+## 0.3.0
+
+Package-origin attribution across the memory views (aligns with `leak_graph`
+0.3.0's attribution core and `radar_ui` 0.3.1's origin chips).
+
+- The diff table and class histogram group classes by their owning (anchor)
+  package: the project's own classes are pinned and expanded first, dependency
+  groups and a single merged runtime group collapse to a rollup — the "which
+  are MINE" view. `origin:` filter terms (`origin:project`,
+  `origin:dependency`, `origin:framework`, `origin:sdk`) select by owner.
+- Class rows and retaining-path hops carry an origin chip (`yours` /
+  `dependency` / `framework` / `sdk`) classified against the resolved
+  project-package set.
+- The project-package set is resolved from the debugged app's project over the
+  Dart Tooling Daemon (`DtdProjectContext`), with a manual override.
+
 ## 0.2.1
 
 - Session state (captured snapshots, diff selection, active view) now survives

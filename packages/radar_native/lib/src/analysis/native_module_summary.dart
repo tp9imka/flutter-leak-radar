@@ -31,6 +31,35 @@ final class NativeModuleSummary {
 
   /// Callsites attributed to this module, in first-seen order.
   final List<NativeCallsite> callsites;
+
+  /// Serialises to a JSON-encodable map, including nested [callsites].
+  Map<String, Object?> toJson() => {
+    'module': module,
+    'kind': kind.name,
+    'stillLiveBytes': stillLiveBytes,
+    'stillLiveCount': stillLiveCount,
+    'callsites': [for (final c in callsites) c.toJson()],
+  };
+
+  /// Restores from [toJson] output. Throws [FormatException] on an unknown
+  /// [NativeModuleKind] name.
+  factory NativeModuleSummary.fromJson(Map<String, Object?> json) {
+    final kindName = json['kind'] as String;
+    final kind = NativeModuleKind.values.asNameMap()[kindName];
+    if (kind == null) {
+      throw FormatException('unknown NativeModuleKind name: $kindName');
+    }
+    return NativeModuleSummary(
+      module: json['module'] as String,
+      kind: kind,
+      stillLiveBytes: (json['stillLiveBytes'] as num).toInt(),
+      stillLiveCount: (json['stillLiveCount'] as num).toInt(),
+      callsites: [
+        for (final e in (json['callsites'] as List? ?? const []))
+          NativeCallsite.fromJson((e as Map).cast<String, Object?>()),
+      ],
+    );
+  }
 }
 
 /// Roll a checkpoint's callsites up by attributed module. Groups by the

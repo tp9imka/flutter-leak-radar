@@ -5,6 +5,7 @@ enum DesktopView {
   dumps,
   histogram,
   paths,
+  clusters,
   compare,
   trends,
   traces,
@@ -16,12 +17,14 @@ enum DesktopView {
   androidCompare,
   androidFfi,
   androidCapture,
+  deviceMonitor,
   tools;
 
   bool get isMemory =>
       this == dumps ||
       this == histogram ||
       this == paths ||
+      this == clusters ||
       this == compare ||
       this == trends;
   bool get isPerf => this == traces || this == frames;
@@ -33,6 +36,11 @@ enum DesktopView {
       this == androidFfi ||
       this == androidCapture;
 
+  /// The DEVICE MONITOR destination — import-first native/CI trend viewer
+  /// with an optional connected live tab. Import-first works offline, so
+  /// (like memory/android) it is never gated behind a live connection.
+  bool get isDeviceMonitor => this == deviceMonitor;
+
   /// The SETUP destination — external tool discovery/install/locate.
   /// Its own group: not memory/perf/stability/android, and (unlike
   /// perf/stability) never gated behind a live connection.
@@ -42,6 +50,7 @@ enum DesktopView {
     DesktopView.dumps => 'Dumps',
     DesktopView.histogram => 'Class histogram',
     DesktopView.paths => 'Retaining paths',
+    DesktopView.clusters => 'Leak clusters',
     DesktopView.compare => 'Compare',
     DesktopView.trends => 'Trends',
     DesktopView.traces => 'Traces',
@@ -53,6 +62,7 @@ enum DesktopView {
     DesktopView.androidCompare => 'Compare',
     DesktopView.androidFfi => 'ffi allocations',
     DesktopView.androidCapture => 'Capture / import',
+    DesktopView.deviceMonitor => 'Device Monitor',
     DesktopView.tools => 'Tools',
   };
 }

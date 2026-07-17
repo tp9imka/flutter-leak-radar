@@ -16,5 +16,6 @@ workspace:
   - packages/radar_desktop
   - packages/radarscope
   - packages/radar_ui
+  - packages/radar_ci
 dev_dependencies:
   melos: ^6.0.0

@@ -1,3 +1,11 @@
+## 0.1.4
+
+- Fix: the draggable badge's quick menu "Open Performance" now opens the
+  Performance tab of `RadarScreen` instead of the Leaks tab.
+- Require the current attribution feature set so a `radarscope` install pulls
+  package-origin attribution end to end: `flutter_leak_radar ^0.3.0`,
+  `radar_trace ^0.2.0`, `radar_ui ^0.3.1` (with `flutter_perf_radar ^0.1.1`).
+
 ## 0.1.3
 
 - `Radar.trace` / `traceAsync` / `start` now accept an optional `dedupKey`,

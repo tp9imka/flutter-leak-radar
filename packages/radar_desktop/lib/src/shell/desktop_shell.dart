@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:radar_native_host/radar_native_host.dart';
 import 'package:radar_ui/radar_ui.dart';
@@ -13,14 +14,19 @@ import '../screens/android_compare_screen.dart';
 import '../screens/android_ffi_screen.dart';
 import '../screens/android_native_screen.dart';
 import '../screens/android_session_screen.dart';
+import '../screens/clusters_screen.dart';
 import '../screens/compare_screen.dart';
+import '../screens/device_monitor_controller.dart';
+import '../screens/device_monitor_screen.dart';
 import '../screens/dumps_screen.dart';
 import '../screens/histogram_screen.dart';
+import '../screens/live_memory_controller.dart';
 import '../screens/paths_screen.dart';
 import '../screens/tools_screen.dart';
 import '../screens/trends_screen.dart';
 import '../seams/android/lazy_tool_seams.dart';
 import '../seams/android/perfetto_trace_importer.dart';
+import '../seams/desktop_memory_poll.dart';
 import '../seams/desktop_perf_call.dart';
 import '../seams/vm_service_uri_connection.dart';
 import '../tools/tools_controller.dart';
@@ -33,17 +39,37 @@ import 'desktop_window_chrome.dart';
 /// the right. Owns the workspace and routes the selected [DesktopView] to its
 /// real screen; locked (perf/stability) views never activate while offline.
 class DesktopShell extends StatefulWidget {
-  const DesktopShell({super.key, this.connection, this.tools, this.guide});
+  const DesktopShell({
+    super.key,
+    this.connection,
+    this.tools,
+    this.workspace,
+    this.deviceMonitor,
+    this.liveMemory,
+    this.guide,
+  });
 
   /// The live VM service connection driving PERFORMANCE/STABILITY. Injectable
   /// for tests; when null, the shell owns its own [VmServiceUriConnection].
   final VmServiceUriConnection? connection;
+
+  /// The Device Monitor import-first controller. Injectable for tests; when
+  /// null, the shell owns its own.
+  final DeviceMonitorController? deviceMonitor;
+
+  /// The Device Monitor live-poll controller. Injectable for tests; when null,
+  /// the shell owns one wired to [connection]'s `getMemoryUsage`.
+  final LiveMemoryController? liveMemory;
 
   /// Discovers/persists the external tools (`trace_processor`, `adb`,
   /// `llvm-symbolizer`, `llvm-readelf`) that ANDROID NATIVE's profiling
   /// seams shell out to. Injectable for tests; when null, the shell owns
   /// its own [ToolsController].
   final ToolsController? tools;
+
+  /// The offline workspace. Injectable for tests (e.g. to seed a durable store
+  /// or a restore refusal); when null, the shell owns its own.
+  final WorkspaceController? workspace;
 
   /// Drives the first-run onboarding tour (welcome → five spotlights →
   /// finish). Injectable for tests; when null, the shell owns its own
@@ -55,7 +81,8 @@ class DesktopShell extends StatefulWidget {
 }
 
 class _DesktopShellState extends State<DesktopShell> {
-  final WorkspaceController _workspace = WorkspaceController();
+  late final WorkspaceController _workspace =
+      widget.workspace ?? WorkspaceController();
   late final ToolsController _tools = widget.tools ?? ToolsController();
 
   /// Seams read [_tools.resolvedPath] lazily on every call, so a Locate/
@@ -86,6 +113,11 @@ class _DesktopShellState extends State<DesktopShell> {
   late final PerfDataController _perf = PerfDataController(
     callExtension: perfCallFor(_connection),
   );
+  late final DeviceMonitorController _deviceMonitor =
+      widget.deviceMonitor ?? DeviceMonitorController();
+  late final LiveMemoryController _liveMemory =
+      widget.liveMemory ??
+      LiveMemoryController(poll: memoryPollFor(_connection));
   late final FirstRunGuideController _guide =
       widget.guide ?? FirstRunGuideController();
   DesktopView _view = DesktopView.dumps;
@@ -184,6 +216,12 @@ class _DesktopShellState extends State<DesktopShell> {
         _view = DesktopView.dumps;
       }
     });
+    // A dropped connection stops live polling; import-first stays usable.
+    if (!_connected) _liveMemory.stop();
+    // Connecting while already parked on the Device Monitor must begin live
+    // polling here — otherwise the live tab would sit at "0 samples" until the
+    // user navigated away and back.
+    if (_connected && _view.isDeviceMonitor) _liveMemory.start();
     if (_connected) unawaited(_perf.refresh());
   }
 
@@ -200,7 +238,11 @@ class _DesktopShellState extends State<DesktopShell> {
     _guide.removeListener(_onGuideChanged);
     if (widget.guide == null) _guide.dispose();
     _perf.dispose();
-    _workspace.dispose();
+    // Only dispose controllers we created; injected ones belong to the caller.
+    if (widget.deviceMonitor == null) _deviceMonitor.dispose();
+    if (widget.liveMemory == null) _liveMemory.dispose();
+    // Only dispose a workspace we created; an injected one belongs to the test.
+    if (widget.workspace == null) _workspace.dispose();
     _android.dispose();
     super.dispose();
   }
@@ -217,10 +259,23 @@ class _DesktopShellState extends State<DesktopShell> {
 
   void _select(DesktopView v) {
     // Clamp: never activate a locked (perf/stability) view while offline;
-    // ANDROID NATIVE is its own offline workspace, so it is never clamped;
-    // Tools is how a missing tool gets fixed in the first place, so it is
-    // never clamped either.
-    if (!_connected && !v.isMemory && !v.isAndroid && !v.isTools) return;
+    // ANDROID NATIVE and DEVICE MONITOR are offline-capable (import-first), so
+    // they are never clamped; Tools is how a missing tool gets fixed in the
+    // first place, so it is never clamped either.
+    if (!_connected &&
+        !v.isMemory &&
+        !v.isAndroid &&
+        !v.isDeviceMonitor &&
+        !v.isTools) {
+      return;
+    }
+    // Live polling runs only while the Device Monitor is showing and a live
+    // connection exists; stop it whenever we navigate elsewhere.
+    if (v.isDeviceMonitor && _connected) {
+      _liveMemory.start();
+    } else {
+      _liveMemory.stop();
+    }
     setState(() => _view = v);
     // Fetch fresh data once per navigation into a perf/stability view, not
     // on every rebuild.
@@ -241,6 +296,8 @@ class _DesktopShellState extends State<DesktopShell> {
         return HistogramScreen(workspace: _workspace);
       case DesktopView.paths:
         return PathsScreen(workspace: _workspace);
+      case DesktopView.clusters:
+        return ClustersScreen(workspace: _workspace);
       case DesktopView.compare:
         return CompareScreen(workspace: _workspace);
       case DesktopView.trends:
@@ -267,8 +324,34 @@ class _DesktopShellState extends State<DesktopShell> {
           tools: _tools,
           onOpenTools: () => _select(DesktopView.tools),
         );
+      case DesktopView.deviceMonitor:
+        return DeviceMonitorScreen(
+          controller: _deviceMonitor,
+          live: _liveMemory,
+          connected: _connected,
+          onImportPrimary: () => _pickAndImport(comparison: false),
+          onImportComparison: () => _pickAndImport(comparison: true),
+        );
       case DesktopView.tools:
         return ToolsScreen(controller: _tools);
+    }
+  }
+
+  /// Opens a file picker for a Device Monitor artifact (a session
+  /// `timeline.json` or a radar_ci `run.json`) and imports it. A cancelled
+  /// pick is a no-op; a bad file surfaces through the controller's error
+  /// state, never a crash.
+  static const List<XTypeGroup> _monitorFileTypes = [
+    XTypeGroup(label: 'Radar artifact', extensions: ['json']),
+  ];
+
+  Future<void> _pickAndImport({required bool comparison}) async {
+    final file = await openFile(acceptedTypeGroups: _monitorFileTypes);
+    if (file == null) return;
+    if (comparison) {
+      await _deviceMonitor.importComparison(file.path);
+    } else {
+      await _deviceMonitor.importPrimary(file.path);
     }
   }
 
@@ -308,6 +391,24 @@ class _DesktopShellState extends State<DesktopShell> {
                           )
                         : null,
                   ),
+                ),
+                ListenableBuilder(
+                  listenable: _workspace,
+                  builder: (context, _) {
+                    final refusal = _workspace.restoreRefusal;
+                    if (refusal == null) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: RadarBanner(
+                        message: refusal,
+                        severity: RadarSeverity.warning,
+                        action: OutlinedButton(
+                          onPressed: _workspace.startNewSession,
+                          child: const Text('Start new'),
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 Expanded(
                   child: Row(

@@ -43,6 +43,42 @@ class _FailingAdbRunner implements AdbRunner {
   }
 }
 
+/// Drives startup-mode completion polling: `perfetto --background` reports
+/// [backgroundStdout], and `test -d /proc/<pid>` reads alive (exit 0) for the
+/// first [aliveProbes] probes, then gone (exit 1).
+class _PollingAdbRunner implements AdbRunner {
+  _PollingAdbRunner({
+    required this.backgroundStdout,
+    required this.aliveProbes,
+  });
+
+  final String backgroundStdout;
+  final int aliveProbes;
+  final calls = <List<String>>[];
+  int _probes = 0;
+
+  @override
+  Future<AdbResult> run(
+    List<String> args, {
+    String? serial,
+    String? stdin,
+  }) async {
+    calls.add(args);
+    if (args.contains('--background')) {
+      return AdbResult(0, backgroundStdout, '');
+    }
+    if (args.length > 1 && args[1] == 'test' && args.contains('-d')) {
+      final alive = _probes < aliveProbes;
+      _probes++;
+      return AdbResult(alive ? 0 : 1, '', '');
+    }
+    return const AdbResult(0, '', '');
+  }
+
+  int get procProbeCount =>
+      calls.where((c) => c.length > 1 && c[1] == 'test').length;
+}
+
 class _RecordingSleep {
   Duration? lastDuration;
 
@@ -89,10 +125,17 @@ void main() {
     });
 
     test('startup mode: force-stop, backgrounded perfetto, monkey launch, '
-        'sleep, then pull', () async {
-      final runner = _RecordingAdbRunner();
+        'then polls /proc for completion before pulling', () async {
+      final runner = _PollingAdbRunner(
+        backgroundStdout: '4321\n',
+        aliveProbes: 2,
+      );
       final sleep = _RecordingSleep();
-      final capture = AdbHeapprofdCapture(runner, sleep: sleep.call);
+      final capture = AdbHeapprofdCapture.withPollInterval(
+        runner,
+        sleep: sleep.call,
+        pollInterval: const Duration(seconds: 2),
+      );
 
       final result = await capture.capture(
         const CaptureRequest(
@@ -105,34 +148,58 @@ void main() {
       );
 
       expect(result, '/tmp/o.pftrace');
-      expect(runner.calls, hasLength(5));
-      for (final call in runner.calls) {
-        expect(call.serial, 'DEV123');
-      }
 
-      expect(runner.calls[0].args[0], 'shell');
-      expect(runner.calls[0].args[1], startsWith('cat > '));
+      // Ordered prefix: config write, force-stop, backgrounded perfetto, monkey.
+      expect(runner.calls[0].first, 'shell');
+      expect(runner.calls[0][1], startsWith('cat > '));
+      expect(runner.calls[1], ['shell', 'am', 'force-stop', 'com.x']);
+      expect(runner.calls[2], contains('--background'));
+      expect(runner.calls[3], contains('monkey'));
 
-      expect(runner.calls[1].args, ['shell', 'am', 'force-stop', 'com.x']);
+      // Polling: the /proc probe targets the reported pid and runs until the
+      // process is gone (2 alive + 1 gone = 3 probes) — not a blind sleep.
+      expect(runner.procProbeCount, 3);
+      expect(
+        runner.calls,
+        contains(equals(['shell', 'test', '-d', '/proc/4321'])),
+      );
 
-      final perfetto = runner.calls[2];
-      expect(perfetto.args[0], 'shell');
-      expect(perfetto.args, contains('perfetto'));
-      expect(perfetto.args, contains('--background'));
+      // The last call is the pull; it only happened after polling saw the
+      // process exit.
+      expect(runner.calls.last.first, 'pull');
 
-      expect(runner.calls[3].args, [
-        'shell',
-        'monkey',
-        '-p',
-        'com.x',
-        '-c',
-        'android.intent.category.LAUNCHER',
-        '1',
-      ]);
+      // The only sleeps are poll-cadence waits between probes, never one blind
+      // duration-length wait.
+      expect(sleep.lastDuration, const Duration(seconds: 2));
+    });
 
-      expect(sleep.lastDuration, const Duration(milliseconds: 15000));
+    test('startup mode: falls back to a fixed wait when the perfetto pid '
+        'cannot be parsed', () async {
+      final runner = _PollingAdbRunner(
+        backgroundStdout: 'Connected to the Perfetto traced service\n',
+        aliveProbes: 0,
+      );
+      final sleep = _RecordingSleep();
+      final capture = AdbHeapprofdCapture.withPollInterval(
+        runner,
+        sleep: sleep.call,
+        pollInterval: const Duration(seconds: 2),
+      );
 
-      expect(runner.calls[4].args[0], 'pull');
+      await capture.capture(
+        const CaptureRequest(
+          packageId: 'com.x',
+          mode: CaptureMode.startup,
+          durationMs: 12000,
+        ),
+        outputPath: '/tmp/o.pftrace',
+      );
+
+      // No pid → no /proc polling; the documented time-based fallback wait of
+      // duration + slack (12000 + 15000) is used instead.
+      expect(runner.procProbeCount, 0);
+      expect(sleep.lastDuration, const Duration(milliseconds: 27000));
+      expect(runner.calls.last.first, 'pull');
     });
 
     test('throws AdbException when the perfetto step fails', () async {

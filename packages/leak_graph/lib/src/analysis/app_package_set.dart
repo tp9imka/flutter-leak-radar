@@ -4,6 +4,10 @@ final class AppPackageSet {
 
   final Set<String> _names;
 
+  /// The resolved project-owned package names, for callers (e.g.
+  /// [OriginClassifier]) that classify by package rather than by URI membership.
+  Set<String> get names => _names;
+
   /// Package names excluded from auto-detection (SDK, framework, infra).
   static const Set<String> sdkDenylist = {
     'flutter',

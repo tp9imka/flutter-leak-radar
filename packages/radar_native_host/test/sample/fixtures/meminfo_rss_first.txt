@@ -1,0 +1,13 @@
+Applications Memory Usage (in Kilobytes):
+Uptime: 884451233 Realtime: 884451233
+
+** MEMINFO in pid 12345 [com.example.app] **
+
+ App Summary
+                       Rss(KB)                        Pss(KB)
+                        ------                         ------
+           Java Heap:    21316                          18452
+         Native Heap:    80004                          74310
+                Code:    88000                          39820
+            Graphics:    51216                          51216
+           TOTAL RSS:   336044            TOTAL PSS:   312044       TOTAL SWAP PSS:     1234

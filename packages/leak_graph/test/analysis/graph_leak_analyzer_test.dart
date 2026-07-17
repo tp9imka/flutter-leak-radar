@@ -153,6 +153,40 @@ InMemoryHeapGraph _nonLeakProneGraph() => InMemoryHeapGraph.of({
   ),
 });
 
+// root(0) -> _Timer(1) -> LeakyOwner(2, app) -> String(3, dart:core).
+// The dartSdk String leaf is RETAINED by project code (LeakyOwner) yet
+// DECLARED by dart:core — the declared-vs-retained rollup keystone.
+InMemoryHeapGraph _keystoneGraph() => InMemoryHeapGraph.of({
+  0: HeapNode(
+    id: 0,
+    className: 'Root',
+    libraryUri: Uri.parse('dart:core'),
+    shallowSize: 0,
+    edges: const [HeapEdge(targetId: 1)],
+  ),
+  1: HeapNode(
+    id: 1,
+    className: '_Timer',
+    libraryUri: Uri.parse('dart:async'),
+    shallowSize: 64,
+    edges: const [HeapEdge(targetId: 2, field: '_callback')],
+  ),
+  2: HeapNode(
+    id: 2,
+    className: 'LeakyOwner',
+    libraryUri: Uri.parse('package:my_app/leaky.dart'),
+    shallowSize: 128,
+    edges: const [HeapEdge(targetId: 3, field: '_buf')],
+  ),
+  3: HeapNode(
+    id: 3,
+    className: 'String',
+    libraryUri: Uri.parse('dart:core'),
+    shallowSize: 16,
+    edges: const [],
+  ),
+});
+
 // _Timer -> FrameworkClass in package:flutter only (no app packages)
 InMemoryHeapGraph _flutterOnlyLeakGraph() => InMemoryHeapGraph.of({
   0: HeapNode(
@@ -380,6 +414,128 @@ void main() {
           .map((h) => h.className)
           .toList();
       expect(classes, contains('_LeakyScreenState'));
+    });
+  });
+
+  group('per-package rollups', () {
+    test('declared-vs-retained keystone: an SDK leaf retained by project code '
+        'lands in the PROJECT anchor rollup and the SDK declared rollup', () {
+      final result = analyzer.analyze(
+        _keystoneGraph(),
+        const GraphAnalysisOptions(appPackages: ['my_app'], minClusterSize: 1),
+      );
+
+      // Anchor view — which package RETAINS the bytes. The owner AND the
+      // dartSdk leaf it retains both fold into the project package.
+      final anchorMyApp = result.anchorRollups.singleWhere(
+        (r) => r.package == 'my_app',
+      );
+      expect(anchorMyApp.origin, ClassOrigin.project);
+      expect(anchorMyApp.instanceCount, 2);
+      expect(anchorMyApp.classCount, 2);
+      // The SDK leaf is NOT attributed to dart:core in the retained view.
+      expect(
+        result.anchorRollups.any((r) => r.package == 'dart:core'),
+        isFalse,
+      );
+
+      // Declared view — which package DECLARES the classes. The String leaf
+      // lands under dart:core even though project code retains it.
+      final declaredSdk = result.declaredRollups.singleWhere(
+        (r) => r.package == 'dart:core',
+      );
+      expect(declaredSdk.origin, ClassOrigin.dartSdk);
+      expect(declaredSdk.classCount, 1);
+      expect(declaredSdk.instanceCount, 1);
+      expect(
+        result.declaredRollups.any(
+          (r) => r.package == 'my_app' && r.origin == ClassOrigin.project,
+        ),
+        isTrue,
+      );
+    });
+
+    test('shallow bytes are labeled, never presented as retained', () {
+      final result = analyzer.analyze(
+        _keystoneGraph(),
+        const GraphAnalysisOptions(appPackages: ['my_app'], minClusterSize: 1),
+      );
+      final anchorMyApp = result.anchorRollups.singleWhere(
+        (r) => r.package == 'my_app',
+      );
+      // LeakyOwner(128) + String(16) shallow only.
+      expect(anchorMyApp.shallowBytes, 144);
+      expect(anchorMyApp.clusterCount, 1);
+    });
+
+    test('reports appPackageSource per options', () {
+      final graph = _keystoneGraph();
+      expect(
+        analyzer
+            .analyze(graph, const GraphAnalysisOptions(appPackages: ['my_app']))
+            .appPackageSource,
+        AppPackageSource.explicitConfig,
+      );
+      expect(
+        analyzer.analyze(graph).appPackageSource,
+        AppPackageSource.autoDetected,
+      );
+      expect(
+        analyzer
+            .analyze(graph, const GraphAnalysisOptions(disableAppFilter: true))
+            .appPackageSource,
+        AppPackageSource.disabled,
+      );
+    });
+
+    test('resolvedAppPackages reflects the resolved app-package set', () {
+      final graph = _keystoneGraph();
+      expect(
+        analyzer
+            .analyze(graph, const GraphAnalysisOptions(appPackages: ['my_app']))
+            .resolvedAppPackages,
+        ['my_app'],
+      );
+      // Auto-detect derives 'my_app' from the graph (flutter is denylisted).
+      expect(analyzer.analyze(graph).resolvedAppPackages, contains('my_app'));
+      // Disabled filtering resolves no project-owned package.
+      expect(
+        analyzer
+            .analyze(graph, const GraphAnalysisOptions(disableAppFilter: true))
+            .resolvedAppPackages,
+        isEmpty,
+      );
+    });
+  });
+
+  group('appPackages validation', () {
+    test('warns when an appPackages entry is a URI, not a bare name', () {
+      final result = analyzer.analyze(
+        _timerGraph(),
+        const GraphAnalysisOptions(appPackages: ['package:my_app/']),
+      );
+
+      expect(
+        result.stats.warnings.any(
+          (w) => w.contains('package:my_app/') && w.contains('bare'),
+        ),
+        isTrue,
+        reason:
+            'a URI-form appPackages entry must warn, not silently match '
+            'nothing',
+      );
+    });
+
+    test('a bare-name appPackages entry produces no such warning', () {
+      final result = analyzer.analyze(
+        _timerGraph(),
+        const GraphAnalysisOptions(appPackages: ['my_app']),
+      );
+
+      expect(
+        result.stats.warnings.any((w) => w.contains('bare package name')),
+        isFalse,
+      );
     });
   });
 }

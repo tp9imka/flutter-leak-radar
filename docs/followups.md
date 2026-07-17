@@ -1,55 +1,93 @@
 # flutter-leak-radar — Follow-ups & Roadmap
 
-_Last refreshed: 2026-06-26._
+_Last refreshed: 2026-07-17 (end of the attribution / CI / native train)._
 
 ## Where things stand
 
-The **0.1.x milestone is shipped and published**:
+The **attribution + CI + native-lane train** landed on
+`feat/attribution-ci-native`. Design:
+[`docs/specs/2026-07-17-attribution-ci-native-design.md`](specs/2026-07-17-attribution-ci-native-design.md);
+phase plans in [`docs/plans/`](plans/) (`2026-07-17-phase-{a,b,c}-*.md`).
 
-- `leak_graph` **0.1.0** and `flutter_leak_radar_lint` **0.1.1** are live on pub.dev;
-  `flutter_leak_radar` **0.1.1** is ready to publish (pub.dev still shows 0.0.1) via
-  `./tool/publish.sh packages/flutter_leak_radar`.
-- pana scores: `leak_graph` **160/160**, `flutter_leak_radar` **160/160**,
-  `flutter_leak_radar_lint` **150/160** (the −10 is the custom_lint `analyzer ^8` cap — see below).
-- Retaining-path detection (`leak_graph`), all **7 lint rules**, extensive on-device validation,
-  the in-app dashboard/overlay, and publishing tooling (`tool/publish.sh`) are **done**. The
-  June-23 list that used to live here is largely superseded.
+### Shipped this train
 
-## Next phase — research & plans (2026-06-26)
+**Phase A — attribution (whose leak is it):**
+- `leak_graph` **0.3.0** — `ClassOrigin` / `OriginClassifier`, `GraphHop.libraryUri`
+  (excluded from `==`/`hashCode`), anchor plumb-through
+  (`attributionClassName`/`LibraryUri`, `anchorHopIndex`), `PackageRollup`
+  anchor/declared rollups, and a pubspec-reading `package:leak_graph/io.dart`
+  entrypoint. Owner attribution anchors the `pathSignature` at the app owner
+  (root→anchor), so **every app-anchored cluster re-keys versus 0.2.2** —
+  pre-0.3.0 baselines/exports are not signature-comparable (re-baseline). All
+  new JSON carries `schemaVersion`.
+- `flutter_leak_radar` **0.3.0** — `LeakFinding.origin` + shallow `bytes`,
+  populated `LeakReport.heapBytes`, and a reported `projectPackageSource`
+  detection chain (explicit → rootLib → autoDetect → none).
+- `radar_ui` **0.3.0** — `OriginTokens` (project = violet, one ownership palette
+  across lanes), `OriginChip`, NEW/KNOWN/ACK/GONE status chips.
+- `radar_workbench` — origin grouping, leak-clusters view, cross-session leak
+  identity (NEW/KNOWN/ACK/**GONE**), wired into both hosts.
 
-A critical review of five reference repos produced three planning docs:
+**Phase B — Radar in CI:**
+- `radar_trace` **0.2.0** — gap-first `MetricSeries` + `assessSeries` /
+  `SeriesVerdict` (settle trim, batch2−batch1 slope, Mann–Kendall growth
+  certification). Both lanes consume it; no cycles.
+- `leak_graph` CLI — `analyze`/`diff`, baseline in/out, threshold flags,
+  exit codes `0/1/2/3`, `--format md|github|json`, NEW-vs-KNOWN by signature.
+- `radar_ci` (new, `publish_to: none`) — `run` (attach/spawn, gap-aware series,
+  checkpoints, heap snapshots), verdict-based `gate`, unified `report`
+  (the single report entry point for all lanes). Hermetic planted-leak e2e in
+  CI; copy-and-adapt templates in
+  [`examples/ci/memory.yaml`](../examples/ci/memory.yaml).
 
-- **`docs/research/2026-06-26-leak_detector-borrow-report.md`** — verdict: `leak_detector` does
-  **not** fix our in-app VM-service connection (it hits the same DDS wall and ships no code fix) →
-  this **endorses the host-side companion pivot**. Worth borrowing: retaining-path
-  source-location enrichment (`file:line:col`), force-GC-before-judging, NavigatorObserver
-  delay+serialize ergonomics, and typed VM-connection failure (stop failing silently).
-- **`docs/specs/2026-06-26-companion-devtools-extension-design.md`** — a DevTools-extension
-  companion for reliable host-side heap/leak analysis (histogram, retaining paths, allocation
-  tracing, snapshot diffing). 9 open questions in §6.
-- **`docs/plans/2026-06-26-performance-stability-tracer-plan.md`** — expand into an on-device
-  observability kit (**Memory + Performance + Stability**) anchored on a lossless **Tracer**
-  framework (`flutter_perf_radar` sibling package + `radar` umbrella). 10 open questions in §8.
-  **PLAN ONLY** — no implementation yet, by request.
+**Phase C — the native lane:**
+- `radar_native` — Lane A `TriageTimeline` + per-column `triage` router;
+  `NativeModuleDiff`/`Summary`/`DiffStatus` gained `toJson`.
+- `radar_native_host` — side-effect-free `adb` samplers (meminfo, `/proc`
+  status, fd classes, threads, gfxinfo) under the parsed-or-unmeasured rule,
+  and CLI verbs `sample` / `mark` / `capture` / `diff` / `triage`
+  (overnight-robust; `--compare a/ b/` for the before-fix vs after-fix loop).
+- `radar_ui` **0.3.1** — dark-only `RadarTimeSeriesChart` (Lane C's consumer).
+- `radar_desktop` — **import-first** Device Monitor pane (import a `sample` /
+  `radar_ci` session → columns, marks, per-column verdicts, session compare).
+- `radar_ci run --native-package …` — co-drives the native lane during a run;
+  `run.json` gains an additive `nativeTimeline`; `gate --gate-native` (opt-in)
+  and a native table in `report`.
 
-## Active tracks
+### Deferred (with pointers)
 
-1. **Companion (DevTools extension)** — design done; answer the §6 open questions, then build.
-2. **Performance / tracer** — detailed plan done; **plan-only** for now (awaiting §8 scope decisions).
-3. **Polish** — publish `flutter_leak_radar` 0.1.1; the small VM-connection hardening (typed
-   `VmServiceStatus` + native-snapshot fallback) and source-location enrichment from the borrow
-   report; review/adjust the live landing page.
+- **Native gate is opt-in this release.** `gate --gate-native` must be asked
+  for; native growth is informational in `report`. Revisit default-on once the
+  samplers have on-device mileage.
+- **smaps PSS-by-mapping rollup** — userdebug/root-gated; Lane A routes
+  verdicts from ungated sources instead. Deferred pending a future spike doc
+  (spec §2).
+- **Device Monitor live polling / heapprofd start-stop from the pane** — the
+  v1.1 stretch on the same seam; v1 is import-only (spec §5.3).
+- **Desktop connected-mode full heap-snapshot capture** — trend polling only
+  (heapUsage + externalUsage as two series); snapshot capture stays
+  offline / Android-profiling (spec §2).
+- **Dominator/retained-size**, **per-hop source links** (anchor-hop-only
+  file:line ships; full G15 borrow is future work), **self-contained HTML
+  report**, **lint SARIF/baseline**, **DevTools-extension native lane** (adb
+  unreachable from web), **iOS / desktop-native samplers**, **Perfetto UI
+  embedding**, **`.radarworkspace` zip** — all non-goals this round (spec §2).
+- **radar_ci** stays `publish_to: none`; publish once the native lane has field
+  mileage.
 
-## Small fast-follows (carried; re-verify validity post-0.1.x)
+### radar_ci small fast-follows (carried)
 
-- **lint:** `flutter_lints` → `lints` (pure-Dart plugin); helper-method teardown false-positive;
-  autofix indentation hardcoded to 4 spaces.
-- **runtime:** clock injection (`LeakObjectRegistry` / `LeakAnalyzer` use real `DateTime.now()`);
-  `SuspectSet.ruleFor` ignore-first precedence footgun; `_share()` re-export DRY.
-- Calibrate `SuspectSet.defaults()` against a real app (e.g. katim-connect-matrix) once on-device
-  validation is locked.
+- **Decouple snapshot/analysis from the sampling hot path** — heap dumps +
+  in-process analysis run inline at each checkpoint today, pausing sampling;
+  once off the hot path the `--snapshot-every` default drops to start/end-only.
+- **Worker-isolate heaps are not analysed** — snapshots target the main isolate
+  only.
 
-## Re-check later
+## The 0.1.x milestone (still true)
 
-- `flutter_leak_radar_lint` reaches **160/160** only when `custom_lint_builder` ships
-  analyzer-9+ support (it currently pins `analyzer ^8.0.0`; the whole custom_lint ecosystem lags).
+- `leak_graph`, `flutter_leak_radar`, `flutter_leak_radar_lint` published;
+  retaining-path detection, all 7 lint rules, the in-app dashboard/overlay, and
+  `tool/publish.sh` are done.
+- `flutter_leak_radar_lint` reaches **160/160** pana only when
+  `custom_lint_builder` ships analyzer-9+ support (it pins `analyzer ^8`; the
+  whole custom_lint ecosystem lags).

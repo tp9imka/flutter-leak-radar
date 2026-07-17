@@ -1,0 +1,37 @@
+name: radar_ci
+description: >-
+  Headless CI front door for flutter-leak-radar: attach to (or spawn) a
+  running app, sample memory into radar_trace series, checkpoint allocation
+  profiles and heap snapshots, and emit a portable run.json.
+version: 0.1.0
+publish_to: none
+repository: https://github.com/tp9imka/flutter-leak-radar
+issue_tracker: https://github.com/tp9imka/flutter-leak-radar/issues
+homepage: https://tp9imka.github.io/flutter-leak-radar/
+topics:
+  - memory
+  - leak-detection
+  - ci
+  - vm-service
+  - profiling
+
+executables:
+  radar_ci: radar_ci
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+
+resolution: workspace
+
+dependencies:
+  args: ^2.5.0
+  leak_graph: ^0.3.0
+  meta: ^1.15.0
+  radar_native: ^0.1.0
+  radar_native_host: ^0.1.0
+  radar_trace: ^0.2.0
+  vm_service: ^15.0.0
+
+dev_dependencies:
+  lints: ^5.0.0
+  test: ^1.25.0

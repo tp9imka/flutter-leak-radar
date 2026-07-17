@@ -1,8 +1,33 @@
 import '../capture/snapshot_bundle.dart';
 import '../shell/radar_view.dart';
+import 'triage_store.dart';
+
+/// Current on-disk schema version for [PersistedSession].
+///
+/// Bumped to 2 by cross-session identity (Task A11), which adds the `triage`
+/// map. A v1 payload (no triage) migrates forward by defaulting to an empty
+/// [TriageStore]; a payload newer than this build is refused rather than
+/// silently truncated. See [PersistedSession.fromJson].
+const int kSessionSchemaVersion = 2;
+
+/// Thrown when a persisted session was written by a newer build than can read
+/// it (forward-incompatible schema). Stores must catch this and degrade (drop
+/// the state) rather than crash the UI.
+class UnsupportedSessionVersionException implements Exception {
+  const UnsupportedSessionVersionException(this.found, this.supported);
+
+  final int found;
+  final int supported;
+
+  @override
+  String toString() =>
+      'Persisted session schema v$found is newer than this build supports '
+      '(v$supported). Update the tool to read this session.';
+}
 
 /// Serialisable snapshot of the Memory view's session state: the captured
-/// bundles, which are selected for diffing, and the active view.
+/// bundles, which are selected for diffing, the active view, and the
+/// cross-session leak-triage history.
 ///
 /// Persisted so the extension can restore itself after DevTools tears down and
 /// rebuilds its iframe — e.g. when the user visits Flutter DevTools' own Memory
@@ -12,20 +37,37 @@ final class PersistedSession {
     required this.bundles,
     required this.selectedIds,
     required this.view,
+    this.triage = TriageStore.empty,
   });
 
   final List<SnapshotBundle> bundles;
   final List<int> selectedIds;
   final RadarView view;
 
+  /// Cross-session leak identity: which signatures are known/acknowledged and
+  /// when they were first seen. Empty for a fresh or migrated-from-v1 session.
+  final TriageStore triage;
+
   Map<String, Object?> toJson() => {
-    'version': 1,
+    'version': kSessionSchemaVersion,
     'bundles': [for (final b in bundles) b.toJson()],
     'selectedIds': selectedIds,
     'view': view.name,
+    'triage': triage.toJson(),
   };
 
+  /// Reads a persisted session, enforcing the schema [kSessionSchemaVersion].
+  ///
+  /// A version greater than this build supports throws
+  /// [UnsupportedSessionVersionException] (never guess at a newer layout). A
+  /// lower/absent version migrates forward: fields added since (the `triage`
+  /// map) default to empty.
   factory PersistedSession.fromJson(Map<String, Object?> json) {
+    final version = (json['version'] as num?)?.toInt() ?? 1;
+    if (version > kSessionSchemaVersion) {
+      throw UnsupportedSessionVersionException(version, kSessionSchemaVersion);
+    }
+    final triageJson = json['triage'];
     final viewName = json['view'] as String?;
     return PersistedSession(
       bundles: [
@@ -40,6 +82,9 @@ final class PersistedSession {
         (v) => v.name == viewName,
         orElse: () => RadarView.snapshotDiff,
       ),
+      triage: triageJson == null
+          ? TriageStore.empty
+          : TriageStore.fromJson((triageJson as Map).cast<String, Object?>()),
     );
   }
 }
@@ -49,6 +94,8 @@ final class PersistedSession {
 /// when their backend is unavailable.
 abstract interface class SnapshotStore {
   /// Writes the current session. Called (debounced) after each mutation.
+  /// Implementations MUST suppress the write while [restoreRefusal] is
+  /// non-null, so a session written by a newer build is never overwritten.
   Future<void> persist(PersistedSession session);
 
   /// Reads the last persisted session, or null if none / unavailable.
@@ -56,6 +103,13 @@ abstract interface class SnapshotStore {
 
   /// Drops all persisted state.
   Future<void> clear();
+
+  /// A human-readable reason the last [restore] refused to load a session it
+  /// found — currently only "written by a newer build" (see
+  /// [UnsupportedSessionVersionException]). Null when the last restore
+  /// succeeded or found nothing. While non-null, [persist] is suppressed and
+  /// hosts should surface the message; [clear] resets it.
+  String? get restoreRefusal;
 }
 
 /// In-memory [SnapshotStore] for tests and for runtimes with no durable backend
@@ -66,10 +120,15 @@ final class InMemorySnapshotStore implements SnapshotStore {
   /// Number of [persist] calls — useful for asserting debounce behaviour.
   int persistCount = 0;
 
+  /// Settable in tests to exercise the persistence-suppression path.
+  @override
+  String? restoreRefusal;
+
   PersistedSession? get last => _last;
 
   @override
   Future<void> persist(PersistedSession session) async {
+    if (restoreRefusal != null) return;
     _last = session;
     persistCount++;
   }
@@ -78,5 +137,8 @@ final class InMemorySnapshotStore implements SnapshotStore {
   Future<PersistedSession?> restore() async => _last;
 
   @override
-  Future<void> clear() async => _last = null;
+  Future<void> clear() async {
+    _last = null;
+    restoreRefusal = null;
+  }
 }

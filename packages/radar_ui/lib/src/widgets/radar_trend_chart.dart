@@ -10,6 +10,9 @@ import '../tokens/colors.dart';
 /// padding so end markers aren't clipped and a filled area under the line.
 /// Renders nothing for an empty series; a flat line + single marker for one
 /// point.
+///
+/// Repaint is keyed on reference equality of [series] — replace it with a new
+/// list rather than mutating it in place, or the chart may not repaint.
 class RadarTrendChart extends StatelessWidget {
   const RadarTrendChart({
     super.key,

@@ -1,3 +1,4 @@
+import 'package:leak_graph/leak_graph.dart' show ClassOrigin;
 import 'package:meta/meta.dart';
 
 import 'leak_kind.dart';
@@ -18,6 +19,8 @@ final class LeakFinding {
     required this.growth,
     this.library,
     this.tag,
+    this.origin = ClassOrigin.unknown,
+    this.bytes,
     this.series = const <int>[],
     this.captureTimes = const <DateTime>[],
     this.retainingPath,
@@ -44,6 +47,16 @@ final class LeakFinding {
 
   /// Optional caller-supplied label from [LeakRadar.track].
   final String? tag;
+
+  /// Where the leaking class's declaring library comes from — project,
+  /// dependency, framework, SDK, or unknown. Classified from [library] against
+  /// the resolved project-package set. Defaults to [ClassOrigin.unknown] when
+  /// the library is absent (e.g. precise-tracked objects).
+  final ClassOrigin origin;
+
+  /// Shallow bytes for this class from the heap sample, or null when the size
+  /// was not measured. Never reads 0 to mean "unknown".
+  final int? bytes;
 
   /// Rolling history of live-count samples used for sparkline rendering.
   final List<int> series;
@@ -80,6 +93,8 @@ final class LeakFinding {
     growth: growth,
     library: library,
     tag: tag,
+    origin: origin,
+    bytes: bytes,
     series: series,
     captureTimes: captureTimes,
     retainingPath: path,
@@ -95,6 +110,8 @@ final class LeakFinding {
     growth: growth,
     library: library,
     tag: tag,
+    origin: origin,
+    bytes: bytes,
     series: series,
     captureTimes: captureTimes,
     retainingPath: retainingPath,
@@ -109,6 +126,8 @@ final class LeakFinding {
     'growth': growth,
     if (library != null) 'library': library,
     if (tag != null) 'tag': tag,
+    'origin': origin.name,
+    if (bytes != null) 'bytes': bytes,
     'series': series,
     'captureTimes': captureTimes.map((dt) => dt.toIso8601String()).toList(),
     if (retainingPath != null) 'retainingPath': retainingPath!.toJson(),
@@ -123,6 +142,10 @@ final class LeakFinding {
     growth: json['growth'] as int,
     library: json['library'] as String?,
     tag: json['tag'] as String?,
+    origin: json['origin'] != null
+        ? ClassOrigin.values.byName(json['origin'] as String)
+        : ClassOrigin.unknown,
+    bytes: json['bytes'] as int?,
     series:
         (json['series'] as List<Object?>?)?.map((e) => e as int).toList() ??
         const <int>[],
@@ -147,11 +170,22 @@ final class LeakFinding {
       other.liveCount == liveCount &&
       other.growth == growth &&
       other.library == library &&
-      other.tag == tag;
+      other.tag == tag &&
+      other.origin == origin &&
+      other.bytes == bytes;
 
   @override
-  int get hashCode =>
-      Object.hash(className, kind, severity, liveCount, growth, library, tag);
+  int get hashCode => Object.hash(
+    className,
+    kind,
+    severity,
+    liveCount,
+    growth,
+    library,
+    tag,
+    origin,
+    bytes,
+  );
 }
 
 RetainingPathView _retainingPathFromJson(Map<String, Object?> json) =>
