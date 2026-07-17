@@ -13,9 +13,35 @@ import 'sort_header_cell.dart';
 
 // Fixed column widths shared by header + data rows so nothing clips.
 const double _wOrigin = 132;
+const double _wOriginChipOnly = 116;
 const double _wInstances = 76;
 const double _wBytes = 80;
 const double _wPct = 92;
+
+// Row horizontal padding (12 each side) + a minimum class column reserved
+// before the origin column is allowed any width.
+const double _rowHPadding = 24;
+const double _minClassWidth = 40;
+
+// Below this content width the toolbar drops its title so the controls +
+// filter always fit.
+const double _titleMinWidth = 640;
+
+/// Responsive width for the origin/package column: the full chip+label width
+/// when there is room, a chip-only width when tighter, or 0 (column dropped)
+/// on the narrowest hosts so the row never overflows.
+double _originColumnWidth(double contentWidth) {
+  final leftover =
+      contentWidth -
+      _rowHPadding -
+      _wInstances -
+      _wBytes -
+      _wPct -
+      _minClassWidth;
+  if (leftover >= _wOrigin) return _wOrigin;
+  if (leftover >= _wOriginChipOnly) return _wOriginChipOnly;
+  return 0;
+}
 
 /// Class histogram for the focused snapshot: sortable, filterable, and — new —
 /// tap a row to inspect how that class is retained (root grouping + path).
@@ -194,7 +220,7 @@ class _HistogramBodyState extends State<_HistogramBody> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(double originWidth) {
     return DecoratedBox(
       decoration: const BoxDecoration(
         color: RadarColors.bgTableHeader,
@@ -217,15 +243,17 @@ class _HistogramBodyState extends State<_HistogramBody> {
                 align: TextAlign.left,
               ),
             ),
-            SizedBox(
-              width: _wOrigin,
-              child: Text(
-                'origin / package',
-                style: RadarTypography.monoLabel.copyWith(
-                  color: RadarColors.text40,
+            if (originWidth > 0)
+              SizedBox(
+                width: originWidth,
+                child: Text(
+                  originWidth >= _wOrigin ? 'origin / package' : 'origin',
+                  style: RadarTypography.monoLabel.copyWith(
+                    color: RadarColors.text40,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ),
             SortHeaderCell(
               width: _wInstances,
               child: _sortHeader('instances', _HistSortKey.instances),
@@ -266,29 +294,50 @@ class _HistogramBodyState extends State<_HistogramBody> {
                 onHideFramework: _setHideFramework,
                 onFilter: (f) => setState(() => _filter = f),
               ),
-              _buildHeader(),
               Expanded(
-                child: filtered.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No classes match the filter.',
-                          style: RadarTypography.caption,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final originWidth = _originColumnWidth(
+                      constraints.maxWidth,
+                    );
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildHeader(originWidth),
+                        Expanded(
+                          child: filtered.isEmpty
+                              ? Center(
+                                  child: Text(
+                                    'No classes match the filter.',
+                                    style: RadarTypography.caption,
+                                  ),
+                                )
+                              : _grouped
+                              ? Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    if (!hasProject)
+                                      PackageGroupBanner(
+                                        attributionResolved:
+                                            widget.projectPackages.isNotEmpty,
+                                        subject: 'snapshot',
+                                      ),
+                                    Expanded(
+                                      child: _groupedList(
+                                        groups,
+                                        hasProject,
+                                        originWidth,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : _flatList(_sorted(filtered), originWidth),
                         ),
-                      )
-                    : _grouped
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (!hasProject)
-                            PackageGroupBanner(
-                              attributionResolved:
-                                  widget.projectPackages.isNotEmpty,
-                              subject: 'snapshot',
-                            ),
-                          Expanded(child: _groupedList(groups, hasProject)),
-                        ],
-                      )
-                    : _flatList(_sorted(filtered)),
+                      ],
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -308,19 +357,25 @@ class _HistogramBodyState extends State<_HistogramBody> {
     );
   }
 
-  Widget _flatList(List<ClassCount> rows) => ListView.builder(
-    itemCount: rows.length,
-    itemExtent: 34,
-    itemBuilder: (context, i) => _HistRow(
-      entry: rows[i],
-      totalBytes: _totalBytes,
-      origin: _originFor(rows[i]),
-      selected: rows[i].className == _selected,
-      onTap: () => _select(rows[i].className),
-    ),
-  );
+  Widget _flatList(List<ClassCount> rows, double originWidth) =>
+      ListView.builder(
+        itemCount: rows.length,
+        itemExtent: 34,
+        itemBuilder: (context, i) => _HistRow(
+          entry: rows[i],
+          totalBytes: _totalBytes,
+          origin: _originFor(rows[i]),
+          originWidth: originWidth,
+          selected: rows[i].className == _selected,
+          onTap: () => _select(rows[i].className),
+        ),
+      );
 
-  Widget _groupedList(List<PackageGroup<ClassCount>> groups, bool hasProject) {
+  Widget _groupedList(
+    List<PackageGroup<ClassCount>> groups,
+    bool hasProject,
+    double originWidth,
+  ) {
     final lines = <_HistLine>[];
     for (final g in groups) {
       final expanded = _isExpanded(g, hasProject: hasProject);
@@ -356,6 +411,7 @@ class _HistogramBodyState extends State<_HistogramBody> {
             entry: entry,
             totalBytes: _totalBytes,
             origin: _originFor(entry),
+            originWidth: originWidth,
             selected: entry.className == _selected,
             onTap: () => _select(entry.className),
           ),
@@ -411,21 +467,35 @@ class _Toolbar extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Row(
-          children: [
-            Text('Class Histogram', style: RadarTypography.appBarTitle),
-            const SizedBox(width: 12),
-            PackageGroupControls(
-              grouped: grouped,
-              onGroupedChanged: onGrouped,
-              hideFramework: hideFramework,
-              onHideFrameworkChanged: onHideFramework,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilterBar(expression: filter, onChanged: onFilter),
-            ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final showTitle = constraints.maxWidth >= _titleMinWidth;
+            return Row(
+              children: [
+                if (showTitle) ...[
+                  Flexible(
+                    child: Text(
+                      'Class Histogram',
+                      style: RadarTypography.appBarTitle,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                PackageGroupControls(
+                  grouped: grouped,
+                  onGroupedChanged: onGrouped,
+                  hideFramework: hideFramework,
+                  onHideFrameworkChanged: onHideFramework,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilterBar(expression: filter, onChanged: onFilter),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -437,6 +507,7 @@ class _HistRow extends StatelessWidget {
     required this.entry,
     required this.totalBytes,
     required this.origin,
+    required this.originWidth,
     required this.selected,
     required this.onTap,
   });
@@ -444,6 +515,10 @@ class _HistRow extends StatelessWidget {
   final ClassCount entry;
   final int totalBytes;
   final RadarOrigin origin;
+
+  /// Responsive width of the origin/package column: full chip+label, a
+  /// chip-only width, or 0 (column dropped) on the narrowest hosts.
+  final double originWidth;
   final bool selected;
   final VoidCallback onTap;
 
@@ -480,28 +555,31 @@ class _HistRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              SizedBox(
-                width: _wOrigin,
-                child: Row(
-                  children: [
-                    OriginChip(origin: origin),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Tooltip(
-                        message: package,
-                        child: Text(
-                          package,
-                          style: RadarTypography.monoLabel.copyWith(
-                            fontSize: 11,
-                            color: RadarColors.text60,
+              if (originWidth > 0)
+                SizedBox(
+                  width: originWidth,
+                  child: Row(
+                    children: [
+                      OriginChip(origin: origin),
+                      if (originWidth >= _wOrigin) ...[
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Tooltip(
+                            message: package,
+                            child: Text(
+                              package,
+                              style: RadarTypography.monoLabel.copyWith(
+                                fontSize: 11,
+                                color: RadarColors.text60,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ),
-                  ],
+                      ],
+                    ],
+                  ),
                 ),
-              ),
               SizedBox(
                 width: _wInstances,
                 child: Text(
