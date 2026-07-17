@@ -5,11 +5,14 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:leak_graph/io.dart';
 import 'package:leak_graph/leak_graph.dart';
+import 'package:radar_native_host/radar_native_host.dart';
 import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
 
 import '../model/run_document.dart';
 import 'attach.dart';
+import 'native_codrive.dart';
+import 'native_codrive_io.dart';
 import 'run_clock.dart';
 import 'run_command.dart';
 
@@ -110,7 +113,10 @@ Future<int> runVerb(List<String> argv) async {
     projectPackagesSource: config.projectPackagesSource,
   );
   final stem = _outStem(config.outPath);
-  final progress = RunProgress();
+  const clock = SystemRunClock();
+  final progress = RunProgress(
+    nativeCoDrive: _buildNativeCoDrive(config, clock),
+  );
 
   // Reap the child and flush a partial run.json on Ctrl-C / SIGTERM, since the
   // finally below does not run once a signal handler calls exit().
@@ -125,7 +131,7 @@ Future<int> runVerb(List<String> argv) async {
   try {
     document = await executeRun(
       service: service,
-      clock: const SystemRunClock(),
+      clock: clock,
       config: config,
       metadata: metadata,
       progress: progress,
@@ -231,6 +237,27 @@ Future<void> _writeRunJson(String outPath, RadarRunDocument document) async {
   }
   await outFile.writeAsString(
     '${const JsonEncoder.withIndent('  ').convert(document.toJson())}\n',
+  );
+}
+
+/// Builds the native co-drive when `--native-package` was given, else null.
+///
+/// The co-drive shares the run's [clock] so its marks land at the checkpoint
+/// instants, and reads the device through the real `adb` binary. A missing
+/// `adb`/device is not fatal here: it surfaces as unmeasured native ticks at
+/// run time (honest gaps), never a spawn/attach refusal.
+NativeCoDrive? _buildNativeCoDrive(RunConfig config, RunClock clock) {
+  final package = config.nativePackage;
+  if (package == null) return null;
+  const adb = ProcessAdbRunner();
+  return NativeCoDrive(
+    intervalMicros: config.nativeIntervalMicros,
+    sampler: AdbNativeCoSampler.defaults(
+      adb: adb,
+      package: package,
+      serial: config.nativeDevice,
+    ),
+    builder: TimelineBuilder(nowMicros: clock.nowMicros),
   );
 }
 
@@ -415,5 +442,15 @@ void _printSummary(RadarRunDocument document) {
       '  ${series.name}: ${series.samples.length} samples, '
       '${series.gaps.length} gaps',
     );
+  }
+  final native = document.nativeTimeline;
+  if (native != null) {
+    stderr.writeln('native lane: ${native.columns.length} columns');
+    for (final entry in native.columns.entries) {
+      stderr.writeln(
+        '  ${entry.key.name}: ${entry.value.samples.length} samples, '
+        '${entry.value.gaps.length} gaps',
+      );
+    }
   }
 }

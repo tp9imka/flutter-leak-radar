@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:leak_graph/leak_graph.dart';
 import 'package:radar_ci/radar_ci.dart';
 import 'package:radar_ci/radar_ci_io.dart';
+import 'package:radar_native/radar_native.dart';
 import 'package:radar_trace/radar_trace.dart';
 import 'package:test/test.dart';
 
@@ -237,6 +238,84 @@ void main() {
       expect(code, ReportExit.ok);
       expect(files.store['report.md'], contains('overall:'));
     });
+  });
+
+  group('runReport — native lane', () {
+    test('renders the native table after the series table and flips the '
+        'overall verdict on native growth', () async {
+      final run = runDoc(
+        series: gatedSeries(),
+        nativeTimeline: nativeTimeline(
+          growing: {TriageColumn.nativePssKb},
+          flat: {TriageColumn.threads},
+        ),
+      );
+      final files = InMemoryFiles({'run.json': jsonEncode(run.toJson())});
+      final out = StringBuffer();
+      final code = await runReport(
+        ['run.json', '--format', 'md'],
+        out: out,
+        err: StringBuffer(),
+        readText: files.read,
+        // Dart lanes plateau, so only the native lane drives the verdict.
+        assess: assessAs(const {}),
+      );
+      expect(code, ReportExit.ok);
+      final report = out.toString();
+      // The report never hides a native leak: it appears in the overall line.
+      expect(report, contains('❌ overall: FAIL'));
+      expect(report, contains('monotonic native growth in nativePssKb'));
+      // Both lanes' tables are present, series first then native.
+      expect(report, contains('### Memory series'));
+      expect(report, contains('### Native memory (Android)'));
+      expect(
+        report.indexOf('### Memory series'),
+        lessThan(report.indexOf('### Native memory (Android)')),
+      );
+      // The native table lists the growing column and every not-measured one.
+      expect(report, contains('| nativePssKb | monotonicGrowth |'));
+      expect(report, contains('| threads | plateau |'));
+      expect(report, contains('Not measured (never sampled):'));
+    });
+
+    test('a run with no native lane omits the native section', () async {
+      final run = runDoc(series: gatedSeries());
+      final files = InMemoryFiles({'run.json': jsonEncode(run.toJson())});
+      final out = StringBuffer();
+      await runReport(
+        ['run.json', '--format', 'md'],
+        out: out,
+        err: StringBuffer(),
+        readText: files.read,
+        assess: assessAs(const {}),
+      );
+      expect(out.toString(), isNot(contains('Native memory')));
+    });
+
+    test(
+      'json envelope carries the native verdict and growth signals',
+      () async {
+        final run = runDoc(
+          series: gatedSeries(),
+          nativeTimeline: nativeTimeline(growing: {TriageColumn.nativePssKb}),
+        );
+        final files = InMemoryFiles({'run.json': jsonEncode(run.toJson())});
+        final out = StringBuffer();
+        await runReport(
+          ['run.json', '--format', 'json'],
+          out: out,
+          err: StringBuffer(),
+          readText: files.read,
+          assess: assessAs(const {}),
+        );
+        final env = jsonDecode(out.toString()) as Map<String, Object?>;
+        final native = (env['nativeVerdict']! as Map).cast<String, Object?>();
+        expect(native['bucket'], 'nativeMalloc');
+        final gate = (env['gate']! as Map).cast<String, Object?>();
+        expect(gate['nativeGrowthSignals'], contains('nativePssKb'));
+        expect(gate['passed'], isFalse);
+      },
+    );
   });
 
   group('runReport — json envelope', () {

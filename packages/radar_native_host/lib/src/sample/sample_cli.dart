@@ -61,7 +61,11 @@ const List<String> _deviceGoneMarkers = [
 
 /// Builds the default Lane A [CompositeSampler] over the five read-only
 /// samplers, scoped to [serial].
-NativeSampler _defaultSampler(AdbRunner adb, String? serial) =>
+///
+/// The single source of truth for the Lane A sampler set: the overnight
+/// `sample` loop and `radar_ci`'s in-run co-drive both build their sampler
+/// here, so a column added to one lane appears in both.
+NativeSampler defaultNativeSampler(AdbRunner adb, String? serial) =>
     CompositeSampler([
       MeminfoSampler(adb, serial: serial),
       ProcStatusSampler(adb, serial: serial),
@@ -129,7 +133,7 @@ Future<int> runSample(
   final effectiveSerial =
       parsed.serial ??
       await _resolveSerial(effectiveAdb, effectiveProbeTimeout, errSink);
-  final sampler = (buildSampler ?? _defaultSampler)(
+  final sampler = (buildSampler ?? defaultNativeSampler)(
     effectiveAdb,
     effectiveSerial,
   );

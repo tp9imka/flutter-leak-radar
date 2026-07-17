@@ -3,6 +3,7 @@ import 'package:vm_service/vm_service.dart';
 
 import '../model/run_document.dart';
 import 'checkpoint.dart';
+import 'native_codrive.dart';
 import 'run_clock.dart';
 import 'sampler.dart';
 
@@ -81,6 +82,16 @@ final class RunConfig {
   /// Free-form operator note recorded in metadata.
   final String? notes;
 
+  /// Android package to co-sample the native lane for, or null to disable the
+  /// native co-drive.
+  final String? nativePackage;
+
+  /// Interval between native co-drive ticks, in microseconds.
+  final int nativeIntervalMicros;
+
+  /// Device serial the native lane samples, or null for the sole device.
+  final String? nativeDevice;
+
   /// Creates a run configuration.
   const RunConfig({
     required this.durationMicros,
@@ -98,6 +109,9 @@ final class RunConfig {
     this.callExtension,
     this.mode,
     this.notes,
+    this.nativePackage,
+    this.nativeIntervalMicros = 10 * _second,
+    this.nativeDevice,
   });
 
   /// Returns a copy with [projectPackages]/[projectPackagesSource] replaced,
@@ -119,6 +133,9 @@ final class RunConfig {
         callExtension: callExtension,
         mode: mode,
         notes: notes,
+        nativePackage: nativePackage,
+        nativeIntervalMicros: nativeIntervalMicros,
+        nativeDevice: nativeDevice,
       );
 }
 
@@ -183,6 +200,21 @@ ArgParser buildRunArgParser() => ArgParser()
     help: 'App run mode label (else derived from --cmd, else unset).',
   )
   ..addOption('notes', help: 'Free-form note recorded in metadata.')
+  ..addOption(
+    'native-package',
+    help:
+        'Android package to co-sample the native lane for (enables the native '
+        'co-drive; requires adb + a connected device).',
+  )
+  ..addOption(
+    'native-interval',
+    defaultsTo: '10s',
+    help: 'Interval between native co-drive samples.',
+  )
+  ..addOption(
+    'native-device',
+    help: 'Device serial for native sampling (else the sole connected device).',
+  )
   ..addFlag(
     'allow-short',
     negatable: false,
@@ -207,18 +239,25 @@ RunConfig parseRunConfig(ArgResults args) {
   final int durationMicros;
   final int sampleIntervalMicros;
   final int settleMicros;
+  final int nativeIntervalMicros;
   try {
     durationMicros = parseDurationMicros(args['duration'] as String);
     sampleIntervalMicros = parseDurationMicros(
       args['sample-interval'] as String,
     );
     settleMicros = parseDurationMicros(args['settle'] as String);
+    nativeIntervalMicros = parseDurationMicros(
+      args['native-interval'] as String,
+    );
   } on FormatException catch (e) {
     throw UsageException(e.message);
   }
 
   if (sampleIntervalMicros <= 0) {
     throw const UsageException('--sample-interval must be positive');
+  }
+  if (nativeIntervalMicros <= 0) {
+    throw const UsageException('--native-interval must be positive');
   }
   final allowShort = args['allow-short'] as bool;
   if (durationMicros < kMinDurationMicros && !allowShort) {
@@ -255,6 +294,9 @@ RunConfig parseRunConfig(ArgResults args) {
       cmd: args['cmd'] as String?,
     ),
     notes: args['notes'] as String?,
+    nativePackage: args['native-package'] as String?,
+    nativeIntervalMicros: nativeIntervalMicros,
+    nativeDevice: args['native-device'] as String?,
   );
 }
 
@@ -283,11 +325,20 @@ int exitCodeForDocument(RadarRunDocument document) =>
 /// Shared with [executeRun] so an out-of-band handler (e.g. a SIGINT reaper)
 /// can flush whatever was gathered so far via [toDocument], even mid-await.
 final class RunProgress {
+  /// Creates progress state, optionally co-driving the native lane through
+  /// [nativeCoDrive]. When present, [toDocument] snapshots its timeline so a
+  /// partial flush carries whatever native ticks were gathered before the
+  /// abort — the native lane survives an interrupt exactly like the samples do.
+  RunProgress({this.nativeCoDrive});
+
   /// Memory readings gathered so far, in time order.
   final List<MemoryReading> readings = [];
 
   /// Checkpoints recorded so far, in time order.
   final List<RunCheckpoint> checkpoints = [];
+
+  /// The native co-drive, or null when `--native-package` was not given.
+  final NativeCoDrive? nativeCoDrive;
 
   /// Builds a document from the current state. A non-null [abortReason]
   /// stamps the metadata as not completed (a partial artifact).
@@ -299,6 +350,7 @@ final class RunProgress {
         ),
         series: readingsToSeries(List.of(readings)),
         checkpoints: List.of(checkpoints),
+        nativeTimeline: nativeCoDrive?.build(),
       );
 }
 
@@ -318,6 +370,11 @@ final class RunProgress {
 /// continues; any other unexpected error stops the loop and returns the
 /// partial document collected so far, stamped not-completed. Pass [progress]
 /// to expose the in-flight state to an external flusher.
+///
+/// When [progress] carries a `nativeCoDrive`, the native lane co-samples on its
+/// own interval across the same window and marks each checkpoint, folding a
+/// [TriageTimeline] into the returned document — surviving an abort the same
+/// way the Dart samples do.
 Future<RadarRunDocument> executeRun({
   required VmService service,
   required RunClock clock,
@@ -361,10 +418,21 @@ Future<RadarRunDocument> executeRun({
   );
   final checkpointByOffset = {for (final cp in plan) cp.offsetMicros: cp};
 
-  final offsets = {...sampleOffsets, ...checkpointByOffset.keys}.toList()
-    ..sort();
-
   final state = progress ?? RunProgress();
+  final nativeCoDrive = state.nativeCoDrive;
+  final nativeTickOffsets = nativeCoDrive == null
+      ? const <int>{}
+      : nativeTickOffsetsMicros(
+          durationMicros: config.durationMicros,
+          intervalMicros: nativeCoDrive.intervalMicros,
+        ).toSet();
+
+  final offsets = {
+    ...sampleOffsets,
+    ...checkpointByOffset.keys,
+    ...nativeTickOffsets,
+  }.toList()..sort();
+
   final startMicros = clock.nowMicros();
 
   String? abortReason;
@@ -376,6 +444,13 @@ Future<RadarRunDocument> executeRun({
 
       if (sampleOffsets.contains(offset)) {
         state.readings.add(await sampler.read(now));
+      }
+
+      // The native lane ticks on its own cadence (host wall-clock), never
+      // bridged to the Dart samples — a native gap this tick is independent of
+      // whatever the Dart RPCs did at the same instant.
+      if (nativeCoDrive != null && nativeTickOffsets.contains(offset)) {
+        await nativeCoDrive.tick(now);
       }
 
       final cp = checkpointByOffset[offset];
@@ -390,6 +465,9 @@ Future<RadarRunDocument> executeRun({
           captureSnapshot: captureSnapshot,
         ),
       );
+      // Align the native timeline's marks with the Dart checkpoints so the two
+      // lanes correlate against the same labeled instants.
+      nativeCoDrive?.mark(cp.label);
       if (onCheckpoint != null) await onCheckpoint(cp, now);
 
       final isLast = identical(cp, plan.last);

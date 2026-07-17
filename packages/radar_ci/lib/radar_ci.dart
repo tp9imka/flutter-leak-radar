@@ -14,6 +14,7 @@ export 'src/gate/verdict_gate.dart';
 export 'src/model/run_document.dart';
 export 'src/run/attach.dart';
 export 'src/run/checkpoint.dart';
+export 'src/run/native_codrive.dart';
 export 'src/run/run_clock.dart';
 export 'src/run/run_command.dart';
 export 'src/run/sampler.dart';

@@ -1,5 +1,6 @@
 import 'package:leak_graph/leak_graph.dart';
 import 'package:radar_ci/radar_ci.dart';
+import 'package:radar_native/radar_native.dart';
 import 'package:radar_trace/radar_trace.dart';
 
 /// In-memory fixtures for the gate/report command tests.
@@ -84,6 +85,39 @@ MetricSeries shortSeries(String name) {
   );
 }
 
+/// A native (Lane A) timeline for the gate/report tests: [growing] columns read
+/// monotonicGrowth, [flat] columns plateau, [short] columns insufficientData.
+///
+/// Each column carries its canonical unit (`expectedUnit`) so the triage router
+/// never degrades it on a unit mismatch, and a column absent from all three
+/// sets is simply never measured (honest by omission).
+TriageTimeline nativeTimeline({
+  Set<TriageColumn> growing = const {},
+  Set<TriageColumn> flat = const {},
+  Set<TriageColumn> short = const {},
+}) {
+  MetricSeries shaped(
+    TriageColumn column,
+    MetricSeries Function(String) shape,
+  ) {
+    final base = shape(column.name);
+    return MetricSeries(
+      name: column.name,
+      unit: expectedUnit(column),
+      samples: base.samples,
+      gaps: base.gaps,
+    );
+  }
+
+  return TriageTimeline(
+    columns: {
+      for (final c in growing) c: shaped(c, growthSeries),
+      for (final c in flat) c: shaped(c, flatSeries),
+      for (final c in short) c: shaped(c, shortSeries),
+    },
+  );
+}
+
 /// A leak cluster with a stable [signature], attributed to [package].
 GraphLeakCluster cluster({
   required String signature,
@@ -152,10 +186,12 @@ RadarRunDocument runDoc({
   String? analysisPath,
   bool completed = true,
   String? abortReason,
+  TriageTimeline? nativeTimeline,
 }) => runDocWith(
   series: series,
   completed: completed,
   abortReason: abortReason,
+  nativeTimeline: nativeTimeline,
   checkpoints: [
     checkpoint(
       label: 'end',
@@ -188,6 +224,7 @@ RadarRunDocument runDocWith({
   required List<RunCheckpoint> checkpoints,
   bool completed = true,
   String? abortReason,
+  TriageTimeline? nativeTimeline,
 }) => RadarRunDocument(
   metadata: RunMetadata(
     startedAt: DateTime.utc(2026),
@@ -196,4 +233,5 @@ RadarRunDocument runDocWith({
   ),
   series: series,
   checkpoints: checkpoints,
+  nativeTimeline: nativeTimeline,
 );
