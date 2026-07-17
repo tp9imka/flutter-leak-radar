@@ -170,8 +170,8 @@ final class _LoadFailure extends _LoadResult {
   const _LoadFailure(this.message, {required this.usage});
   final String message;
 
-  /// True when the failure is a usage error (exit 2), false for a tool
-  /// failure (exit 1).
+  /// True when the failure is a usage error (exit 1), false for a tool
+  /// failure (exit 2).
   final bool usage;
 }
 

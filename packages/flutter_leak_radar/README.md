@@ -15,7 +15,7 @@ flavours are required.
 
 ```yaml
 dependencies:
-  flutter_leak_radar: ^0.2.0
+  flutter_leak_radar: ^0.3.0
 ```
 
 ---

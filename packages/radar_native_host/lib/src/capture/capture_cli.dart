@@ -29,15 +29,17 @@ const int _exitToolFailure = 2;
 /// Contract, each failure naming the gate that blocked it:
 /// - preflight BEFORE capture — device API level >= 29
 ///   ([PreflightCheck.deviceApiLevel]) and the package profileable/debuggable
-///   ([PreflightCheck.packageProfileable]); a failure exits 1 without ever
-///   starting the capture;
+///   ([PreflightCheck.packageProfileable]); a failure exits 2 without ever
+///   starting the capture — a different device or a debuggable rebuild can
+///   clear it, so it is a tool failure, not a usage error;
 /// - the capture itself runs via [NativeHeapCapture]; an `adb`-level failure
 ///   ([AdbException]) exits 2;
 /// - post-capture VALIDATION — the trace is parsed through the real
 ///   `trace_processor` seam and must contain at least one heap_profile
-///   allocation ([PreflightCheck.capturedHeapData]); an empty trace exits 1 (a
-///   byte-size guard would not have caught it), a `trace_processor` process
-///   failure exits 2.
+///   allocation ([PreflightCheck.capturedHeapData]); an empty trace exits 2 (a
+///   byte-size guard would not have caught it, and a retry against a
+///   different process/workload can clear it), a `trace_processor` process
+///   failure also exits 2.
 ///
 /// [adb], [capture], and [validator] are injectable seams; when omitted, real
 /// process-backed implementations are constructed, with `trace_processor`
@@ -90,7 +92,7 @@ Future<int> runCapture(
   ).check(parsed.package, serial: parsed.serial);
   if (!preflight.passed) {
     _reportCheck(errSink, preflight.failure!.check, preflight.failure!.message);
-    return _exitUsage;
+    return _exitToolFailure;
   }
 
   // 2. Capture.
@@ -140,7 +142,7 @@ Future<int> runCapture(
       'under sampling, or profiling was silently denied). A byte count alone '
       'would not have caught this',
     );
-    return _exitUsage;
+    return _exitToolFailure;
   }
 
   outSink.writeln(

@@ -85,8 +85,8 @@ same whichever verb it drives:
 | Code | Meaning |
 |---|---|
 | `0` | Success. |
-| `1` | Usage error — a bad flag, a missing required argument, an unknown `--format`, a session directory with no `timeline.json`, or a capture precondition that a different invocation would fix (device API too low, package not profileable, an empty capture, a `trace_processor` binary that was never configured). |
-| `2` | Tool failure — a genuine runtime failure that a retry might clear: a corrupt/unwritable `timeline.json`, an `adb` or `trace_processor` process error, or a `sample` session the loop ended on an internal error (`endReason: error`). |
+| `1` | Usage error — a bad flag, a missing required argument, an unknown `--format`, a session directory with no `timeline.json`, or a `trace_processor` binary that was never configured. |
+| `2` | Tool failure — a genuine runtime failure that a retry or environment change might clear: a corrupt/unwritable `timeline.json`, an `adb` or `trace_processor` process error, a `sample` session the loop ended on an internal error (`endReason: error`), or a `capture` precondition/validation failure (device API too low, package not profileable, an empty capture). |
 
 `sample` returns `0` for both a `completed` and an interrupted (`Ctrl-C`)
 session — an interrupted overnight run is still valid data — and only `2` when

@@ -294,9 +294,10 @@ class DeviceMonitorController extends ChangeNotifier {
     );
   }
 
-  /// A session ended early when its recorded `endReason` is a known
-  /// non-completed value. An absent/unknown reason is never guessed to be an
-  /// abort (best-effort provenance), so only `interrupted`/`error` escalate.
+  /// A session ended early when it recorded any `endReason` other than
+  /// `completed` (`interrupted`, `error`, or any other future value). An
+  /// absent reason is never guessed to be an abort (best-effort provenance),
+  /// so only a genuinely recorded non-completed reason escalates.
   bool _sessionEndedEarly(SessionProvenance? provenance) {
     final reason = provenance?.endReason;
     return reason != null && reason != 'completed';

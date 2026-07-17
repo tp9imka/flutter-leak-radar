@@ -93,58 +93,54 @@ void main() {
       expect(err.toString(), isEmpty);
     });
 
-    test(
-      'old SDK: exit 1 (usage) naming the deviceApiLevel check, no capture',
-      () async {
-        final oldAdb = _ScriptedAdb({
-          'ro.build.version.sdk': '28\n',
-          'dumpsys package': 'flags=[ DEBUGGABLE ]\n',
-        });
-        final capture = _FakeCapture();
-        final err = StringBuffer();
+    test('old SDK: exit 2 (tool failure) naming the deviceApiLevel check, no '
+        'capture', () async {
+      final oldAdb = _ScriptedAdb({
+        'ro.build.version.sdk': '28\n',
+        'dumpsys package': 'flags=[ DEBUGGABLE ]\n',
+      });
+      final capture = _FakeCapture();
+      final err = StringBuffer();
 
-        final code = await runCapture(
-          ['--package', 'com.x', '--out', '/tmp/cap.pftrace'],
-          adb: oldAdb,
-          capture: capture,
-          validator: _FakeValidator([_row()]),
-          err: err,
-        );
+      final code = await runCapture(
+        ['--package', 'com.x', '--out', '/tmp/cap.pftrace'],
+        adb: oldAdb,
+        capture: capture,
+        validator: _FakeValidator([_row()]),
+        err: err,
+      );
 
-        expect(code, 1);
-        expect(err.toString(), contains('deviceApiLevel'));
-        expect(err.toString(), contains('29'));
-        expect(capture.request, isNull);
-      },
-    );
+      expect(code, 2);
+      expect(err.toString(), contains('deviceApiLevel'));
+      expect(err.toString(), contains('29'));
+      expect(capture.request, isNull);
+    });
 
-    test(
-      'not profileable: exit 1 (usage) naming the packageProfileable check',
-      () async {
-        final userAdb = _ScriptedAdb({
-          'ro.build.version.sdk': '33\n',
-          'ro.build.type': 'user\n',
-          'dumpsys package': 'flags=[ HAS_CODE ]\n',
-        });
-        final capture = _FakeCapture();
-        final err = StringBuffer();
+    test('not profileable: exit 2 (tool failure) naming the packageProfileable '
+        'check', () async {
+      final userAdb = _ScriptedAdb({
+        'ro.build.version.sdk': '33\n',
+        'ro.build.type': 'user\n',
+        'dumpsys package': 'flags=[ HAS_CODE ]\n',
+      });
+      final capture = _FakeCapture();
+      final err = StringBuffer();
 
-        final code = await runCapture(
-          ['--package', 'com.x', '--out', '/tmp/cap.pftrace'],
-          adb: userAdb,
-          capture: capture,
-          validator: _FakeValidator([_row()]),
-          err: err,
-        );
+      final code = await runCapture(
+        ['--package', 'com.x', '--out', '/tmp/cap.pftrace'],
+        adb: userAdb,
+        capture: capture,
+        validator: _FakeValidator([_row()]),
+        err: err,
+      );
 
-        expect(code, 1);
-        expect(err.toString(), contains('packageProfileable'));
-        expect(capture.request, isNull);
-      },
-    );
+      expect(code, 2);
+      expect(err.toString(), contains('packageProfileable'));
+      expect(capture.request, isNull);
+    });
 
-    test('empty capture: post-capture validation fails, exit 1 (usage) naming '
-        'capturedHeapData', () async {
+    test('empty capture: post-capture validation fails, exit 2 (tool failure) '
+        'naming capturedHeapData', () async {
       final capture = _FakeCapture();
       final err = StringBuffer();
 
@@ -156,7 +152,7 @@ void main() {
         err: err,
       );
 
-      expect(code, 1);
+      expect(code, 2);
       expect(err.toString(), contains('capturedHeapData'));
       // The capture DID run — validation is what failed.
       expect(capture.request, isNotNull);
