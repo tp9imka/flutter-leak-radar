@@ -24,6 +24,25 @@ void _setDesktopSize(WidgetTester tester) {
   });
 }
 
+Widget _wrapSized(Widget child, Size size) => MediaQuery(
+  data: MediaQueryData(size: size),
+  child: MaterialApp(
+    theme: radarDarkTheme(),
+    home: Scaffold(
+      body: SizedBox.fromSize(size: size, child: child),
+    ),
+  ),
+);
+
+void _setSize(WidgetTester tester, Size size) {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+}
+
 MemoryController _controller() => MemoryController(
   snapshotSource: FakeSnapshotSource(),
   connection: FakeRadarConnection(),
@@ -209,6 +228,45 @@ void main() {
       expect(find.textContaining('5 candidates suppressed'), findsOneWidget);
     });
 
+    testWidgets('empty state omits the suppressed clause when nothing was '
+        'suppressed', (tester) async {
+      _setDesktopSize(tester);
+      final c = _controller()..debugAdd(_snap(clusters: const []));
+      await tester.pumpWidget(_wrap(LeakClustersView(controller: c)));
+      await tester.pump();
+
+      expect(find.text('No leak clusters in this snapshot'), findsOneWidget);
+      expect(find.textContaining('candidates suppressed'), findsNothing);
+    });
+
+    testWidgets('bounds a large warnings list without overflow, keeping every '
+        'warning reachable', (tester) async {
+      const size = Size(800, 600);
+      _setSize(tester, size);
+      final warnings = [
+        for (var i = 0; i < 40; i++) 'capture warning number $i',
+      ];
+      final c = _controller()
+        ..debugAdd(_snap(clusters: [_cluster()], warnings: warnings));
+      await tester.pumpWidget(
+        _wrapSized(LeakClustersView(controller: c), size),
+      );
+      await tester.pump();
+
+      // A 40-line strip sitting above the Expanded list must not overflow.
+      expect(tester.takeException(), isNull);
+      // The strip scrolls: every warning is built and the last is reachable.
+      expect(find.text('capture warning number 0'), findsOneWidget);
+      final last = find.text('capture warning number 39');
+      expect(last, findsOneWidget);
+      await tester.scrollUntilVisible(
+        last,
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('renders the warnings strip when the analysis warns', (
       tester,
     ) async {
@@ -286,6 +344,35 @@ void main() {
       expect(find.byType(RetainingPathTile), findsOneWidget);
       expect(find.text('yours'), findsOneWidget);
       expect(find.textContaining('StreamSubscription'), findsWidgets);
+    });
+
+    testWidgets('an out-of-range anchor index hides both the leaf disclosure '
+        'and the yours highlight (strict co-conditioning)', (tester) async {
+      _setDesktopSize(tester);
+      final c = _controller()
+        ..debugAdd(
+          _snap(
+            clusters: [
+              _cluster(
+                className: 'LeakyScreenState',
+                leafClassName: 'StreamSubscription',
+                // The representative path has 2 hops — index 9 is invalid, so
+                // neither the leaf nor the anchor highlight may be trusted.
+                anchorHopIndex: 9,
+                anchorLib: _projectLib,
+              ),
+            ],
+          ),
+        );
+      await tester.pumpWidget(_wrap(LeakClustersView(controller: c)));
+      await tester.pump();
+
+      await tester.tap(find.text('LeakyScreenState'));
+      await tester.pump();
+
+      expect(find.byType(RetainingPathTile), findsOneWidget);
+      expect(find.textContaining('leaf:'), findsNothing);
+      expect(find.text('yours'), findsNothing);
     });
 
     testWidgets('ranks project-anchored/confirmed clusters above the rest in '

@@ -9,14 +9,26 @@ import 'memory_controller.dart';
 import 'package_group_scaffold.dart';
 import 'root_kind_ui.dart';
 
-/// The declaring library of the hop app code holds the leak at, or null when
-/// [cluster] has no anchor (or the index is out of range — never guessed).
-Uri? clusterAnchorLibrary(GraphLeakCluster cluster) {
+/// The in-range anchor hop index for [cluster], or null when there is no
+/// anchor (or the recorded index falls outside the representative path —
+/// never trusted blindly). The single source of truth for anchor validity:
+/// the "yours" highlight and the leaf disclosure both key off it so they can
+/// only ever appear together.
+int? clusterAnchorHopIndex(GraphLeakCluster cluster) {
   final index = cluster.anchorHopIndex;
   if (index == null) return null;
   final hops = cluster.representativePath.hops;
   if (index < 0 || index >= hops.length) return null;
-  return hops[index].libraryUri;
+  return index;
+}
+
+/// The declaring library of the hop app code holds the leak at, or null when
+/// [cluster] has no in-range anchor.
+Uri? clusterAnchorLibrary(GraphLeakCluster cluster) {
+  final index = clusterAnchorHopIndex(cluster);
+  return index == null
+      ? null
+      : cluster.representativePath.hops[index].libraryUri;
 }
 
 /// The EFFECTIVE ownership origin for [cluster]: the anchor library when one
@@ -199,41 +211,52 @@ class _LeakClustersBodyState extends State<_LeakClustersBody> {
 class _WarningsStrip extends StatelessWidget {
   const _WarningsStrip({required this.warnings});
 
+  /// Height cap before the strip scrolls — keeps it from crowding out the
+  /// cluster list even when a capture emits dozens of warnings.
+  static const double _maxStripHeight = 148;
+
   final List<String> warnings;
 
   @override
   Widget build(BuildContext context) {
+    // Bounded + scrollable: a capture can emit arbitrarily many warnings, and
+    // this strip sits ABOVE the Expanded cluster list — an unbounded Column
+    // here would hard-overflow the frame. Cap the height and let the overflow
+    // scroll so every warning stays reachable.
     return Container(
       width: double.infinity,
       color: RadarColors.warning.withValues(alpha: 0.10),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final warning in warnings)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.warning_amber_rounded,
-                    size: 14,
-                    color: RadarColors.warning,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      warning,
-                      style: RadarTypography.monoLabel.copyWith(
-                        color: RadarColors.warning,
+      constraints: const BoxConstraints(maxHeight: _maxStripHeight),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final warning in warnings)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      size: 14,
+                      color: RadarColors.warning,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        warning,
+                        style: RadarTypography.monoLabel.copyWith(
+                          color: RadarColors.warning,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -255,13 +278,23 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('No leak clusters', style: RadarTypography.appBarTitle),
-            const SizedBox(height: 6),
             Text(
-              '$suppressed candidates suppressed',
-              style: RadarTypography.caption,
-              textAlign: TextAlign.center,
+              suppressed > 0
+                  ? 'No leak clusters'
+                  : 'No leak clusters in this snapshot',
+              style: RadarTypography.appBarTitle,
             ),
+            // Only surface the suppressed count when it is real — a "0
+            // candidates suppressed" line would imply filtering that did not
+            // happen.
+            if (suppressed > 0) ...[
+              const SizedBox(height: 6),
+              Text(
+                '$suppressed candidates suppressed',
+                style: RadarTypography.caption,
+                textAlign: TextAlign.center,
+              ),
+            ],
           ],
         ),
       ),
@@ -406,7 +439,11 @@ class _ExpandedDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final leaf = cluster.leafClassName;
+    // Gate the leaf disclosure on the SAME in-range anchor the "yours"
+    // highlight uses, so an unanchored (or out-of-range) cluster never shows a
+    // leaf without the anchor that gives it meaning.
+    final anchorIndex = clusterAnchorHopIndex(cluster);
+    final leaf = anchorIndex == null ? null : cluster.leafClassName;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       child: Column(
@@ -424,7 +461,7 @@ class _ExpandedDetail extends StatelessWidget {
           RetainingPathTile(
             path: cluster.representativePath,
             title: 'Representative retaining path',
-            anchorHopIndex: cluster.anchorHopIndex,
+            anchorHopIndex: anchorIndex,
             projectPackages: projectPackages,
             onOpenSource: onOpenSource,
           ),
