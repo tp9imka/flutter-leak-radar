@@ -3,7 +3,7 @@ description: >-
   Shared Flutter design system for the Radar observability suite: color and
   severity tokens, typography, density, and dense dashboard widgets (tags,
   sparklines, sort headers).
-version: 0.3.0
+version: 0.3.1
 repository: https://github.com/tp9imka/flutter-leak-radar
 issue_tracker: https://github.com/tp9imka/flutter-leak-radar/issues
 homepage: https://tp9imka.github.io/flutter-leak-radar/

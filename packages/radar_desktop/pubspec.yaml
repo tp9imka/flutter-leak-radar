@@ -16,7 +16,7 @@ dependencies:
   flutter:
     sdk: flutter
   radar_workbench: ^0.1.0
-  radar_ui: ^0.3.0
+  radar_ui: ^0.3.1
   radar_native: ^0.1.0
   radar_native_host: ^0.1.0
   leak_graph: ^0.3.0
