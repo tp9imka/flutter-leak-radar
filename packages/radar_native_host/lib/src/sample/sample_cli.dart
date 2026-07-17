@@ -33,6 +33,16 @@ const Duration _probeTimeout = Duration(seconds: 10);
 /// the loop continues.
 const Duration _sampleTimeout = Duration(seconds: 20);
 
+/// How many consecutive periodic-flush failures the loop rides through before
+/// giving up.
+///
+/// A single flush failure is almost always transient — a brief disk-full, an
+/// FS hiccup, momentary lock contention — and the in-memory builder still holds
+/// the whole night, so the very next flush recovers everything. Ending the run
+/// on the first blip would abandon hours of otherwise-capturable data. Only a
+/// sustained run of failures signals a genuinely dead sink worth stopping for.
+const int _maxConsecutiveFlushFailures = 5;
+
 /// adb-daemon-level phrases in stderr that mean *the device is gone*, as
 /// opposed to a per-command failure while the device is present (a dead pid, a
 /// permission denial). Kept deliberately specific — daemon phrasing, never a
@@ -93,7 +103,6 @@ Future<int> runSample(
   SessionLock? lock,
   Stream<ProcessSignal>? interrupts,
   Map<String, String>? env,
-  DateTime Function()? now,
   Duration? probeTimeout,
   Duration? sampleTimeout,
   StringSink? out,
@@ -113,20 +122,26 @@ Future<int> runSample(
 
   final effectiveAdb = adb ?? const ProcessAdbRunner();
   final effectiveClock = clock ?? const SystemSampleClock();
+  final effectiveProbeTimeout = probeTimeout ?? _probeTimeout;
+  // An omitted --device resolves the real serial once at start, both to pin
+  // sampling to that device and to record honest provenance; a failure falls
+  // back to null (sole-device scoping) and 'default' in meta.
+  final effectiveSerial =
+      parsed.serial ??
+      await _resolveSerial(effectiveAdb, effectiveProbeTimeout, errSink);
   final sampler = (buildSampler ?? _defaultSampler)(
     effectiveAdb,
-    parsed.serial,
+    effectiveSerial,
   );
   final store = SessionStore(
     dir: parsed.outDir,
     lock: lock ?? FileSessionLock('${parsed.outDir}/.session.lock'),
   );
-  final startedAt = (now ?? DateTime.now)();
   final builder = TimelineBuilder(nowMicros: effectiveClock.nowMicros);
   var meta = SessionMeta(
     package: parsed.package,
-    device: parsed.serial ?? 'default',
-    started: startedAt,
+    device: effectiveSerial ?? 'default',
+    started: _toUtc(effectiveClock.nowMicros()),
     intervalMicros: parsed.interval.inMicroseconds,
     durationMicros: parsed.duration.inMicroseconds,
     flushEveryMicros: parsed.flushEvery.inMicroseconds,
@@ -148,17 +163,24 @@ Future<int> runSample(
   try {
     await _sampleLoop(
       args: parsed,
+      serial: effectiveSerial,
       adb: effectiveAdb,
       clock: effectiveClock,
       sampler: sampler,
       store: store,
       builder: builder,
       interrupt: interrupt,
-      probeTimeout: probeTimeout ?? _probeTimeout,
+      probeTimeout: effectiveProbeTimeout,
       sampleTimeout: sampleTimeout ?? _sampleTimeout,
       err: errSink,
     );
     if (interrupt.tripped) endReason = 'interrupted';
+  } on _FlushGaveUpException catch (e) {
+    // A handled outcome, not a crash: the loop already logged each failure and
+    // the in-memory builder still holds the whole session for the strict final
+    // flush below. No stack dump.
+    endReason = 'error';
+    errSink.writeln('radar_sample: $e — ending session');
   } catch (error, stack) {
     // The loop degrades internally; reaching here is genuinely unforeseen. The
     // session so far is still valid, so finalise it rather than lose it.
@@ -206,6 +228,7 @@ int _countSamples(TriageTimeline timeline) =>
 /// (arg parsing, finalisation, exit codes) stays readable.
 Future<void> _sampleLoop({
   required SampleArgs args,
+  required String? serial,
   required AdbRunner adb,
   required SampleClock clock,
   required NativeSampler sampler,
@@ -222,17 +245,13 @@ Future<void> _sampleLoop({
   var lastFlushMicros = startMicros;
   int? lastPid;
   var consecutiveOutages = 0;
+  var consecutiveFlushFailures = 0;
 
   while (!interrupt.tripped && clock.nowMicros() < deadlineMicros) {
     final nowMicros = clock.nowMicros();
     var wait = args.interval;
 
-    final probe = await _resolvePid(
-      adb,
-      args.package,
-      args.serial,
-      probeTimeout,
-    );
+    final probe = await _resolvePid(adb, args.package, serial, probeTimeout);
     switch (probe) {
       case _Outage(:final reason):
         consecutiveOutages++;
@@ -275,12 +294,45 @@ Future<void> _sampleLoop({
     }
 
     if (nowMicros - lastFlushMicros >= args.flushEvery.inMicroseconds) {
-      await store.flushTimeline(builder.build());
-      lastFlushMicros = nowMicros;
+      // Ride through a transient flush failure: the in-memory builder still
+      // holds everything, so the next flush recovers it. lastFlushMicros is
+      // NOT advanced on failure, so the next tick retries promptly. Only a
+      // sustained run of failures ends the night.
+      try {
+        await store.flushTimeline(builder.build());
+        lastFlushMicros = nowMicros;
+        consecutiveFlushFailures = 0;
+      } catch (error) {
+        consecutiveFlushFailures++;
+        err.writeln(
+          'radar_sample: periodic flush failed '
+          '(#$consecutiveFlushFailures/$_maxConsecutiveFlushFailures): '
+          '$error — retrying next interval',
+        );
+        if (consecutiveFlushFailures >= _maxConsecutiveFlushFailures) {
+          throw _FlushGaveUpException(consecutiveFlushFailures);
+        }
+      }
     }
 
     await interrupt.sleepOr(clock, wait);
   }
+}
+
+/// Raised by the sampling loop once the periodic flush has failed
+/// [_maxConsecutiveFlushFailures] times in a row — a handled give-up, so
+/// [runSample] ends the session (`endReason: 'error'`) without a stack dump and
+/// still runs the strict final flush from the intact in-memory builder.
+final class _FlushGaveUpException implements Exception {
+  const _FlushGaveUpException(this.failures);
+
+  /// Consecutive flush failures at the point of giving up.
+  final int failures;
+
+  @override
+  String toString() =>
+      'periodic flush failed $failures times in a row; the session sink '
+      'appears dead';
 }
 
 NativeSampleSnapshot _unmeasuredTick(
@@ -328,6 +380,32 @@ final class _NoProcess extends _PidProbe {
 final class _Outage extends _PidProbe {
   const _Outage(this.reason);
   final String reason;
+}
+
+/// Resolves the connected device's serial via `adb get-serialno` for meta
+/// provenance and to pin sampling to that device.
+///
+/// `get-serialno` prints the serial for exactly one device and errors on none
+/// or several. Any failure — no device, several devices, a launch failure, a
+/// timeout, or the sentinel `unknown` — falls back to null (sole-device
+/// scoping), with one honest line to [err]. Never throws.
+Future<String?> _resolveSerial(
+  AdbRunner adb,
+  Duration probeTimeout,
+  StringSink err,
+) async {
+  try {
+    final result = await adb.run(['get-serialno']).timeout(probeTimeout);
+    final serial = result.stdout.trim();
+    if (result.ok && serial.isNotEmpty && serial != 'unknown') return serial;
+  } catch (_) {
+    // Fall through to the honest default below.
+  }
+  err.writeln(
+    'radar_sample: could not resolve a device serial via '
+    '`adb get-serialno` — recording device as "default"',
+  );
+  return null;
 }
 
 /// Resolves [package]'s pid via `adb shell pidof -s`, classifying the outcome.

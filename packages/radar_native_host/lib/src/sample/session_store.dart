@@ -3,6 +3,13 @@ import 'dart:io';
 
 import 'package:radar_native/radar_native.dart';
 
+/// Provenance stamp recorded in `meta.json` — which tool wrote the session.
+///
+/// A plain constant rather than a runtime pubspec read: it is provenance, not
+/// behaviour, and a hardcoded string cannot fail at 3am. Bump alongside the
+/// package version in `pubspec.yaml`.
+const String kToolProvenance = 'radar_native_host/0.1.0';
+
 /// Immutable header for one sampling session, written to `meta.json`.
 ///
 /// Carries a [schemaVersion] like every other on-disk artifact so a future
@@ -40,6 +47,9 @@ final class SessionMeta {
   /// null while live.
   final String? endReason;
 
+  /// Provenance of the writing tool, e.g. `radar_native_host/0.1.0`.
+  final String tool;
+
   /// Creates a session header.
   const SessionMeta({
     required this.package,
@@ -50,6 +60,7 @@ final class SessionMeta {
     required this.flushEveryMicros,
     this.finishedAt,
     this.endReason,
+    this.tool = kToolProvenance,
   });
 
   /// Returns a copy stamped with an end time and [reason].
@@ -62,11 +73,13 @@ final class SessionMeta {
     flushEveryMicros: flushEveryMicros,
     finishedAt: at,
     endReason: reason,
+    tool: tool,
   );
 
   /// Serialises to a JSON-encodable map carrying `'schemaVersion': 1`.
   Map<String, Object?> toJson() => {
     'schemaVersion': schemaVersion,
+    'tool': tool,
     'package': package,
     'device': device,
     'started': started.toUtc().toIso8601String(),

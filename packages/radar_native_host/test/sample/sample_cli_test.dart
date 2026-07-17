@@ -34,13 +34,18 @@ void main() {
 
   tearDown(() => tempDir.deleteSync(recursive: true));
 
+  // A pinned --device keeps `adb get-serialno` out of the loop, so the scripted
+  // AdbRunner's call indices line up with the pidof probes.
   List<String> baseArgs({
     String interval = '5s',
     String duration = '20s',
     String flushEvery = '60s',
+    String device = 'ZY-TEST',
   }) => [
     '--package',
     'com.example.app',
+    '--device',
+    device,
     '--out',
     dir,
     '--interval',
@@ -56,6 +61,7 @@ void main() {
     required AdbRunner adb,
     required FakeClock clock,
     required FakeSampler sampler,
+    SessionLock? lock,
     Stream<ProcessSignal>? interrupts,
     StringSink? err,
   }) => runSample(
@@ -63,9 +69,8 @@ void main() {
     adb: adb,
     clock: clock,
     buildSampler: (_, _) => sampler,
-    lock: FakeSessionLock(),
+    lock: lock ?? FakeSessionLock(),
     interrupts: interrupts ?? noInterrupts(),
-    now: () => DateTime.utc(2026, 7, 17, 3),
     out: StringBuffer(),
     err: err ?? StringBuffer(),
   );
@@ -283,7 +288,6 @@ void main() {
           buildSampler: (_, _) => sampler,
           lock: FakeSessionLock(),
           interrupts: noInterrupts(),
-          now: () => DateTime.utc(2026, 7, 17, 3),
           probeTimeout: const Duration(milliseconds: 50),
           out: StringBuffer(),
           err: err,
@@ -390,6 +394,148 @@ void main() {
       expect(readMeta(dir)['endReason'], 'interrupted');
       expect(err.toString(), contains('interrupted'));
       await signals.close();
+    });
+  });
+
+  group('flush ride-through', () {
+    test('a single transient flush failure does not end the run', () async {
+      final clock = FakeClock();
+      final sampler = FakeSampler();
+      final adb = ScriptedPidAdb((_) => pidResult(100));
+      // Guard #0 is the initial writeMeta; #1 is the first cadence flush — fail
+      // only that one, so the loop rides through and the next flush recovers.
+      final lock = ScriptedFailLock((index) => index == 1);
+      final err = StringBuffer();
+
+      final code = await run(
+        baseArgs(duration: '15s', flushEvery: '5s'),
+        adb: adb,
+        clock: clock,
+        sampler: sampler,
+        lock: lock,
+        err: err,
+      );
+
+      expect(code, 0);
+      expect(readMeta(dir)['endReason'], 'completed');
+      // Every tick (t=0,5,10) is persisted by the recovering flush.
+      expect(sampleCount(readTimeline(dir), TriageColumn.nativePssKb), 3);
+      expect(err.toString(), contains('periodic flush failed'));
+    });
+
+    test('5 consecutive flush failures ends with endReason=error, '
+        'but the strict final flush still persists everything', () async {
+      final clock = FakeClock();
+      final sampler = FakeSampler();
+      final adb = ScriptedPidAdb((_) => pidResult(100));
+      // Guards #1..#5 are the five cadence flushes (t=5,10,15,20,25); fail all.
+      // The final flush (guard #6, in finalizeSession) is strict and succeeds.
+      final lock = ScriptedFailLock((index) => index >= 1 && index <= 5);
+      final err = StringBuffer();
+
+      final code = await run(
+        baseArgs(duration: '30s', flushEvery: '5s'),
+        adb: adb,
+        clock: clock,
+        sampler: sampler,
+        lock: lock,
+        err: err,
+      );
+
+      expect(code, 0);
+      expect(readMeta(dir)['endReason'], 'error');
+      // The in-memory builder survived; the final flush wrote all six ticks.
+      expect(sampleCount(readTimeline(dir), TriageColumn.nativePssKb), 6);
+      expect(err.toString(), contains('#5/5'));
+    });
+  });
+
+  group('device serial provenance', () {
+    test(
+      'resolves the real serial via get-serialno when --device omitted',
+      () async {
+        final clock = FakeClock();
+        final sampler = FakeSampler();
+        final adb = SerialnoAdb(serial: 'ZY227LHK9F');
+
+        await runSample(
+          [
+            '--package',
+            'com.example.app',
+            '--out',
+            dir,
+            '--interval',
+            '5s',
+            '--duration',
+            '10s',
+            '--flush-every',
+            '60s',
+          ],
+          adb: adb,
+          clock: clock,
+          buildSampler: (_, _) => sampler,
+          lock: FakeSessionLock(),
+          interrupts: noInterrupts(),
+          out: StringBuffer(),
+          err: StringBuffer(),
+        );
+
+        expect(readMeta(dir)['device'], 'ZY227LHK9F');
+      },
+    );
+
+    test(
+      'falls back to "default" with an honest note on resolution failure',
+      () async {
+        final clock = FakeClock();
+        final sampler = FakeSampler();
+        final adb = SerialnoAdb(serial: null);
+        final err = StringBuffer();
+
+        await runSample(
+          [
+            '--package',
+            'com.example.app',
+            '--out',
+            dir,
+            '--interval',
+            '5s',
+            '--duration',
+            '10s',
+            '--flush-every',
+            '60s',
+          ],
+          adb: adb,
+          clock: clock,
+          buildSampler: (_, _) => sampler,
+          lock: FakeSessionLock(),
+          interrupts: noInterrupts(),
+          out: StringBuffer(),
+          err: err,
+        );
+
+        expect(readMeta(dir)['device'], 'default');
+        expect(err.toString(), contains('could not resolve a device serial'));
+      },
+    );
+  });
+
+  group('meta provenance', () {
+    test('meta.json records the writing tool and schemaVersion', () async {
+      final clock = FakeClock();
+      final sampler = FakeSampler();
+      final adb = ScriptedPidAdb((_) => pidResult(100));
+
+      await run(
+        baseArgs(duration: '10s'),
+        adb: adb,
+        clock: clock,
+        sampler: sampler,
+      );
+
+      final meta = readMeta(dir);
+      expect(meta['tool'], kToolProvenance);
+      expect(meta['schemaVersion'], SessionMeta.schemaVersion);
     });
   });
 

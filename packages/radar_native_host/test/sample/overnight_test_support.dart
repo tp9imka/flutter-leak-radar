@@ -108,6 +108,54 @@ final class FakeSessionLock implements SessionLock {
   }
 }
 
+/// A [SessionLock] that throws on the guarded sections whose zero-based index
+/// satisfies [shouldFail] — models a transient/sustained flush sink failure.
+final class ScriptedFailLock implements SessionLock {
+  /// Fails the guard whose index satisfies [shouldFail].
+  ScriptedFailLock(this.shouldFail);
+
+  /// Predicate over the zero-based guard index.
+  final bool Function(int guardIndex) shouldFail;
+
+  /// Number of [guard] calls so far.
+  int guards = 0;
+
+  @override
+  Future<T> guard<T>(Future<T> Function() body) async {
+    final index = guards++;
+    if (shouldFail(index)) {
+      throw const FileSystemException('disk full (simulated)');
+    }
+    return body();
+  }
+}
+
+/// An [AdbRunner] answering `get-serialno` with [serial] (or a no-device error
+/// when null) and every `pidof` with [pid] — exercises serial resolution.
+final class SerialnoAdb implements AdbRunner {
+  /// Creates a runner reporting [serial] and resolving [pid].
+  SerialnoAdb({required this.serial, this.pid = 100});
+
+  /// Serial reported by `get-serialno`, or null to report no device.
+  final String? serial;
+
+  /// Pid reported by `pidof`.
+  final int pid;
+
+  @override
+  Future<AdbResult> run(List<String> args, {String? serial, String? stdin}) {
+    if (args.contains('get-serialno')) {
+      final resolved = this.serial;
+      return Future<AdbResult>.value(
+        resolved == null
+            ? AdbResult(1, '', 'error: no devices/emulators found')
+            : AdbResult(0, '$resolved\n', ''),
+      );
+    }
+    return Future<AdbResult>.value(pidResult(pid));
+  }
+}
+
 /// A successful `pidof` result naming [pid].
 AdbResult pidResult(int pid) => AdbResult(0, '$pid\n', '');
 
