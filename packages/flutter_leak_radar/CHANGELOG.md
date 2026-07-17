@@ -1,7 +1,9 @@
 ## 0.3.0
 
-Findings now carry attribution: each `LeakFinding` reports its class `origin`
-(project / dependency / framework / SDK / unknown) and shallow `bytes`, and each
+Findings now carry attribution in the model and exports: each `LeakFinding`
+carries its class `origin` (`project` / `dependency` / `flutterFramework` /
+`dartSdk` / `unknown`) and shallow `bytes`, surfaced through `toJson` /
+`toMarkdown` — the in-app inspector does not yet render either. Each
 `LeakReport` populates `heapBytes` and records which detection link resolved the
 project-package set.
 

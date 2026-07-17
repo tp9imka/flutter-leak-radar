@@ -232,7 +232,7 @@ compiled — no tree-shaking or build flavours required.
 | Package | Purpose |
 |---|---|
 | [`radar_trace`](https://pub.dev/packages/radar_trace) | The underlying span/histogram engine used by this package. |
-| [`radar`](https://pub.dev/packages/radar) | Umbrella: one import for both `flutter_leak_radar` + `flutter_perf_radar`. |
+| [`radarscope`](https://pub.dev/packages/radarscope) | Umbrella: one import across Memory, Performance, and Stability. |
 | [`flutter_leak_radar`](https://pub.dev/packages/flutter_leak_radar) | On-device memory leak detector — heap growth, precise retention, overlay. |
 
 ---
