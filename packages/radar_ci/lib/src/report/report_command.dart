@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:leak_graph/leak_graph.dart';
+import 'package:radar_native/radar_native.dart';
+import 'package:radar_native_host/radar_native_host.dart';
 import 'package:radar_trace/radar_trace.dart';
 
 import '../gate/gate_command.dart';
@@ -123,10 +125,20 @@ Future<int> runReport(
     err,
   );
 
+  // The report never suppresses a leak from view: like the heuristic cluster
+  // view, native growth always factors into the informational overall verdict
+  // (`gateNative: true`), so a native leak can't sit under a green headline —
+  // even though the *enforcing* `gate` only fails on it behind --gate-native.
+  final nativeVerdict = run.nativeTimeline == null
+      ? null
+      : triage(run.nativeTimeline!);
+
   final gate = evaluateVerdictGate(
     series: series,
     comparison: comparison.comparison,
     analysis: loaded.analysis,
+    nativeVerdict: nativeVerdict,
+    gateNative: true,
   );
 
   final rendered = switch (format) {
@@ -136,6 +148,7 @@ Future<int> runReport(
       comparison.comparison,
       gate,
       loaded.analysis,
+      nativeVerdict,
     ),
     ReportFormat.md || ReportFormat.github => _composeMarkdown(
       github: format == ReportFormat.github,
@@ -146,6 +159,7 @@ Future<int> runReport(
       comparison: comparison.comparison,
       analysisNote: loaded.note,
       baselineNote: comparison.note,
+      nativeVerdict: nativeVerdict,
     ),
   };
 
@@ -243,6 +257,7 @@ String _composeMarkdown({
   BaselineComparison? comparison,
   String? analysisNote,
   String? baselineNote,
+  TriageVerdict? nativeVerdict,
 }) {
   final buf = StringBuffer()
     ..writeln(_overallVerdictLine(gate))
@@ -260,7 +275,12 @@ String _composeMarkdown({
 
   if (analysisNote != null) buf.writeln('_$analysisNote._\n');
 
-  final seriesSection = _seriesSection(series);
+  // Series table, then the native (Lane A) table right below it — the two
+  // lanes read as one memory picture in the 30-second view.
+  final nativeSection = _nativeSection(run.nativeTimeline, nativeVerdict);
+  final combinedSection = nativeSection == null
+      ? _seriesSection(series)
+      : '${_seriesSection(series)}\n\n$nativeSection';
   if (analysis != null) {
     // Drop the renderer's own line-1 verdict: the composed overall line above
     // is the single verdict authority, so its `⚠ N clusters (no gate)` /
@@ -268,11 +288,39 @@ String _composeMarkdown({
     final leakReport = _stripLeadingVerdict(
       renderMarkdownReport(analysis, comparison: comparison, github: github),
     );
-    buf.writeln(_insertBeforeDetails(leakReport, seriesSection));
+    buf.writeln(_insertBeforeDetails(leakReport, combinedSection));
   } else {
-    buf.writeln(seriesSection);
+    buf.writeln(combinedSection);
   }
   if (baselineNote != null) buf.writeln('\n_$baselineNote._');
+  return buf.toString().trimRight();
+}
+
+/// The native (Lane A) verdict table, reusing C4's [renderColumnTable] so the
+/// column rows match the standalone `radar_native_host triage` report — or null
+/// when the run carried no native lane.
+///
+/// Informational here: the enforcing gate only fails on native growth behind
+/// `--gate-native`, but the report always shows the table so a native trend is
+/// never hidden from the 30-second view.
+String? _nativeSection(TriageTimeline? timeline, TriageVerdict? verdict) {
+  if (timeline == null || verdict == null) return null;
+  final session = TriageSession(
+    label: 'native lane',
+    timeline: timeline,
+    verdict: verdict,
+  );
+  final buf = StringBuffer()
+    ..writeln('### Native memory (Android)')
+    ..writeln()
+    ..writeln('_${verdict.summary}_')
+    ..writeln()
+    ..write(renderColumnTable(session))
+    ..writeln()
+    ..write(
+      '_Native columns are informational in `report`; run `radar_ci gate '
+      '--gate-native` to fail CI on native growth._',
+    );
   return buf.toString().trimRight();
 }
 
@@ -314,6 +362,10 @@ String _overallVerdictLine(VerdictGateResult gate) {
     );
   }
   reasons.addAll(gate.byteViolations);
+  final native = gate.nativeGrowthSignals.toList();
+  if (native.isNotEmpty) {
+    reasons.add('monotonic native growth in ${native.join(', ')}');
+  }
   return '❌ overall: FAIL — ${reasons.join('; ')}';
 }
 
@@ -350,6 +402,7 @@ String _jsonEnvelope(
   BaselineComparison? comparison,
   VerdictGateResult gate,
   GraphAnalysisResult? analysis,
+  TriageVerdict? nativeVerdict,
 ) {
   final envelope = <String, Object?>{
     'schemaVersion': kReportEnvelopeSchemaVersion,
@@ -360,12 +413,14 @@ String _jsonEnvelope(
     },
     if (comparison != null)
       'comparison': _encodeComparison(comparison, analysis),
+    if (nativeVerdict != null) 'nativeVerdict': nativeVerdict.toJson(),
     'gate': {
       'passed': gate.passed,
       'growthSignals': gate.growthSignals.toList(),
       'newProjectAnchorClusterCount': gate.newProjectClusters.length,
       'baselineCompared': gate.baselineCompared,
       'byteViolations': gate.byteViolations,
+      'nativeGrowthSignals': gate.nativeGrowthSignals.toList(),
     },
   };
   return const JsonEncoder.withIndent('  ').convert(envelope);

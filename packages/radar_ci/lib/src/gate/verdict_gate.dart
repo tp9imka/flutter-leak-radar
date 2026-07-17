@@ -9,6 +9,7 @@
 library;
 
 import 'package:leak_graph/leak_graph.dart';
+import 'package:radar_native/radar_native.dart';
 import 'package:radar_trace/radar_trace.dart';
 
 import '../model/run_document.dart';
@@ -72,12 +73,23 @@ final class VerdictGateResult {
   /// Byte-absolute [GateOptions] violations, when opt-in thresholds were set.
   final List<String> byteViolations;
 
+  /// The measured native (Lane A) columns certified as monotonic growth —
+  /// always computed when a native timeline is present, so the report can show
+  /// them, but only counted toward [passed] when [nativeGated] is true.
+  final List<TriageColumnAssessment> nativeGrowth;
+
+  /// Whether native growth counts toward the pass/fail decision (the gate's
+  /// opt-in `--gate-native`; always true for the informational report).
+  final bool nativeGated;
+
   /// Creates a gate result.
   const VerdictGateResult({
     required this.series,
     required this.newProjectClusters,
     required this.baselineCompared,
     required this.byteViolations,
+    this.nativeGrowth = const [],
+    this.nativeGated = false,
   });
 
   /// The gated signal names certified as monotonic growth.
@@ -86,12 +98,38 @@ final class VerdictGateResult {
       if (s.isGrowth) s.name,
   ];
 
-  /// True when nothing failed: no growth, no new project-anchor cluster, no
-  /// byte-absolute violation.
+  /// The growing native column names (empty unless a native timeline showed
+  /// monotonic growth).
+  Iterable<String> get nativeGrowthSignals => [
+    for (final a in nativeGrowth) a.column.name,
+  ];
+
+  /// True when nothing failed: no Dart-series growth, no new project-anchor
+  /// cluster, no byte-absolute violation, and — when [nativeGated] — no native
+  /// column growth.
   bool get passed =>
       growthSignals.isEmpty &&
       newProjectClusters.isEmpty &&
-      byteViolations.isEmpty;
+      byteViolations.isEmpty &&
+      !(nativeGated && nativeGrowth.isNotEmpty);
+}
+
+/// The measured native columns [nativeVerdict] certifies as monotonic growth
+/// (a strictly positive slope) — the native gate's fail trigger.
+///
+/// Empty when [nativeVerdict] is null (no native lane) or nothing grows;
+/// not-measured / insufficientData / plateau / noisy columns never appear, so
+/// an unmeasured column can never fail the native gate.
+List<TriageColumnAssessment> growingNativeColumns(
+  TriageVerdict? nativeVerdict,
+) {
+  if (nativeVerdict == null) return const [];
+  return [
+    for (final a in nativeVerdict.assessments)
+      if (a.assessment.verdict == SeriesVerdict.monotonicGrowth &&
+          (a.assessment.slopePerHour ?? 0) > 0)
+        a,
+  ];
 }
 
 /// Assesses the three [kGatedSignals] in [run] via [assess].
@@ -182,6 +220,10 @@ ClassOrigin clusterOrigin(
 /// .plateau] never fail. Baseline-driven conditions are skipped entirely when
 /// [comparison] is null or not comparable — the caller resolves a
 /// requested-but-unevaluable baseline to its own refusal.
+///
+/// [nativeVerdict] (the Lane A router verdict over a co-driven timeline) feeds
+/// [VerdictGateResult.nativeGrowth]; whether that growth fails the gate is
+/// [gateNative] — opt-in for the enforcing gate, always on for the report.
 VerdictGateResult evaluateVerdictGate({
   required List<SeriesGateOutcome> series,
   BaselineComparison? comparison,
@@ -189,6 +231,8 @@ VerdictGateResult evaluateVerdictGate({
   LeakConfidence minConfidence = LeakConfidence.heuristic,
   GateOptions byteGate = const GateOptions(),
   bool byteGateRequested = false,
+  TriageVerdict? nativeVerdict,
+  bool gateNative = false,
 }) {
   final newProject = <GraphLeakCluster>[];
   if (comparison != null && comparison.baselineComparable && analysis != null) {
@@ -214,6 +258,8 @@ VerdictGateResult evaluateVerdictGate({
     newProjectClusters: newProject,
     baselineCompared: comparison?.baselineComparable ?? false,
     byteViolations: byteViolations,
+    nativeGrowth: growingNativeColumns(nativeVerdict),
+    nativeGated: gateNative,
   );
 }
 

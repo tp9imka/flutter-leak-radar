@@ -6,4 +6,5 @@ library;
 
 export 'src/gate/gate_command.dart';
 export 'src/report/report_command.dart';
+export 'src/run/native_codrive_io.dart';
 export 'src/run/run_io.dart';

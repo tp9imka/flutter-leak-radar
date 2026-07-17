@@ -93,6 +93,9 @@ measurement (inspector pins produce fake leaks), in-process dump side effects.
 - No per-row origin tinting (severity owns the row-tint channel); chips + group
   headers + a left-edge tick carry origin.
 - The multi-series time chart is **Phase C** work (its only consumer).
+- _Correction (review round): the Radar design system is **dark-only** — a
+  single fixed palette, no light theme. `OriginTokens` follows the
+  `SeverityTokens` template as one dark palette (not a light/dark pair)._
 
 ### 3.4 Workbench views (`radar_workbench`) + per-host wiring
 
@@ -208,6 +211,10 @@ All samplers go through the `AdbRunner` seam, fake-runner tested, and follow the
 `measured: false`, propagates to `SeriesVerdict.insufficientData`, renders as
 "not measured". Each sampler's tests include a malformed-output fixture.
 
+> **Implementation status (2026-07-17):** smaps PSS-by-mapping stays deferred
+> (userdebug/root-gated) — Lane A routes verdicts from ungated `dumpsys` /
+> `/proc` sources only, so a non-rooted device is fully covered.
+
 - Samplers: dumpsys meminfo summary; `/proc/pid/status` (VmRSS/RssAnon/Threads);
   fd classification (readlink buckets: sync_file / dmabuf / ashmem / total);
   thread-name counts (`/proc/PID/task/*/comm`); dumpsys gfxinfo
@@ -227,6 +234,14 @@ All samplers go through the `AdbRunner` seam, fake-runner tested, and follow the
 - `radar_ci run --native` co-drives sampling during a run; lanes merge on host
   wall-clock in `run.json`.
 
+> **Implementation status (2026-07-17):** shipped as `radar_ci run
+> --native-package <pkg> [--native-interval] [--native-device]`, folding an
+> additive `nativeTimeline` into `run.json`. The native verdict gate is
+> **opt-in** this release (`gate --gate-native`; a not-measured column never
+> fails, and `--gate-native` on a run with no native lane refuses rather than
+> passing silently); `report` always shows a native per-column table and folds
+> native growth into its informational verdict.
+
 ### 5.3 `radar_desktop` Device Monitor pane (**import-first**)
 
 - New `RadarTimeSeriesChart` in radar_ui (new component — RadarTrendChart is
@@ -236,6 +251,11 @@ All samplers go through the `AdbRunner` seam, fake-runner tested, and follow the
   verdict chips, batch-slope readout, session-vs-session compare. Matches the
   repo's own import-first ruling for Lane A.
 - v1.1 (same seam, stretch): live polling + heapprofd start/stop from the pane.
+
+> **Implementation status (2026-07-17):** the Device Monitor pane ships
+> **import-first (v1)** — session import + charts + per-column verdicts +
+> compare. Live polling / heapprofd start-stop from the pane (v1.1) stays
+> deferred on the same seam.
 - Connected mode: poll `getMemoryUsage` — heapUsage and externalUsage as **two
   separate series** (a merged line hides the external-pool pattern).
 

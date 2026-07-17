@@ -86,8 +86,21 @@ String renderTriageMarkdown(TriageSession session) {
   final provenance = session.provenance?.line;
   if (provenance != null) buffer.writeln('_${provenance}_\n');
 
+  buffer.write(renderColumnTable(session));
+  return buffer.toString();
+}
+
+/// Renders the per-column verdict table for [session] — one row per
+/// [TriageColumn], every never-measured column listed explicitly (so an absent
+/// signal is never mistaken for a flat one), followed by a "Not measured"
+/// footer when any column was never sampled.
+///
+/// The heading- and summary-free table body, shared by [renderTriageMarkdown]
+/// and `radar_ci report`'s native section so both surfaces render the same
+/// column rows.
+String renderColumnTable(TriageSession session) {
   final byColumn = session.byColumn;
-  buffer
+  final buffer = StringBuffer()
     ..writeln('| column | verdict | slope | detail |')
     ..writeln('| --- | --- | ---: | --- |');
   final notMeasured = <TriageColumn>[];

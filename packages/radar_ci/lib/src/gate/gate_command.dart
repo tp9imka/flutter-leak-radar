@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:leak_graph/leak_graph.dart';
+import 'package:radar_native/radar_native.dart';
 import 'package:radar_trace/radar_trace.dart';
 
 import '../model/run_document.dart';
@@ -67,6 +68,13 @@ ArgParser buildGateArgParser() => ArgParser()
     'allow-partial',
     negatable: false,
     help: 'Gate a partial (completed:false) run instead of refusing it.',
+  )
+  ..addFlag(
+    'gate-native',
+    negatable: false,
+    help:
+        'Also fail on monotonic growth of any measured native (Lane A) column '
+        'from a --native-package co-drive.',
   )
   ..addFlag('help', abbr: 'h', negatable: false, help: 'Show usage.');
 
@@ -135,6 +143,27 @@ Future<int> runGate(
   }
 
   final series = assessGatedSeries(run, assess);
+
+  // Native (Lane A) gate — opt-in. A --gate-native on a run that never
+  // co-drove the native lane is a requested-but-unevaluable gate: refuse
+  // rather than pass silently (a CI expecting native coverage must not read
+  // green off a run with no native data). A present-but-all-unmeasured lane is
+  // a different, honest case — triage reads insufficientData, which never
+  // fails.
+  final gateNative = args['gate-native'] as bool;
+  final nativeTimeline = run.nativeTimeline;
+  if (gateNative && nativeTimeline == null) {
+    err.writeln(
+      '--gate-native was requested but this run carries no native timeline '
+      '(was it run with --native-package?).',
+    );
+    out.writeln(
+      '⛔ gate not evaluated: --gate-native requested but this run has no '
+      'native lane to gate',
+    );
+    return GateExit.toolFailure;
+  }
+  final nativeVerdict = nativeTimeline == null ? null : triage(nativeTimeline);
 
   final baselinePath = args['baseline'] as String?;
   final writeBaselinePath = args['write-baseline'] as String?;
@@ -215,6 +244,8 @@ Future<int> runGate(
     minConfidence: minConfidence,
     byteGate: byteGate,
     byteGateRequested: byteGateRequested,
+    nativeVerdict: nativeVerdict,
+    gateNative: gateNative,
   );
 
   if (writeBaselinePath != null) {
@@ -246,6 +277,7 @@ Future<int> runGate(
     minConfidence: minConfidence,
     baselineProvided: baselinePath != null,
     analysisStaleNote: analysisStaleNote,
+    nativeVerdict: gateNative ? nativeVerdict : null,
   );
   return gate.passed ? GateExit.ok : GateExit.gateFailed;
 }
@@ -385,9 +417,15 @@ void _printVerdict(
   required LeakConfidence minConfidence,
   required bool baselineProvided,
   String? analysisStaleNote,
+  TriageVerdict? nativeVerdict,
 }) {
   for (final signal in gate.series) {
     out.writeln(_seriesVerdictLine(signal));
+  }
+  if (nativeVerdict != null) {
+    for (final column in nativeVerdict.assessments) {
+      out.writeln(_nativeVerdictLine(column));
+    }
   }
   if (analysisStaleNote != null) {
     out.writeln('cluster gate: $analysisStaleNote');
@@ -428,6 +466,22 @@ String _seriesVerdictLine(SeriesGateOutcome signal) {
     SeriesVerdict.plateau || SeriesVerdict.noisy => 'ok',
   };
   return '${signal.name}: ${assessment.verdict.name} ($tag) — '
+      '${assessment.detail}';
+}
+
+/// One native column's gate line — a growing measured column reads FAIL, a
+/// not-measured / insufficientData column never does.
+String _nativeVerdictLine(TriageColumnAssessment column) {
+  final assessment = column.assessment;
+  final grows =
+      assessment.verdict == SeriesVerdict.monotonicGrowth &&
+      (assessment.slopePerHour ?? 0) > 0;
+  final tag = switch (assessment.verdict) {
+    SeriesVerdict.monotonicGrowth => grows ? 'FAIL' : 'ok',
+    SeriesVerdict.insufficientData => 'not measured',
+    SeriesVerdict.plateau || SeriesVerdict.noisy => 'ok',
+  };
+  return 'native ${column.column.name}: ${assessment.verdict.name} ($tag) — '
       '${assessment.detail}';
 }
 

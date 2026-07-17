@@ -35,11 +35,39 @@ emit — parsed by `radar_native_host`'s `parseLogcatVmServiceUris`).
 | `--snapshot-every` | `1` | Heap snapshot every Nth checkpoint (`0` = none). |
 | `--exec` / `--call-extension` | — | Driver hook fired between checkpoints. |
 | `--project-packages` | auto | App package names scoping leak analysis. |
+| `--native-package` | — | Android package to co-sample the native lane for. |
+| `--native-interval` | `10s` | Native co-drive sample cadence. |
+| `--native-device` | auto | Device serial for native sampling. |
 
 The shipped defaults produce well over the 12 post-settle samples that
 radar_trace's Mann–Kendall growth test needs. If your overrides fall below that
 floor, `radar_ci` prints a warning: the resulting run would read
 `insufficientData` rather than a growth verdict.
+
+### Native co-drive (Android)
+
+`--native-package com.example.app` co-samples the Lane A native columns
+(`dumpsys meminfo` / `/proc` / fd / thread trends) alongside the Dart lane on
+the run's host wall-clock, and marks each Dart checkpoint on the shared
+timeline:
+
+```shell
+dart run radar_ci run --cmd "flutter run --profile -d <device>" \
+  --native-package com.example.app --native-interval 10s -o run.json
+```
+
+The native lane shares the run lifecycle: it ticks on its own interval and
+survives an interrupt the same way the Dart samples do (a partial `run.json`
+still carries whatever native ticks were gathered). Honest by construction —
+a device/pid miss reads *not measured* (a gap), never a fabricated `0`, so a
+run with no device attached simply records an all-unmeasured native lane rather
+than failing.
+
+Both lanes tick inside one sequential loop, so a *hung* (not merely absent)
+device can stretch the run's wall clock by the bounded native probe/sweep
+timeouts; samples stay real-clock-timestamped either way, so verdicts are
+unaffected. Decoupling the lanes rides with the existing capture-off-the-hot-path
+fast-follow.
 
 ## Output
 
@@ -58,6 +86,10 @@ floor, `radar_ci` prints a warning: the resulting run would read
   derivable from `--cmd`; otherwise absent), command line, resolved project
   packages, and `completed` (`false` with an `abortReason` on a partial run
   flushed after an error or interrupt).
+- **`nativeTimeline`** (optional) — the Lane A `TriageTimeline` co-sampled when
+  `--native-package` was given: one gap-aware series per measured column plus a
+  mark at each checkpoint. Additive — a `run.json` without it still parses, and
+  a reader that ignores it reads the Dart lane unchanged.
 
 A run is resilient: a checkpoint RPC blip degrades that checkpoint to a
 `failed`/`partial` marker and continues, and an interrupt (Ctrl-C / SIGTERM)
@@ -86,6 +118,13 @@ Writing one on a **failing** run is allowed but prints a warning: later runs
 will treat those clusters as known and stop flagging them, so prefer writing
 baselines from a green run.
 
+**`--gate-native`** (opt-in) also fails (exit 3) on monotonic growth of any
+*measured* native column from a `--native-package` co-drive, with a per-column
+verdict line. A not-measured column never fails. Asking for `--gate-native` on
+a run that has no native lane refuses (**exit 2**) rather than passing silently
+— a pipeline expecting native coverage must not read green off a run with no
+native data.
+
 ## The `report` verb
 
 ```shell
@@ -94,11 +133,14 @@ dart run radar_ci report run.json --format md   # or github | json
 
 A unified memory + leak report: line 1 is the overall verdict (worst of the
 series and cluster gates), then the featured clusters (reusing `leak_graph`'s
-renderer), the per-signal series table, and folded details. `report` is
+renderer), the per-signal series table, a **native per-column verdict table**
+when the run carried a `nativeTimeline`, and folded details. `report` is
 informational — it renders the verdict but is never the enforcer (exit `0`
 unless the run itself is unreadable). Its cluster view always uses the default
 `heuristic` min-confidence, so it may read FAIL where `gate --min-confidence
-confirmed` passes.
+confirmed` passes — and, likewise, it always folds native growth into the
+overall verdict so a native leak is never hidden from view, even though the
+enforcing `gate` only fails on it behind `--gate-native`.
 
 ## Exit codes
 

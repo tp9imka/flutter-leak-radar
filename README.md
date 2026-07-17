@@ -97,6 +97,18 @@ dart run radar_ci gate run.json
 dart run radar_ci report run.json --format github
 ```
 
+**Co-drive the Android native lane** in the same run — the two lanes merge on
+one host-wall-clock timeline inside `run.json`:
+
+```shell
+# Sample dumpsys meminfo / /proc / fd / thread trends alongside the Dart lane:
+dart run radar_ci run --cmd "flutter run --profile -d <device>" \
+  --native-package com.example.app -o run.json
+
+# Also fail on native growth (opt-in); report shows a per-column native table:
+dart run radar_ci gate run.json --gate-native
+```
+
 **Exit-code contract:** `0` ok · `1` usage error · `2` tool failure
 (spawn/attach, a partial run, or a gate that could not be evaluated) · `3`
 **gate failed** — a tracked signal (`dart.heap.used` / `dart.external` /
@@ -114,6 +126,29 @@ This repo dogfoods its own gate: the **memory-selftest** CI job runs a hermetic
 planted leak through the full pipeline on every push. Copy-and-adapt workflow
 templates (main-branch baseline artifact, or two-run compare) live in
 [`examples/ci/memory.yaml`](examples/ci/memory.yaml).
+
+## Android native lane
+
+[`radar_native_host`](packages/radar_native_host/) productizes the field-proven
+Android workflow — `dumpsys meminfo` / `/proc` / fd / thread trends with
+plateau-vs-monotonic verdicts — as standalone CLI verbs. Every sampler follows
+the **parsed-or-unmeasured rule**: a format miss reads *not measured*, never a
+fake `0`.
+
+```shell
+# 1. Sample a running app over adb (overnight-robust: gaps, reconnect, flush):
+dart run radar_native_host:sample --package com.example.app \
+  --interval 5s --duration 8h --out before/
+
+# 2. Triage one session → a per-column leak-bucket verdict:
+dart run radar_native_host:triage before/
+
+# 3. Compare the before-fix and after-fix sessions, column by column:
+dart run radar_native_host:triage before/ --compare after/
+```
+
+Import a session into **Radar Desktop**'s Device Monitor pane for the same
+columns with charts, marks, and session-vs-session compare.
 
 ## Documentation
 

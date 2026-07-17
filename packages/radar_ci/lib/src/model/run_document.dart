@@ -1,4 +1,5 @@
 import 'package:meta/meta.dart';
+import 'package:radar_native/radar_native.dart';
 import 'package:radar_trace/radar_trace.dart';
 
 /// The JSON schema version written by [RadarRunDocument.toJson].
@@ -198,11 +199,19 @@ final class RadarRunDocument {
   /// Ordered checkpoints from `start` to `end`.
   final List<RunCheckpoint> checkpoints;
 
+  /// The Lane A native timeline co-sampled during the run, or null when the
+  /// run did not co-drive the native lane (`--native-package` absent).
+  ///
+  /// Additive: a legacy `run.json` without this key parses to null, and a
+  /// reader that ignores it still reads the Dart lane unchanged.
+  final TriageTimeline? nativeTimeline;
+
   /// Creates a run document (always the current [schemaVersion]).
   const RadarRunDocument({
     required this.metadata,
     required this.series,
     required this.checkpoints,
+    this.nativeTimeline,
   }) : schemaVersion = kRadarRunDocumentSchemaVersion;
 
   /// Restores a run document from [toJson] output.
@@ -225,6 +234,7 @@ final class RadarRunDocument {
         );
       }
     }
+    final nativeTimeline = json['nativeTimeline'];
     return RadarRunDocument(
       metadata: RunMetadata.fromJson(json['metadata'] as Map<String, Object?>),
       series: [
@@ -235,15 +245,22 @@ final class RadarRunDocument {
         for (final c in json['checkpoints'] as List<Object?>? ?? const [])
           RunCheckpoint.fromJson(c as Map<String, Object?>),
       ],
+      nativeTimeline: nativeTimeline == null
+          ? null
+          : TriageTimeline.fromJson(
+              (nativeTimeline as Map).cast<String, Object?>(),
+            ),
     );
   }
 
   /// Serialises this document to a JSON-encodable map carrying
-  /// `'schemaVersion': 1`.
+  /// `'schemaVersion': 1`. The optional `nativeTimeline` is elided when the
+  /// native lane was not co-driven.
   Map<String, Object?> toJson() => {
     'schemaVersion': schemaVersion,
     'metadata': metadata.toJson(),
     'series': [for (final s in series) s.toJson()],
     'checkpoints': [for (final c in checkpoints) c.toJson()],
+    if (nativeTimeline != null) 'nativeTimeline': nativeTimeline!.toJson(),
   };
 }

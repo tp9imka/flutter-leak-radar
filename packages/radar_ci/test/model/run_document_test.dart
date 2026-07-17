@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:radar_ci/radar_ci.dart';
+import 'package:radar_native/radar_native.dart';
 import 'package:radar_trace/radar_trace.dart';
 import 'package:test/test.dart';
 
@@ -159,6 +160,76 @@ void main() {
         }),
         throwsA(isA<FormatException>()),
       );
+    });
+  });
+
+  group('RadarRunDocument.nativeTimeline (additive Lane A field)', () {
+    TriageTimeline nativeTimeline() => TriageTimeline(
+      columns: {
+        TriageColumn.nativePssKb: const MetricSeries(
+          name: 'nativePssKb',
+          unit: 'kb',
+          samples: [
+            MetricSample(tMicros: 1000, value: 100),
+            MetricSample(tMicros: 11000, value: 140),
+          ],
+          gaps: [
+            SeriesGap(
+              startMicros: 11000,
+              endMicros: 21000,
+              reason: 'process not running',
+            ),
+          ],
+        ),
+        TriageColumn.threads: const MetricSeries(
+          name: 'threads',
+          unit: 'count',
+          samples: [MetricSample(tMicros: 1000, value: 24)],
+        ),
+      },
+      marks: const [TriageMark(tMicros: 1000, label: 'start')],
+    );
+
+    test('round-trips a co-driven native timeline (columns + marks)', () {
+      final original = RadarRunDocument(
+        metadata: RunMetadata(startedAt: DateTime.utc(2026)),
+        series: const [],
+        checkpoints: const [],
+        nativeTimeline: nativeTimeline(),
+      );
+      final restored = RadarRunDocument.fromJson(
+        jsonDecode(jsonEncode(original.toJson())) as Map<String, Object?>,
+      );
+
+      final native = restored.nativeTimeline;
+      expect(native, isNotNull);
+      expect(native!.columns.keys, {
+        TriageColumn.nativePssKb,
+        TriageColumn.threads,
+      });
+      final pss = native.columns[TriageColumn.nativePssKb]!;
+      expect(pss.samples, hasLength(2));
+      expect(pss.gaps.single.reason, 'process not running');
+      expect(native.marks.single.label, 'start');
+    });
+
+    test('a run without native co-drive omits the key entirely', () {
+      final json = RadarRunDocument(
+        metadata: RunMetadata(startedAt: DateTime.utc(2026)),
+        series: const [],
+        checkpoints: const [],
+      ).toJson();
+      expect(json.containsKey('nativeTimeline'), isFalse);
+    });
+
+    test('an old run.json (no nativeTimeline) parses to a null lane', () {
+      final restored = RadarRunDocument.fromJson({
+        'schemaVersion': 1,
+        'metadata': {'startedAt': '2026-07-17T09:30:15.000Z'},
+        'series': const <Object?>[],
+        'checkpoints': const <Object?>[],
+      });
+      expect(restored.nativeTimeline, isNull);
     });
   });
 }

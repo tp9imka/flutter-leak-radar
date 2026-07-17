@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:leak_graph/leak_graph.dart';
 import 'package:radar_ci/radar_ci.dart';
 import 'package:radar_ci/radar_ci_io.dart';
+import 'package:radar_native/radar_native.dart';
 import 'package:radar_trace/radar_trace.dart';
 import 'package:test/test.dart';
 
@@ -562,6 +563,80 @@ void main() {
         expect(err.toString(), contains('FAILING run'));
       },
     );
+  });
+
+  group('runGate — native lane (--gate-native, opt-in)', () {
+    Future<(int, String)> runNative(
+      RadarRunDocument run,
+      List<String> extraArgs,
+    ) async {
+      final files = InMemoryFiles({'run.json': jsonEncode(run.toJson())});
+      final out = StringBuffer();
+      final code = await runGate(
+        ['run.json', ...extraArgs],
+        out: out,
+        err: StringBuffer(),
+        readText: files.read,
+        // Dart lanes are plateau, isolating the native gate.
+        assess: assessAs(const {}),
+      );
+      return (code, out.toString());
+    }
+
+    test('a growing native column fails the gate with --gate-native', () async {
+      final run = runDoc(
+        series: gatedSeries(),
+        nativeTimeline: nativeTimeline(
+          growing: {TriageColumn.nativePssKb},
+          flat: {TriageColumn.threads},
+        ),
+      );
+      final (code, output) = await runNative(run, ['--gate-native']);
+      expect(code, GateExit.gateFailed);
+      expect(output, contains('GATE FAILED'));
+      expect(output, contains('native nativePssKb: monotonicGrowth (FAIL)'));
+      // A flat native column reads ok, never a fabricated fail.
+      expect(output, contains('native threads: plateau (ok)'));
+    });
+
+    test(
+      'the same growth does NOT fail without --gate-native (opt-in)',
+      () async {
+        final run = runDoc(
+          series: gatedSeries(),
+          nativeTimeline: nativeTimeline(growing: {TriageColumn.nativePssKb}),
+        );
+        final (code, output) = await runNative(run, const []);
+        expect(code, GateExit.ok);
+        expect(output, contains('GATE PASSED'));
+        // Native columns aren't gated, so no native line is emitted.
+        expect(output, isNot(contains('native nativePssKb')));
+      },
+    );
+
+    test('a not-measured native column never fails --gate-native', () async {
+      final run = runDoc(
+        series: gatedSeries(),
+        nativeTimeline: nativeTimeline(short: {TriageColumn.nativePssKb}),
+      );
+      final (code, output) = await runNative(run, ['--gate-native']);
+      expect(code, GateExit.ok);
+      expect(output, contains('GATE PASSED'));
+      expect(
+        output,
+        contains('native nativePssKb: insufficientData (not measured)'),
+      );
+    });
+
+    test('--gate-native with no native lane refuses (exit 2, never silent '
+        'pass)', () async {
+      final run = runDoc(series: gatedSeries());
+      final (code, output) = await runNative(run, ['--gate-native']);
+      expect(code, GateExit.toolFailure);
+      expect(output, contains('⛔ gate not evaluated'));
+      expect(output, contains('no native lane'));
+      expect(output, isNot(contains('GATE PASSED')));
+    });
   });
 
   group('evaluateVerdictGate (pure)', () {

@@ -1,4 +1,6 @@
 import 'package:radar_ci/radar_ci.dart';
+import 'package:radar_native/radar_native.dart';
+import 'package:radar_native_host/radar_native_host.dart';
 import 'package:test/test.dart';
 import 'package:vm_service/vm_service.dart';
 
@@ -111,6 +113,46 @@ final class _ExplodingClock implements RunClock {
     if (duration > Duration.zero) _now += duration.inMicroseconds;
   }
 }
+
+/// A native co-sampler over canned readings: nativePssKb grows and threads
+/// holds, except on the tick indices in [goneTicks], which read pid-gone (every
+/// column unmeasured) — the honest gap the run must fold in without touching
+/// the Dart lane.
+final class _FakeNativeCoSampler implements NativeCoSampler {
+  _FakeNativeCoSampler({this.goneTicks = const {}});
+
+  final Set<int> goneTicks;
+  int _tick = 0;
+  int _pss = 100;
+
+  static const Set<TriageColumn> _columns = {
+    TriageColumn.nativePssKb,
+    TriageColumn.threads,
+  };
+
+  @override
+  Future<Map<TriageColumn, SampleValue>> sampleAt(int tMicros) async {
+    final index = _tick++;
+    if (goneTicks.contains(index)) {
+      return allUnmeasured(_columns, 'process not running');
+    }
+    _pss += 10;
+    return {
+      TriageColumn.nativePssKb: SampleValue.measured(_pss),
+      TriageColumn.threads: const SampleValue.measured(24),
+    };
+  }
+}
+
+NativeCoDrive _coDrive(
+  RunClock clock, {
+  Set<int> goneTicks = const {},
+  int intervalSeconds = 10,
+}) => NativeCoDrive(
+  intervalMicros: intervalSeconds * _second,
+  sampler: _FakeNativeCoSampler(goneTicks: goneTicks),
+  builder: TimelineBuilder(nowMicros: clock.nowMicros),
+);
 
 RunConfig _config({
   int durationSeconds = 120,
@@ -230,6 +272,77 @@ void main() {
         warn: warnings.add,
       );
       expect(warnings, isEmpty);
+    });
+  });
+
+  group('executeRun — native co-drive', () {
+    test('folds a native timeline whose gaps are independent of the Dart '
+        'lane', () async {
+      final clock = _FakeClock(0);
+      final doc = await executeRun(
+        service: _GrowingFakeService(),
+        clock: clock,
+        config: _config(durationSeconds: 120, intervalSeconds: 5),
+        metadata: _metadata(),
+        // Native ticks at 0,10,…,120 (13 ticks); tick #2 (t=20s) reads pid-gone.
+        progress: RunProgress(nativeCoDrive: _coDrive(clock, goneTicks: {2})),
+      );
+
+      final native = doc.nativeTimeline;
+      expect(native, isNotNull);
+      final pss = native!.columns[TriageColumn.nativePssKb]!;
+      // 13 ticks minus the one pid-gone tick = 12 measured samples.
+      expect(pss.samples, hasLength(12));
+      expect(pss.gaps, hasLength(1));
+      expect(pss.gaps.single.reason, contains('process not running'));
+      // The gap sits at the native tick's instant (20s), on the native clock.
+      expect(pss.gaps.single.startMicros, 20 * _second);
+      // The native series carries the canonical KiB unit, so triage never
+      // degrades it on a unit mismatch.
+      expect(pss.unit, 'kb');
+
+      // The Dart lane sampled straight through the native gap — 25 samples, no
+      // gap — proving the lanes are independent.
+      final heap = doc.series.firstWhere((s) => s.name == 'dart.heap.used');
+      expect(heap.samples, hasLength(25));
+      expect(heap.gaps, isEmpty);
+    });
+
+    test('marks the native timeline at each Dart checkpoint', () async {
+      final clock = _FakeClock(0);
+      final doc = await executeRun(
+        service: _GrowingFakeService(),
+        clock: clock,
+        config: _config(durationSeconds: 120, intervalSeconds: 5),
+        metadata: _metadata(),
+        progress: RunProgress(nativeCoDrive: _coDrive(clock)),
+      );
+
+      expect(doc.nativeTimeline!.marks.map((m) => m.label).toList(), [
+        'start',
+        'cp1',
+        'cp2',
+        'cp3',
+        'end',
+      ]);
+    });
+
+    test('a mid-run abort keeps the native ticks gathered so far', () async {
+      final clock = _ExplodingClock(explodeAfter: 5);
+      final doc = await executeRun(
+        service: _GrowingFakeService(),
+        clock: clock,
+        config: _config(),
+        metadata: _metadata(),
+        progress: RunProgress(nativeCoDrive: _coDrive(clock)),
+      );
+
+      expect(doc.metadata.completed, isFalse);
+      final native = doc.nativeTimeline;
+      expect(native, isNotNull);
+      // Some native ticks landed before the clock exploded — the partial lane
+      // survives the abort exactly like the Dart samples do.
+      expect(native!.columns[TriageColumn.nativePssKb]!.samples, isNotEmpty);
     });
   });
 
