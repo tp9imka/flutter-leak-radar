@@ -61,6 +61,29 @@ Total allocated by GraphicBufferAllocator (estimated): 16712.00 KiB
       );
     });
 
+    test('a malformed total magnitude refuses KiB without crashing', () {
+      for (final bad in ['1.2.3', '.', '9' * 400]) {
+        final output =
+            '''
+GraphicBufferAllocator buffers:
+0x7b10 |  8100.00 KiB | app#0
+Total allocated by GraphicBufferAllocator (estimated): $bad KB
+''';
+        final values = parseGfxinfo(output);
+        expect(
+          values[TriageColumn.gfxBufferKb]?.measured,
+          isFalse,
+          reason: 'total "$bad"',
+        );
+        // The count is independent and still measures.
+        expect(
+          values[TriageColumn.gfxBufferCount],
+          const SampleValue.measured(1),
+          reason: 'total "$bad"',
+        );
+      }
+    });
+
     test('non-zero adb exit reads both columns not-measured', () async {
       final values = await GfxinfoSampler(
         FixedAdbRunner(failed()),

@@ -145,6 +145,37 @@ void main() {
         expect(values[TriageColumn.vmRssKb]?.measured, isFalse);
       },
     );
+
+    test(
+      'a throwing sampler loses only its own columns, not the tick',
+      () async {
+        final runner = FixedAdbRunner(ok(fixture('proc_status_good.txt')));
+        final composite = CompositeSampler([
+          _ThrowingSampler(const {
+            TriageColumn.gfxBufferKb,
+            TriageColumn.gfxBufferCount,
+          }),
+          ProcStatusSampler(runner),
+        ]);
+
+        final values = await composite.sample('com.example.app', 12345);
+
+        // ProcStatus readings survive the earlier sampler's throw.
+        expect(
+          values[TriageColumn.vmRssKb],
+          const SampleValue.measured(312044),
+        );
+        expect(values[TriageColumn.threads], const SampleValue.measured(87));
+        // The throwing sampler's columns are present but not-measured (never
+        // silently dropped, never zero).
+        expect(values[TriageColumn.gfxBufferKb]?.measured, isFalse);
+        expect(values[TriageColumn.gfxBufferKb]?.value, isNull);
+        expect(
+          values[TriageColumn.gfxBufferKb]?.error,
+          contains('sampler threw'),
+        );
+      },
+    );
   });
 
   group('TimelineBuilder', () {
@@ -252,4 +283,17 @@ void main() {
       expect(timeline.marks.single.tMicros, 6000);
     });
   });
+}
+
+/// A [NativeSampler] that always throws from [sample] — models a mid-sweep
+/// parse crash or a `ProcessException` from a failed `adb` launch.
+class _ThrowingSampler implements NativeSampler {
+  const _ThrowingSampler(this.columns);
+
+  @override
+  final Set<TriageColumn> columns;
+
+  @override
+  Future<Map<TriageColumn, SampleValue>> sample(String package, int pid) =>
+      throw StateError('boom');
 }

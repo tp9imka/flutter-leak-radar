@@ -71,6 +71,46 @@ void main() {
       }
     });
 
+    test('Rss-first column order refuses all columns, never mislabels Rss', () {
+      final values = parseMeminfoAppSummary(fixture('meminfo_rss_first.txt'));
+
+      for (final column in const {
+        TriageColumn.javaHeapKb,
+        TriageColumn.nativePssKb,
+        TriageColumn.codeKb,
+        TriageColumn.graphicsKb,
+        TriageColumn.totalPssKb,
+      }) {
+        expect(values[column]?.measured, isFalse, reason: '$column');
+      }
+      expect(
+        values[TriageColumn.javaHeapKb]?.error,
+        contains('unrecognized column order'),
+      );
+    });
+
+    test('a tracked row with a blank Pss cell is not-measured, not the Rss '
+        'value', () {
+      final values = parseMeminfoAppSummary(fixture('meminfo_blank_pss.txt'));
+
+      // Graphics Pss is blank; the lone 51216 is Rss and must not be read.
+      expect(values[TriageColumn.graphicsKb]?.measured, isFalse);
+      expect(values[TriageColumn.graphicsKb]?.value, isNull);
+      expect(
+        values[TriageColumn.graphicsKb]?.error,
+        contains('Pss cell is blank'),
+      );
+      // The rows with a real Pss cell still measure.
+      expect(
+        values[TriageColumn.nativePssKb],
+        const SampleValue.measured(74310),
+      );
+      expect(
+        values[TriageColumn.totalPssKb],
+        const SampleValue.measured(312044),
+      );
+    });
+
     test('non-zero adb exit reads all columns not-measured', () async {
       final values = await MeminfoSampler(
         FixedAdbRunner(failed(code: 1, stderr: 'device offline')),

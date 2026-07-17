@@ -168,6 +168,10 @@ Map<TriageColumn, SampleValue> readingsFrom(
 /// measured. So when two samplers both produce a column (e.g. `threads` from
 /// both `/proc/status` and `task/*/comm`), the earlier sampler in [samplers] is
 /// authoritative, and a failing sampler never overwrites a good reading.
+///
+/// Throw isolation: a sampler that throws mid-sweep (a bad parse, a
+/// `ProcessException` when `adb` can't launch) has its columns degraded to
+/// not-measured for that tick; every other sampler's readings survive.
 final class CompositeSampler implements NativeSampler {
   /// Creates a composite over [samplers], applied in order.
   const CompositeSampler(this.samplers);
@@ -184,7 +188,15 @@ final class CompositeSampler implements NativeSampler {
   Future<Map<TriageColumn, SampleValue>> sample(String package, int pid) async {
     final merged = <TriageColumn, SampleValue>{};
     for (final sampler in samplers) {
-      final readings = await sampler.sample(package, pid);
+      // A single sampler throwing (a bad parse, a ProcessException when adb
+      // can't launch) must not lose the whole tick's already-gathered
+      // readings: its columns degrade to not-measured and the sweep continues.
+      Map<TriageColumn, SampleValue> readings;
+      try {
+        readings = await sampler.sample(package, pid);
+      } catch (error) {
+        readings = allUnmeasured(sampler.columns, 'sampler threw: $error');
+      }
       for (final entry in readings.entries) {
         final existing = merged[entry.key];
         final upgradesUnmeasured =
@@ -249,6 +261,10 @@ final class TimelineBuilder {
     int? gapEnd;
     String? gapReason;
 
+    // A lone unmeasured snapshot yields a zero-width gap (startMicros ==
+    // endMicros): it still marks a real not-measured instant, so downstream
+    // consumers must not treat a zero-width gap as negligible — it breaks
+    // sample continuity exactly like a wider one.
     void closeGap() {
       final start = gapStart;
       if (start == null) return;

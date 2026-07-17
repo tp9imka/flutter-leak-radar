@@ -75,12 +75,19 @@ Map<TriageColumn, SampleValue> parseGfxinfo(String output) {
 
   final lines = output.split('\n');
 
+  // The `[\d.]+` unit group can still capture a malformed magnitude
+  // ("1.2.3", ".", an over-long run parsing to infinity); tryParse + isFinite
+  // turn those into a not-measured reading rather than a thrown, swept-away
+  // FormatException / non-finite round().
   final totalMatch = _totalAllocated.firstMatch(output);
-  final kb = totalMatch == null
+  final total = totalMatch == null
+      ? null
+      : double.tryParse(totalMatch.group(1)!);
+  final kb = total == null || !total.isFinite
       ? const SampleValue.unmeasured(
-          'GraphicBufferAllocator total not found or not in KiB',
+          'GraphicBufferAllocator total not found, malformed, or not in KiB',
         )
-      : SampleValue.measured(double.parse(totalMatch.group(1)!).round());
+      : SampleValue.measured(total.round());
 
   final headerIndex = lines.indexWhere(
     (l) => l.contains('GraphicBufferAllocator buffers'),

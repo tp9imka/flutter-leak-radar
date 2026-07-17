@@ -14,18 +14,33 @@ const _labelColumns = <String, TriageColumn>{
   'Graphics': TriageColumn.graphicsKb,
 };
 
-final _summaryRow = RegExp(r'^\s*([A-Za-z][A-Za-z /]*?):\s+(\d+)');
-final _totalRow = RegExp(r'^\s*TOTAL(?: PSS)?:\s+(\d+)');
+final _labelOnly = RegExp(r'^\s*([A-Za-z][A-Za-z /]*?):');
+final _totalLabel = RegExp(r'^\s*TOTAL(?: PSS)?:');
+final _intToken = RegExp(r'\d+');
+
+/// The integers on [line] after its first `:`, in order, skipping any token
+/// too large for [int] (throw-safe: an implausible digit run is dropped, never
+/// crashes the sweep).
+List<int> _intsAfterColon(String line) {
+  final colon = line.indexOf(':');
+  final rest = colon < 0 ? line : line.substring(colon + 1);
+  return [
+    for (final match in _intToken.allMatches(rest))
+      if (int.tryParse(match.group(0)!) case final value?) value,
+  ];
+}
 
 /// Samples the `dumpsys meminfo <package>` App Summary — Java Heap, Native
 /// Heap, Code, Graphics, TOTAL PSS.
 ///
 /// Known-good shapes (parsed): the modern two-column App Summary
 /// (`Pss(KB)` / `Rss(KB)`) of Android 11–14 and the older single-column
-/// (`Pss(KB)`) layout. In both, the first integer after each label is the Pss
-/// value, which is what these columns trend. Anything else — the App Summary
-/// section absent (`No process found`, a truncated dump), or a header that does
-/// not advertise KiB — reads not-measured for every column, never zero.
+/// (`Pss(KB)`) layout. The Pss value is the first integer on a row, anchored to
+/// the `Pss(KB)` column being leftmost (see [parseMeminfoAppSummary]).
+/// Anything else — the App Summary section absent (`No process found`, a
+/// truncated dump), a header that does not advertise KiB, an Rss-first column
+/// order, or a tracked row with a blank Pss cell — reads not-measured, never
+/// zero.
 final class MeminfoSampler implements NativeSampler {
   /// Samples via [_adb], optionally scoped to device [serial].
   const MeminfoSampler(this._adb, {this.serial});
@@ -65,9 +80,20 @@ final class MeminfoSampler implements NativeSampler {
 }
 
 /// Parses the App Summary of raw `dumpsys meminfo` [output] into the five
-/// meminfo columns. A label absent from the section reads not-measured for
-/// exactly that column; the whole section absent (or not KiB) reads
-/// not-measured for all five. Never returns a fabricated zero.
+/// meminfo columns.
+///
+/// Column anchor: the Pss value is the *first* integer on a row, so the parse
+/// is trustworthy only when Pss is the left column. When the header advertises
+/// both `Pss(KB)` and `Rss(KB)`, `Pss(KB)` must precede `Rss(KB)` — an
+/// Rss-first OEM ordering reads not-measured for all five (`unrecognized column
+/// order`) rather than silently reporting Rss as Pss. In that two-column mode a
+/// tracked row must carry both cells; a blank Pss cell (only an Rss value
+/// present) reads not-measured for that column, never the Rss number
+/// mislabelled as Pss.
+///
+/// A label absent from the section reads not-measured for exactly that column;
+/// the whole section absent (or not KiB) reads not-measured for all five. Never
+/// returns a fabricated zero.
 Map<TriageColumn, SampleValue> parseMeminfoAppSummary(String output) {
   final lines = output.split('\n');
   final headerIndex = lines.indexWhere((l) => l.contains('App Summary'));
@@ -87,31 +113,53 @@ Map<TriageColumn, SampleValue> parseMeminfoAppSummary(String output) {
     endIndex < 0 ? lines.length : endIndex,
   );
 
-  if (!section.any((l) => l.toUpperCase().contains('(KB)'))) {
+  final sectionUpper = section.join('\n').toUpperCase();
+  if (!sectionUpper.contains('(KB)')) {
     return allUnmeasured(
       MeminfoSampler._columns,
       'meminfo App Summary is not in KiB (unrecognized unit header)',
     );
   }
 
+  final pssPos = sectionUpper.indexOf('PSS(KB)');
+  final rssPos = sectionUpper.indexOf('RSS(KB)');
+  final twoColumn = pssPos >= 0 && rssPos >= 0;
+  if (twoColumn && pssPos > rssPos) {
+    return allUnmeasured(
+      MeminfoSampler._columns,
+      'meminfo App Summary unrecognized column order (Rss precedes Pss)',
+    );
+  }
+
   final found = <TriageColumn, int>{};
+  final blankPss = <TriageColumn>{};
   for (final line in section) {
-    final total = _totalRow.firstMatch(line);
-    if (total != null) {
-      found[TriageColumn.totalPssKb] = int.parse(total.group(1)!);
+    if (_totalLabel.hasMatch(line)) {
+      // TOTAL PSS is explicitly labelled, so its first integer is always the
+      // Pss total regardless of column count.
+      final ints = _intsAfterColon(line);
+      if (ints.isNotEmpty) found[TriageColumn.totalPssKb] = ints.first;
       continue;
     }
-    final row = _summaryRow.firstMatch(line);
-    if (row == null) continue;
-    final column = _labelColumns[row.group(1)!.trim()];
-    if (column != null) {
-      found[column] = int.parse(row.group(2)!);
+    final labelMatch = _labelOnly.firstMatch(line);
+    if (labelMatch == null) continue;
+    final column = _labelColumns[labelMatch.group(1)!.trim()];
+    if (column == null) continue;
+    final ints = _intsAfterColon(line);
+    if (twoColumn && ints.length < 2) {
+      // Two-column layout but only one cell present: the Pss cell is blank and
+      // the lone integer is Rss — refuse rather than mislabel it as Pss.
+      blankPss.add(column);
+      continue;
     }
+    if (ints.isNotEmpty) found[column] = ints.first;
   }
 
   return readingsFrom(
     MeminfoSampler._columns,
     found,
-    (column) => "meminfo App Summary '${column.name}' not found",
+    (column) => blankPss.contains(column)
+        ? "meminfo App Summary '${column.name}' Pss cell is blank"
+        : "meminfo App Summary '${column.name}' not found",
   );
 }

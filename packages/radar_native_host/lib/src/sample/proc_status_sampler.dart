@@ -63,14 +63,22 @@ final class ProcStatusSampler implements NativeSampler {
 /// not-measured for that column — never a fabricated zero.
 Map<TriageColumn, SampleValue> parseProcStatus(String output) {
   final found = <TriageColumn, int>{};
-  if (_vmRss.firstMatch(output) case final m?) {
-    found[TriageColumn.vmRssKb] = int.parse(m.group(1)!);
+  // tryParse throughout: an implausibly long digit run leaves the column
+  // not-measured rather than throwing a swept-away FormatException.
+  if (_vmRss.firstMatch(output)?.group(1) case final digits?) {
+    if (int.tryParse(digits) case final value?) {
+      found[TriageColumn.vmRssKb] = value;
+    }
   }
-  if (_rssAnon.firstMatch(output) case final m?) {
-    found[TriageColumn.rssAnonKb] = int.parse(m.group(1)!);
+  if (_rssAnon.firstMatch(output)?.group(1) case final digits?) {
+    if (int.tryParse(digits) case final value?) {
+      found[TriageColumn.rssAnonKb] = value;
+    }
   }
-  if (_threads.firstMatch(output) case final m?) {
-    found[TriageColumn.threads] = int.parse(m.group(1)!);
+  if (_threads.firstMatch(output)?.group(1) case final digits?) {
+    if (int.tryParse(digits) case final value?) {
+      found[TriageColumn.threads] = value;
+    }
   }
   return readingsFrom(
     ProcStatusSampler._columns,
