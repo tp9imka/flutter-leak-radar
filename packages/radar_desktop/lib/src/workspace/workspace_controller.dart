@@ -236,6 +236,7 @@ class WorkspaceController extends ChangeNotifier {
   }
 
   bool _restored = false;
+  bool _restoreComplete = false;
 
   /// Auto-restore the last session on launch. Idempotent: a second call (e.g.
   /// the shell re-running it after an injected pre-restore) is a no-op.
@@ -244,6 +245,9 @@ class WorkspaceController extends ChangeNotifier {
     _restored = true;
     final session = await _store.restore();
     _restoreRefusal = _store.restoreRefusal;
+    // Restore has loaded whatever was on disk — the controller's state is now
+    // authoritative, so an empty state may safely persist (see [_persist]).
+    _restoreComplete = true;
     if (session != null && session.bundles.isNotEmpty) {
       rehydrate(session);
     } else {
@@ -263,10 +267,12 @@ class WorkspaceController extends ChangeNotifier {
   /// that change the bundle *set* ([addExisting], [removeDump], [clearAll],
   /// [rehydrate]) — not after pure view-state changes like [openDump] or
   /// [selectComparePair] — so a multi-MB session isn't re-serialized on every
-  /// memory notification. Skips empty sessions so a fresh, not-yet-restored
-  /// controller never clobbers a previously saved one.
+  /// memory notification. Skips an empty state only *before* [restore]
+  /// completes, so a fresh, not-yet-restored controller never clobbers a saved
+  /// session — but deleting the last dump and triage-only sessions (empty
+  /// bundles + recorded fixes) do persist, matching the DevTools/DTD contract.
   Future<void> _persist() async {
-    if (memory.snapshots.isEmpty) return;
+    if (memory.snapshots.isEmpty && !_restoreComplete) return;
     final focused = memory.focused;
     _diskTriage = foldSessionTriage(
       diskStore: _diskTriage,

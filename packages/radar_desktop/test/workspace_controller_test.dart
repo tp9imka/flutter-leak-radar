@@ -43,7 +43,76 @@ GraphLeakCluster _cluster(String signature, String className) =>
       signature: signature,
     );
 
+/// A [FileSnapshotStore] that records the sessions it is asked to persist
+/// without touching disk, so a test can assert exactly what would be written.
+class _RecordingStore extends FileSnapshotStore {
+  final List<PersistedSession> persisted = [];
+
+  @override
+  Future<PersistedSession?> restore() async => null;
+
+  @override
+  Future<void> persist(PersistedSession session) async {
+    persisted.add(session);
+  }
+
+  @override
+  Future<void> clear() async {}
+}
+
 void main() {
+  test(
+    'deleting the last dump persists the empty session (no resurrection)',
+    () async {
+      final store = _RecordingStore();
+      final wc = WorkspaceController(store: store);
+      // Realistic launch: restore runs first (nothing to restore here), which
+      // is what arms persistence for empty states.
+      await wc.restore();
+
+      final a = wc.addExisting(_bundle('a'), source: DumpSource.file);
+      wc.removeDump(a.id);
+
+      // The empty state must be written so a relaunch does not resurrect the
+      // deleted dump — the pre-fix guard skipped this.
+      expect(store.persisted, isNotEmpty);
+      expect(store.persisted.last.bundles, isEmpty);
+    },
+  );
+
+  test('a triage-only session is written after restore completes', () async {
+    final store = _RecordingStore();
+    final wc = WorkspaceController(store: store);
+    await wc.restore();
+
+    wc.updateTriage(
+      TriageStore.empty.acknowledge(
+        'sigA',
+        note: 'BUG-1',
+        className: 'FixedLeak',
+        now: DateTime(2026, 7, 1),
+      ),
+    );
+
+    expect(store.persisted, isNotEmpty);
+    expect(store.persisted.last.bundles, isEmpty);
+    expect(store.persisted.last.triage.entryFor('sigA')?.note, 'BUG-1');
+  });
+
+  test(
+    'a fresh, un-restored controller never clobbers with an empty persist',
+    () async {
+      final store = _RecordingStore();
+      final wc = WorkspaceController(store: store);
+
+      // No restore yet: an empty-state mutation must not overwrite a saved
+      // session on disk.
+      wc.clearAll();
+
+      expect(store.persisted, isEmpty);
+    },
+  );
+
   test('addExisting populates memory, focuses it, and records meta', () {
     final wc = WorkspaceController();
     final b = wc.addExisting(_bundle('soak-1'), source: DumpSource.file);
