@@ -12,6 +12,8 @@ class DesktopWindowChrome extends StatelessWidget {
     this.anyToolMissing = false,
     this.missingToolCount = 0,
     this.onOpenTools,
+    this.onReopenGuide,
+    this.healthDotKey,
   });
 
   final String workspaceName;
@@ -27,8 +29,19 @@ class DesktopWindowChrome extends StatelessWidget {
   /// select the Tools view.
   final VoidCallback? onOpenTools;
 
+  /// Invoked when the "?" button is tapped — re-opens the first-run
+  /// guide. The button only renders when this is non-null.
+  final VoidCallback? onReopenGuide;
+
+  /// Anchor for the guide overlay's step referencing the health dot.
+  final GlobalKey? healthDotKey;
+
   static const double height = 38;
-  static const double _trafficLightGutter = 78; // room for macOS buttons
+
+  // Room for macOS traffic-light buttons on the left, and — symmetrically
+  // on the right — the optional "?" re-open button plus the health dot,
+  // so the centered title stays centered whether or not the button shows.
+  static const double _trafficLightGutter = 106;
 
   @override
   Widget build(BuildContext context) {
@@ -64,14 +77,59 @@ class DesktopWindowChrome extends StatelessWidget {
               width: _trafficLightGutter,
               child: Align(
                 alignment: Alignment.centerRight,
-                child: _ToolHealthDot(
-                  anyMissing: anyToolMissing,
-                  missingCount: missingToolCount,
-                  onTap: onOpenTools,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (onReopenGuide != null)
+                      _ReopenGuideButton(onPressed: onReopenGuide!),
+                    _ToolHealthDot(
+                      key: healthDotKey,
+                      anyMissing: anyToolMissing,
+                      missingCount: missingToolCount,
+                      onTap: onOpenTools,
+                    ),
+                  ],
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The "?" affordance that re-opens the first-run guide, sitting just
+/// left of the health dot in the title bar's right gutter.
+class _ReopenGuideButton extends StatelessWidget {
+  const _ReopenGuideButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  static const double _size = 22;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: 'Show guide',
+      onPressed: onPressed,
+      padding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints.tightFor(width: _size, height: _size),
+      icon: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: RadarColors.iconButtonBg,
+          border: Border.all(color: RadarColors.hairline12),
+        ),
+        child: Center(
+          child: Text(
+            '?',
+            style: RadarTypography.monoCode.copyWith(
+              color: RadarColors.text50,
+              fontSize: 12,
+            ),
+          ),
         ),
       ),
     );
@@ -83,6 +141,7 @@ class DesktopWindowChrome extends StatelessWidget {
 /// the Tools screen via [onTap].
 class _ToolHealthDot extends StatelessWidget {
   const _ToolHealthDot({
+    super.key,
     required this.anyMissing,
     required this.missingCount,
     this.onTap,

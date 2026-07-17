@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radar_desktop/src/app/desktop_view.dart';
+import 'package:radar_desktop/src/onboarding/first_run_guide_controller.dart';
 import 'package:radar_desktop/src/screens/device_monitor_screen.dart';
 import 'package:radar_desktop/src/screens/dumps_screen.dart';
 import 'package:radar_desktop/src/screens/live_memory_controller.dart';
@@ -40,6 +42,31 @@ ToolsController _fakeTools() => ToolsController(
   ),
   store: _FakeToolConfigStore(),
 );
+
+/// In-memory [FirstRunStore] fake — no real fs/path_provider, mirrors
+/// `test/onboarding/first_run_guide_controller_test.dart`'s fake.
+class _FakeFirstRunStore implements FirstRunStore {
+  bool seen = false;
+  int markSeenCount = 0;
+
+  @override
+  Future<bool> hasSeen() async => seen;
+
+  @override
+  Future<void> markSeen() async {
+    seen = true;
+    markSeenCount++;
+  }
+}
+
+/// A [FirstRunGuideController] backed by an already-"seen" in-memory
+/// store. Injected into every shell test that doesn't exercise the
+/// guide itself, so `DesktopShell`'s default `FileFirstRunStore` (which
+/// needs a real `path_provider` platform channel) never runs and the
+/// guide overlay never auto-opens and steals taps meant for the rail
+/// or screens beneath it.
+FirstRunGuideController _seenGuide() =>
+    FirstRunGuideController(store: _FakeFirstRunStore()..seen = true);
 
 /// Minimal fake covering only the surface [VmServiceUriConnection] and
 /// [PerfDataController] touch; mirrors the fake in
@@ -145,13 +172,20 @@ void main() {
   testWidgets('shell routes memory views to real screens; '
       'opening a dump goes to histogram', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(home: DesktopShell(tools: _fakeTools())),
+      MaterialApp(
+        home: DesktopShell(tools: _fakeTools(), guide: _seenGuide()),
+      ),
     );
     // Default view = dumps → DumpsScreen present.
     expect(find.byType(DumpsScreen), findsOneWidget);
     // Navigate to Trends via the rail.
     await tester.tap(find.text('Trends'));
-    await tester.pumpAndSettle();
+    // `pump`, not `pumpAndSettle`: the shell now always mounts
+    // `FirstRunGuide`, whose glow-pulse `AnimationController` repeats
+    // forever once built — regardless of the guide being closed — so
+    // `pumpAndSettle` never settles and times out. One frame is enough
+    // to reflect the rail-tap's `setState`.
+    await tester.pump();
     expect(find.byType(TrendsScreen), findsOneWidget);
   });
 
@@ -160,15 +194,20 @@ void main() {
     '(import-first is not connection-gated)',
     (tester) async {
       await tester.pumpWidget(
-        MaterialApp(home: DesktopShell(tools: _fakeTools())),
+        MaterialApp(
+          home: DesktopShell(tools: _fakeTools(), guide: _seenGuide()),
+        ),
       );
 
       // DEVICE sits below the memory/perf/stability/android groups — scroll
-      // it into view before tapping.
+      // it into view before tapping. `pump` (not `pumpAndSettle`): the
+      // shell now hosts `FirstRunGuide`, whose glow-pulse
+      // `AnimationController` repeats forever once built — even while the
+      // guide is closed — so `pumpAndSettle` would never settle.
       await tester.ensureVisible(find.text('Device Monitor'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.text('Device Monitor'));
-      await tester.pumpAndSettle();
+      await tester.pump();
 
       expect(find.byType(DeviceMonitorScreen), findsOneWidget);
     },
@@ -178,15 +217,19 @@ void main() {
     'the Tools destination routes to ToolsScreen even while offline',
     (tester) async {
       await tester.pumpWidget(
-        MaterialApp(home: DesktopShell(tools: _fakeTools())),
+        MaterialApp(
+          home: DesktopShell(tools: _fakeTools(), guide: _seenGuide()),
+        ),
       );
 
       // SETUP sits below four other groups, off-screen at the default
       // test surface height — scroll it into view before tapping.
+      // `pump` (not `pumpAndSettle` — see the note above) with enough
+      // time for the scroll-into-view animation to finish.
       await tester.ensureVisible(find.text('Tools'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.text('Tools'));
-      await tester.pumpAndSettle();
+      await tester.pump();
 
       expect(find.byType(ToolsScreen), findsOneWidget);
     },
@@ -202,7 +245,11 @@ void main() {
 
         await tester.pumpWidget(
           MaterialApp(
-            home: DesktopShell(connection: connection, tools: _fakeTools()),
+            home: DesktopShell(
+              connection: connection,
+              tools: _fakeTools(),
+              guide: _seenGuide(),
+            ),
           ),
         );
 
@@ -228,7 +275,11 @@ void main() {
 
         await tester.pumpWidget(
           MaterialApp(
-            home: DesktopShell(connection: connection, tools: _fakeTools()),
+            home: DesktopShell(
+              connection: connection,
+              tools: _fakeTools(),
+              guide: _seenGuide(),
+            ),
           ),
         );
 
@@ -253,7 +304,11 @@ void main() {
 
         await tester.pumpWidget(
           MaterialApp(
-            home: DesktopShell(connection: connection, tools: _fakeTools()),
+            home: DesktopShell(
+              connection: connection,
+              tools: _fakeTools(),
+              guide: _seenGuide(),
+            ),
           ),
         );
 
@@ -287,15 +342,19 @@ void main() {
             connection: connection,
             tools: _fakeTools(),
             liveMemory: live,
+            guide: _seenGuide(),
           ),
         ),
       );
 
-      // Park on the Device Monitor while still offline.
+      // Park on the Device Monitor while still offline. `pump` (not
+      // `pumpAndSettle`): the shell's `FirstRunGuide` glow-pulse
+      // `AnimationController` repeats forever once built, so
+      // `pumpAndSettle` would never settle.
       await tester.ensureVisible(find.text('Device Monitor'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.text('Device Monitor'));
-      await tester.pumpAndSettle();
+      await tester.pump();
       expect(live.isPolling, isFalse);
 
       // Connect while already on the pane — polling must begin here, not
@@ -317,7 +376,9 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(home: DesktopShell(connection: connection)),
+        MaterialApp(
+          home: DesktopShell(connection: connection, guide: _seenGuide()),
+        ),
       );
 
       // Replace the tree so DesktopShell.dispose() runs.
@@ -335,7 +396,11 @@ void main() {
       (tester) async {
         final tools = _fakeTools();
 
-        await tester.pumpWidget(MaterialApp(home: DesktopShell(tools: tools)));
+        await tester.pumpWidget(
+          MaterialApp(
+            home: DesktopShell(tools: tools, guide: _seenGuide()),
+          ),
+        );
 
         // Replace the tree so DesktopShell.dispose() runs.
         await tester.pumpWidget(const SizedBox.shrink());
@@ -346,5 +411,61 @@ void main() {
         expect(() => tools.addListener(() {}), returnsNormally);
       },
     );
+  });
+
+  group('first-run guide', () {
+    testWidgets(
+      'shows the welcome step over the shell when the guide is unseen',
+      (tester) async {
+        final guide = FirstRunGuideController(store: _FakeFirstRunStore());
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: DesktopShell(tools: _fakeTools(), guide: guide),
+          ),
+        );
+        // Two pumps: one to let the fake store's `hasSeen()` future
+        // resolve, one to render the `setState` that `load()` triggers.
+        await tester.pump();
+        await tester.pump();
+
+        expect(find.text('Welcome to Radar Desktop'), findsOneWidget);
+      },
+    );
+
+    testWidgets('shows nothing when the guide has already been seen', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DesktopShell(tools: _fakeTools(), guide: _seenGuide()),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Welcome to Radar Desktop'), findsNothing);
+    });
+
+    testWidgets('the chrome "?" button re-opens the welcome step', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DesktopShell(tools: _fakeTools(), guide: _seenGuide()),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Welcome to Radar Desktop'), findsNothing);
+
+      await tester.tap(find.byTooltip('Show guide'));
+      // The button sits inside `DragToMoveArea` — same double-tap arena
+      // caveat as `desktop_window_chrome_test.dart`'s reopen-guide test:
+      // the tap only resolves once the double-tap window elapses.
+      await tester.pump(kDoubleTapTimeout);
+
+      expect(find.text('Welcome to Radar Desktop'), findsOneWidget);
+    });
   });
 }

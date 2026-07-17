@@ -8,6 +8,7 @@ import 'package:radar_workbench/radar_workbench.dart';
 
 import '../android/native_profiling_controller.dart';
 import '../app/desktop_view.dart';
+import '../onboarding/first_run_guide.dart';
 import '../screens/android_capture_screen.dart';
 import '../screens/android_compare_screen.dart';
 import '../screens/android_ffi_screen.dart';
@@ -45,6 +46,7 @@ class DesktopShell extends StatefulWidget {
     this.workspace,
     this.deviceMonitor,
     this.liveMemory,
+    this.guide,
   });
 
   /// The live VM service connection driving PERFORMANCE/STABILITY. Injectable
@@ -68,6 +70,11 @@ class DesktopShell extends StatefulWidget {
   /// The offline workspace. Injectable for tests (e.g. to seed a durable store
   /// or a restore refusal); when null, the shell owns its own.
   final WorkspaceController? workspace;
+
+  /// Drives the first-run onboarding tour (welcome → five spotlights →
+  /// finish). Injectable for tests; when null, the shell owns its own
+  /// [FirstRunGuideController] backed by [FileFirstRunStore].
+  final FirstRunGuideController? guide;
 
   @override
   State<DesktopShell> createState() => _DesktopShellState();
@@ -111,7 +118,35 @@ class _DesktopShellState extends State<DesktopShell> {
   late final LiveMemoryController _liveMemory =
       widget.liveMemory ??
       LiveMemoryController(poll: memoryPollFor(_connection));
+  late final FirstRunGuideController _guide =
+      widget.guide ?? FirstRunGuideController();
   DesktopView _view = DesktopView.dumps;
+
+  // Anchors for the first-run guide's spotlight overlay: the connect bar
+  // plus one key per rail group. Passed into `DesktopRail`/`ConnectBar`
+  // and collected into `_guideAnchors` below, so the overlay can measure
+  // each render box without any hard-coded coordinates.
+  final GlobalKey _connectBarKey = GlobalKey();
+  final GlobalKey _memoryGroupKey = GlobalKey();
+  final GlobalKey _performanceGroupKey = GlobalKey();
+  final GlobalKey _stabilityGroupKey = GlobalKey();
+  final GlobalKey _androidGroupKey = GlobalKey();
+  final GlobalKey _toolsGroupKey = GlobalKey();
+  final GlobalKey _healthDotKey = GlobalKey();
+
+  late final Map<GuideStep, GlobalKey> _guideAnchors = {
+    GuideStep.connectBar: _connectBarKey,
+    GuideStep.memory: _memoryGroupKey,
+    GuideStep.performance: _performanceGroupKey,
+    GuideStep.stability: _stabilityGroupKey,
+    GuideStep.android: _androidGroupKey,
+    GuideStep.tools: _toolsGroupKey,
+  };
+
+  /// The guide step a rail-group scroll-into-view was last scheduled
+  /// for — guards against re-scheduling every rebuild once a step has
+  /// already been handled.
+  int? _lastGuideScrollStep;
 
   bool get _connected =>
       _connection.state.phase == RadarConnectionPhase.connected;
@@ -123,7 +158,49 @@ class _DesktopShellState extends State<DesktopShell> {
     _connection.addListener(_onConnectionChanged);
     _tools.addListener(_onToolsChanged);
     unawaited(_tools.load());
+    _guide.addListener(_onGuideChanged);
+    unawaited(_guide.load());
   }
+
+  void _onGuideChanged() {
+    setState(() {});
+    _scrollGuideAnchorIntoView();
+  }
+
+  /// Ensures the rail group the guide is about to spotlight is actually
+  /// visible in the (scrollable) rail before the overlay measures it.
+  /// An instant (`Duration.zero`) jump, not an animated scroll — so the
+  /// anchor already sits at its final position by the time the guide's
+  /// next frame measures its render box; animating here would risk the
+  /// overlay snapshotting the anchor mid-scroll.
+  void _scrollGuideAnchorIntoView() {
+    final step = _guide.step;
+    if (!_guide.open || step == _lastGuideScrollStep) return;
+    final keys = _railKeysForGuideStep(step);
+    if (keys.isEmpty) return;
+    _lastGuideScrollStep = step;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final key in keys) {
+        final anchorContext = key.currentContext;
+        if (anchorContext == null) continue;
+        unawaited(
+          Scrollable.ensureVisible(anchorContext, duration: Duration.zero),
+        );
+      }
+    });
+  }
+
+  /// The rail group key(s) spotlighted at guide step [step] (1..5), or
+  /// none for the connect-bar step (always visible, not in the
+  /// scrollable rail). Step 3 unions PERFORMANCE and STABILITY, so both
+  /// are scrolled into view together.
+  List<GlobalKey> _railKeysForGuideStep(int step) => switch (step) {
+    2 => [_memoryGroupKey],
+    3 => [_performanceGroupKey, _stabilityGroupKey],
+    4 => [_androidGroupKey],
+    5 => [_toolsGroupKey],
+    _ => const [],
+  };
 
   // Rebuilds so the chrome health dot and any missing-tool banners (see the
   // Tools screen work) reflect the latest probe/locate/install result. The
@@ -158,6 +235,8 @@ class _DesktopShellState extends State<DesktopShell> {
     // still in flight can't drive a setState after this State is gone.
     _tools.removeListener(_onToolsChanged);
     if (widget.tools == null) _tools.dispose();
+    _guide.removeListener(_onGuideChanged);
+    if (widget.guide == null) _guide.dispose();
     _perf.dispose();
     // Only dispose controllers we created; injected ones belong to the caller.
     if (widget.deviceMonitor == null) _deviceMonitor.dispose();
@@ -288,55 +367,79 @@ class _DesktopShellState extends State<DesktopShell> {
       data: radarDarkTheme(),
       child: Scaffold(
         backgroundColor: RadarColors.bgPage,
-        body: Column(
+        body: Stack(
           children: [
-            DesktopWindowChrome(
-              workspaceName: 'untitled workspace',
-              anyToolMissing: _tools.anyMissing,
-              missingToolCount: _tools.statuses.where((s) => !s.found).length,
-              onOpenTools: () => _select(DesktopView.tools),
-            ),
-            ConnectBar(
-              connection: _connection,
-              onScanDevice: _android.canCapture
-                  ? () => discovery.discoverWsUri(serial: _readyDeviceSerial)
-                  : null,
-            ),
-            ListenableBuilder(
-              listenable: _workspace,
-              builder: (context, _) {
-                final refusal = _workspace.restoreRefusal;
-                if (refusal == null) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: RadarBanner(
-                    message: refusal,
-                    severity: RadarSeverity.warning,
-                    action: OutlinedButton(
-                      onPressed: _workspace.startNewSession,
-                      child: const Text('Start new'),
-                    ),
+            Column(
+              children: [
+                DesktopWindowChrome(
+                  workspaceName: 'untitled workspace',
+                  anyToolMissing: _tools.anyMissing,
+                  missingToolCount: _tools.statuses
+                      .where((s) => !s.found)
+                      .length,
+                  onOpenTools: () => _select(DesktopView.tools),
+                  onReopenGuide: _guide.reopen,
+                  healthDotKey: _healthDotKey,
+                ),
+                KeyedSubtree(
+                  key: _connectBarKey,
+                  child: ConnectBar(
+                    connection: _connection,
+                    onScanDevice: _android.canCapture
+                        ? () => discovery.discoverWsUri(
+                            serial: _readyDeviceSerial,
+                          )
+                        : null,
                   ),
-                );
-              },
+                ),
+                ListenableBuilder(
+                  listenable: _workspace,
+                  builder: (context, _) {
+                    final refusal = _workspace.restoreRefusal;
+                    if (refusal == null) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: RadarBanner(
+                        message: refusal,
+                        severity: RadarSeverity.warning,
+                        action: OutlinedButton(
+                          onPressed: _workspace.startNewSession,
+                          child: const Text('Start new'),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      DesktopRail(
+                        current: _view,
+                        connected: _connected,
+                        onSelect: _select,
+                        memoryGroupKey: _memoryGroupKey,
+                        performanceGroupKey: _performanceGroupKey,
+                        stabilityGroupKey: _stabilityGroupKey,
+                        androidGroupKey: _androidGroupKey,
+                        toolsGroupKey: _toolsGroupKey,
+                      ),
+                      Expanded(
+                        child: ColoredBox(
+                          color: RadarColors.bgPage,
+                          child: _content(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  DesktopRail(
-                    current: _view,
-                    connected: _connected,
-                    onSelect: _select,
-                  ),
-                  Expanded(
-                    child: ColoredBox(
-                      color: RadarColors.bgPage,
-                      child: _content(),
-                    ),
-                  ),
-                ],
-              ),
+            // Overlays everything above: self-hides (`SizedBox.shrink`)
+            // whenever `_guide.open` is false, so it's inert until the
+            // first run (or a `?` re-open) shows it.
+            Positioned.fill(
+              child: FirstRunGuide(controller: _guide, anchors: _guideAnchors),
             ),
           ],
         ),

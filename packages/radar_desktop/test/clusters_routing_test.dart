@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radar_desktop/src/app/desktop_view.dart';
+import 'package:radar_desktop/src/onboarding/first_run_guide_controller.dart';
 import 'package:radar_desktop/src/screens/clusters_screen.dart';
 import 'package:radar_desktop/src/shell/desktop_rail.dart';
 import 'package:radar_desktop/src/shell/desktop_shell.dart';
@@ -29,6 +30,23 @@ ToolsController _fakeTools() => ToolsController(
   store: _FakeToolConfigStore(),
 );
 
+/// In-memory [FirstRunStore] fake — no real fs/path_provider.
+class _FakeFirstRunStore implements FirstRunStore {
+  bool seen = false;
+
+  @override
+  Future<bool> hasSeen() async => seen;
+
+  @override
+  Future<void> markSeen() async => seen = true;
+}
+
+/// A [FirstRunGuideController] backed by an already-"seen" store, so the
+/// shell's default `FileFirstRunStore` never runs and the guide overlay
+/// never auto-opens and steals taps meant for the rail beneath it.
+FirstRunGuideController _seenGuide() =>
+    FirstRunGuideController(store: _FakeFirstRunStore()..seen = true);
+
 void main() {
   testWidgets('the Leak clusters rail item is present and reports taps', (
     tester,
@@ -55,13 +73,18 @@ void main() {
   testWidgets('the shell routes the Leak clusters destination to '
       'ClustersScreen/LeakClustersView even while offline', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(home: DesktopShell(tools: _fakeTools())),
+      MaterialApp(
+        home: DesktopShell(tools: _fakeTools(), guide: _seenGuide()),
+      ),
     );
 
+    // `pump` (not `pumpAndSettle`): the shell hosts `FirstRunGuide`,
+    // whose glow-pulse `AnimationController` repeats forever once built —
+    // even while the guide is closed — so `pumpAndSettle` never settles.
     await tester.ensureVisible(find.text('Leak clusters'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Leak clusters'));
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(find.byType(ClustersScreen), findsOneWidget);
     expect(find.byType(LeakClustersView), findsOneWidget);

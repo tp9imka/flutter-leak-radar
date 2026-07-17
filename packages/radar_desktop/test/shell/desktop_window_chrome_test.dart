@@ -9,6 +9,7 @@ Future<void> _pump(
   bool anyToolMissing = false,
   int missingToolCount = 0,
   VoidCallback? onOpenTools,
+  VoidCallback? onReopenGuide,
 }) {
   return tester.pumpWidget(
     MaterialApp(
@@ -19,6 +20,7 @@ Future<void> _pump(
           anyToolMissing: anyToolMissing,
           missingToolCount: missingToolCount,
           onOpenTools: onOpenTools,
+          onReopenGuide: onReopenGuide,
         ),
       ),
     ),
@@ -67,5 +69,36 @@ void main() {
     await tester.pump(kDoubleTapTimeout);
 
     expect(opened, 1);
+  });
+
+  testWidgets('the reopen-guide button shows when onReopenGuide is set', (
+    tester,
+  ) async {
+    await _pump(tester, onReopenGuide: () {});
+
+    expect(find.byTooltip('Show guide'), findsOneWidget);
+    expect(find.text('?'), findsOneWidget);
+  });
+
+  testWidgets('tapping the reopen-guide button invokes onReopenGuide', (
+    tester,
+  ) async {
+    var reopened = 0;
+    await _pump(tester, onReopenGuide: () => reopened++);
+
+    await tester.tap(find.byTooltip('Show guide'));
+    // Same double-tap arena caveat as the health dot above: the button
+    // sits inside `DragToMoveArea`.
+    await tester.pump(kDoubleTapTimeout);
+
+    expect(reopened, 1);
+  });
+
+  testWidgets('no reopen-guide button when onReopenGuide is null', (
+    tester,
+  ) async {
+    await _pump(tester);
+
+    expect(find.byTooltip('Show guide'), findsNothing);
   });
 }
