@@ -72,6 +72,16 @@ void main() {
       expect(discoverVmServiceWsUri(line), 'ws://127.0.0.1:8182/Q=/ws');
     });
 
+    test('parses the modern "A Dart VM Service on … is available at:" '
+        'wording', () {
+      // The line newer `flutter run`/`flutter attach` prints to stdout; the
+      // device name can contain spaces.
+      const line =
+          'A Dart VM Service on sdk gphone64 arm64 is available at: '
+          'http://127.0.0.1:9101/Ab9=/';
+      expect(discoverVmServiceWsUri(line), 'ws://127.0.0.1:9101/Ab9=/ws');
+    });
+
     test('prefers a machine-JSON wsUri when present', () {
       const line =
           '[{"event":"app.debugPort","params":{"wsUri":"ws://127.0.0.1:5/M=/ws"}}]';
