@@ -55,6 +55,12 @@ class LeftRail extends StatelessWidget {
               currentView: currentView,
               onTap: onViewChanged,
             ),
+            _NavItem(
+              label: 'Leak clusters',
+              view: RadarView.leakClusters,
+              currentView: currentView,
+              onTap: onViewChanged,
+            ),
             const SizedBox(height: 8),
             _SectionLabel('PERFORMANCE'),
             _NavItem(

@@ -14,6 +14,7 @@ export 'src/memory/class_detail_panel.dart';
 export 'src/memory/class_histogram_view.dart';
 export 'src/memory/diff_table.dart';
 export 'src/memory/filter_target.dart';
+export 'src/memory/leak_clusters_view.dart';
 export 'src/memory/mem_format.dart';
 export 'src/memory/memory_controller.dart';
 export 'src/memory/memory_view.dart';

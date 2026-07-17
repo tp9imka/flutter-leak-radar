@@ -12,6 +12,7 @@ import '../screens/android_compare_screen.dart';
 import '../screens/android_ffi_screen.dart';
 import '../screens/android_native_screen.dart';
 import '../screens/android_session_screen.dart';
+import '../screens/clusters_screen.dart';
 import '../screens/compare_screen.dart';
 import '../screens/dumps_screen.dart';
 import '../screens/histogram_screen.dart';
@@ -163,6 +164,8 @@ class _DesktopShellState extends State<DesktopShell> {
         return HistogramScreen(workspace: _workspace);
       case DesktopView.paths:
         return PathsScreen(workspace: _workspace);
+      case DesktopView.clusters:
+        return ClustersScreen(workspace: _workspace);
       case DesktopView.compare:
         return CompareScreen(workspace: _workspace);
       case DesktopView.trends:

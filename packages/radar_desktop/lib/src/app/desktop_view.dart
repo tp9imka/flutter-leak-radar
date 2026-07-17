@@ -5,6 +5,7 @@ enum DesktopView {
   dumps,
   histogram,
   paths,
+  clusters,
   compare,
   trends,
   traces,
@@ -22,6 +23,7 @@ enum DesktopView {
       this == dumps ||
       this == histogram ||
       this == paths ||
+      this == clusters ||
       this == compare ||
       this == trends;
   bool get isPerf => this == traces || this == frames;
@@ -42,6 +44,7 @@ enum DesktopView {
     DesktopView.dumps => 'Dumps',
     DesktopView.histogram => 'Class histogram',
     DesktopView.paths => 'Retaining paths',
+    DesktopView.clusters => 'Leak clusters',
     DesktopView.compare => 'Compare',
     DesktopView.trends => 'Trends',
     DesktopView.traces => 'Traces',

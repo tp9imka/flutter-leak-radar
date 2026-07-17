@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:radar_ui/radar_ui.dart';
 
 import '../memory/class_histogram_view.dart';
+import '../memory/leak_clusters_view.dart';
 import '../memory/retaining_paths_view.dart';
 import '../memory/snapshots_view.dart';
 import '../perf/frames_view.dart';
@@ -68,6 +69,10 @@ class _LeakRadarMainScaffoldState extends State<LeakRadarMainScaffold> {
         controller: _session.memory,
       ),
       RadarView.retainingPaths => RetainingPathsView(
+        controller: _session.memory,
+        projectContext: _session.projectContext,
+      ),
+      RadarView.leakClusters => LeakClustersView(
         controller: _session.memory,
         projectContext: _session.projectContext,
       ),
