@@ -141,6 +141,10 @@ class _DesktopShellState extends State<DesktopShell> {
     });
     // A dropped connection stops live polling; import-first stays usable.
     if (!_connected) _liveMemory.stop();
+    // Connecting while already parked on the Device Monitor must begin live
+    // polling here — otherwise the live tab would sit at "0 samples" until the
+    // user navigated away and back.
+    if (_connected && _view.isDeviceMonitor) _liveMemory.start();
     if (_connected) unawaited(_perf.refresh());
   }
 

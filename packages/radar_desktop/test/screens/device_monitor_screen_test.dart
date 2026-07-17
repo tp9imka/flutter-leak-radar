@@ -106,6 +106,46 @@ void main() {
     expect(find.textContaining('radar_ci run'), findsOneWidget);
     // A run.json is not a native session, so no compare affordance.
     expect(find.text('Add second session…'), findsNothing);
+    // A clean run's summary banner stays informational.
+    final banner = tester.widget<RadarBanner>(
+      find.byWidgetPredicate(
+        (w) => w is RadarBanner && w.message.contains('radar_ci run'),
+      ),
+    );
+    expect(banner.severity, RadarSeverity.info);
+  });
+
+  testWidgets('an aborted run escalates the summary banner to warning', (
+    tester,
+  ) async {
+    final runJson = jsonEncode(
+      RadarRunDocument(
+        metadata: RunMetadata(
+          startedAt: DateTime.utc(2026, 7, 1),
+          completed: false,
+          abortReason: 'interrupted',
+        ),
+        series: [_ramp('bytes')],
+        checkpoints: const [
+          RunCheckpoint(tMicros: 0, label: 'start', allocationTopN: {}),
+        ],
+      ).toJson(),
+    );
+    final files = _FakeFiles({'/runs/aborted.json': runJson});
+    final controller = DeviceMonitorController(readFile: files.read);
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(_host(DeviceMonitorScreen(controller: controller)));
+    await controller.importPrimary('/runs/aborted.json');
+    await tester.pump();
+
+    final banner = tester.widget<RadarBanner>(
+      find.byWidgetPredicate(
+        (w) => w is RadarBanner && w.message.contains('radar_ci run'),
+      ),
+    );
+    expect(banner.severity, RadarSeverity.warning);
+    expect(banner.message, contains('ended early'));
   });
 
   testWidgets('a malformed file shows an error panel and never a chart', (

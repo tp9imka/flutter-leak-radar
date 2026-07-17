@@ -287,7 +287,7 @@ class _AnalysisView extends StatelessWidget {
           _Header(analysis: analysis, onImport: onImportPrimary),
           const SizedBox(height: 12),
           RadarBanner(
-            severity: _bucketSeverity(analysis.bucket),
+            severity: _summarySeverity(analysis),
             message: analysis.summary,
           ),
           const SizedBox(height: 18),
@@ -800,6 +800,11 @@ RadarSeverity _bucketSeverity(TriageBucket? bucket) {
       ? RadarSeverity.healthy
       : RadarSeverity.critical;
 }
+
+/// The summary banner severity: an early-ended (aborted) run is thinner
+/// evidence and is emphasised as a warning, otherwise the bucket drives it.
+RadarSeverity _summarySeverity(MonitorAnalysis analysis) =>
+    analysis.aborted ? RadarSeverity.warning : _bucketSeverity(analysis.bucket);
 
 RadarSeverity _transitionSeverity(FixTransition t) => switch (t) {
   FixTransition.resolved => RadarSeverity.healthy,

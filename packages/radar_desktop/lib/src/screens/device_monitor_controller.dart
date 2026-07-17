@@ -75,6 +75,7 @@ final class MonitorAnalysis {
     required this.bucket,
     required this.provenance,
     required this.session,
+    this.aborted = false,
   });
 
   /// Display label (session dir name, or run.json file name).
@@ -104,6 +105,10 @@ final class MonitorAnalysis {
   /// The reusable triage session (session kind only) — the compare model's
   /// input. Null for a run.json.
   final TriageSession? session;
+
+  /// Whether the source artifact ended early (a run.json with
+  /// `completed: false`) — thinner evidence, surfaced with emphasis.
+  final bool aborted;
 }
 
 /// Drives the Device Monitor's import-first surface: imports a native session
@@ -308,6 +313,7 @@ class DeviceMonitorController extends ChangeNotifier {
       bucket: null,
       provenance: _runProvenance(doc.metadata),
       session: null,
+      aborted: !doc.metadata.completed,
     );
   }
 

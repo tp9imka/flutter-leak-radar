@@ -21,13 +21,16 @@ class LiveMemoryController extends ChangeNotifier {
   /// Creates a controller polling through [poll].
   ///
   /// [clock] returns host wall-clock microseconds (defaults to
-  /// [DateTime.now]); [interval] is the periodic cadence used by [start].
+  /// [DateTime.now]); [interval] is the periodic cadence used by [start];
+  /// [maxSamples] caps the rolling window (defaults to [maxRetainedSamples]).
   LiveMemoryController({
     required MemoryPoll poll,
     int Function()? clock,
     this.interval = const Duration(seconds: 1),
+    int maxSamples = maxRetainedSamples,
   }) : _poll = poll,
-       _clock = clock ?? _wallClockMicros;
+       _clock = clock ?? _wallClockMicros,
+       _maxSamples = maxSamples;
 
   /// The metric name of the Dart-heap-usage series.
   static const String heapSeriesName = 'dart.heap.used';
@@ -35,8 +38,14 @@ class LiveMemoryController extends ChangeNotifier {
   /// The metric name of the external-memory series.
   static const String externalSeriesName = 'dart.external';
 
+  /// Default rolling-window cap: ~4 hours of samples at the default 1s
+  /// cadence. A live view is a bounded window, not an unbounded buffer, so a
+  /// long-running session can never grow memory without limit.
+  static const int maxRetainedSamples = 4 * 60 * 60;
+
   final MemoryPoll _poll;
   final int Function() _clock;
+  final int _maxSamples;
 
   /// Cadence used by [start]'s periodic timer.
   final Duration interval;
@@ -117,6 +126,7 @@ class LiveMemoryController extends ChangeNotifier {
       );
       _lastSampleMicros = now;
       _lastError = null;
+      _trim();
     } catch (error) {
       // A failed poll records no sample. Open a gap from the last good sample
       // (or this poll's time when none yet) so the line breaks honestly rather
@@ -125,6 +135,23 @@ class LiveMemoryController extends ChangeNotifier {
       _lastError = error.toString();
     }
     notifyListeners();
+  }
+
+  /// Enforces the rolling-window cap: drops the oldest samples (identically in
+  /// both series) and any gap that no longer reaches into the retained window.
+  /// A gap whose end is at or before the earliest retained sample can break no
+  /// remaining line, so it is dropped rather than left dangling.
+  void _trim() {
+    if (_heap.length <= _maxSamples) return;
+    final removeCount = _heap.length - _maxSamples;
+    _heap.removeRange(0, removeCount);
+    _external.removeRange(0, removeCount);
+    if (_gaps.isEmpty) return;
+    final firstMicros = _heap.first.tMicros;
+    _gaps = [
+      for (final gap in _gaps)
+        if (gap.endMicros > firstMicros) gap,
+    ];
   }
 
   @override

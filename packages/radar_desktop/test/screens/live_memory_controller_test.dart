@@ -146,5 +146,80 @@ void main() {
         expect(controller.heapSeries.gaps.single.endMicros, 5000);
       },
     );
+
+    test(
+      'caps retained samples, dropping the oldest, in both series',
+      () async {
+        var t = 0;
+        final controller = LiveMemoryController(
+          poll: () async => (heapUsage: 100, externalUsage: 10),
+          clock: () {
+            t += 1000;
+            return t;
+          },
+          maxSamples: 3,
+        );
+        addTearDown(controller.dispose);
+
+        for (var i = 0; i < 5; i++) {
+          await controller.pollOnce();
+        }
+
+        // Only the last 3 of 5 samples are retained — a live view is a rolling
+        // window, not an unbounded buffer.
+        expect(controller.heapSeries.samples, hasLength(3));
+        expect(controller.externalSeries.samples, hasLength(3));
+        expect(controller.heapSeries.samples.map((s) => s.tMicros), [
+          3000,
+          4000,
+          5000,
+        ]);
+        expect(controller.externalSeries.samples.map((s) => s.tMicros), [
+          3000,
+          4000,
+          5000,
+        ]);
+      },
+    );
+
+    test(
+      'drops a gap once its interval ages out of the retained window',
+      () async {
+        final poll = _ScriptedPoll([
+          (heapUsage: 1, externalUsage: 1), // t=1000 ok
+          null, // t=2000 throw
+          (heapUsage: 3, externalUsage: 3), // t=3000 ok → gap [1000,3000]
+          (heapUsage: 4, externalUsage: 4), // t=4000 ok → trims to [3000,4000]
+        ]);
+        var t = 0;
+        final controller = LiveMemoryController(
+          poll: poll.call,
+          clock: () {
+            t += 1000;
+            return t;
+          },
+          maxSamples: 2,
+        );
+        addTearDown(controller.dispose);
+
+        for (var i = 0; i < 4; i++) {
+          await controller.pollOnce();
+        }
+
+        // The gap ended at t=3000, which is now the earliest retained sample, so
+        // it no longer breaks any retained line — dropped, not left dangling.
+        expect(controller.heapSeries.samples.map((s) => s.tMicros), [
+          3000,
+          4000,
+        ]);
+        expect(controller.heapSeries.gaps, isEmpty);
+        expect(controller.externalSeries.gaps, isEmpty);
+      },
+    );
+
+    test('exposes a documented default retention cap', () {
+      // ~4h at a 1s cadence — a constant, not a magic number.
+      expect(LiveMemoryController.maxRetainedSamples, 4 * 60 * 60);
+    });
   });
 }
