@@ -63,6 +63,12 @@ a device/pid miss reads *not measured* (a gap), never a fabricated `0`, so a
 run with no device attached simply records an all-unmeasured native lane rather
 than failing.
 
+Both lanes tick inside one sequential loop, so a *hung* (not merely absent)
+device can stretch the run's wall clock by the bounded native probe/sweep
+timeouts; samples stay real-clock-timestamped either way, so verdicts are
+unaffected. Decoupling the lanes rides with the existing capture-off-the-hot-path
+fast-follow.
+
 ## Output
 
 `run.json` (`RadarRunDocument`, `schemaVersion` 1) carries:
