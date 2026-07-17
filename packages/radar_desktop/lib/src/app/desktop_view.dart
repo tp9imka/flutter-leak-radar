@@ -17,6 +17,7 @@ enum DesktopView {
   androidCompare,
   androidFfi,
   androidCapture,
+  deviceMonitor,
   tools;
 
   bool get isMemory =>
@@ -34,6 +35,11 @@ enum DesktopView {
       this == androidCompare ||
       this == androidFfi ||
       this == androidCapture;
+
+  /// The DEVICE MONITOR destination — import-first native/CI trend viewer
+  /// with an optional connected live tab. Import-first works offline, so
+  /// (like memory/android) it is never gated behind a live connection.
+  bool get isDeviceMonitor => this == deviceMonitor;
 
   /// The SETUP destination — external tool discovery/install/locate.
   /// Its own group: not memory/perf/stability/android, and (unlike
@@ -56,6 +62,7 @@ enum DesktopView {
     DesktopView.androidCompare => 'Compare',
     DesktopView.androidFfi => 'ffi allocations',
     DesktopView.androidCapture => 'Capture / import',
+    DesktopView.deviceMonitor => 'Device Monitor',
     DesktopView.tools => 'Tools',
   };
 }
