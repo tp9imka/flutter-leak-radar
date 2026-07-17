@@ -298,7 +298,8 @@ enum TriageDisplay { fresh, known, acknowledged, gone }
 class TriageChip extends StatelessWidget { const TriageChip({required TriageDisplay display}); }
 // Rendered labels: NEW / KNOWN / ACK / GONE. GONE = positive (accent) — a fixed leak.
 ```
-Follow the SeverityTokens template (`lib/src/tokens/severity.dart`) for light/dark.
+Follow the SeverityTokens template (`lib/src/tokens/severity.dart`) — the design
+system is dark-only, so this is one fixed palette, not a light/dark pair.
 - [ ] Failing tests: distinct colors per origin; project != accent; chip renders label;
       TriageChip GONE uses accent family; module_palette agreement test (app/project
       hue == OriginTokens project hue).

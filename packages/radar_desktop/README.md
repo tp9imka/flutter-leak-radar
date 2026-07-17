@@ -7,15 +7,22 @@ on [`radar_workbench`](../radar_workbench/) (the shared analysis engine),
 [`radar_ui`](../radar_ui/) (design system), and
 [`radar_native`](../radar_native/) (native-heap models).
 
-## Three modes
+## Modes
 
 - **Offline** — import a heap-snapshot dump or a Perfetto `.pftrace` capture
   from disk and analyze it with no running app or device attached: class
   histograms, retaining paths, snapshot diffing, and trend views.
 - **Connected mode** — attach to a running app's Dart VM Service over a
   `ws://` URI (the same URI `flutter run` prints) to unlock **live**
-  Performance and Stability tabs, on-demand heap capture, and a **Force GC**
-  action, all without leaving the desktop app.
+  Performance and Stability tabs, memory **trend polling** (`getMemoryUsage`
+  heap and external as two separate series), and a **Force GC** action, all
+  without leaving the desktop app. Scope note: connected mode polls trends, not
+  full heap snapshots — snapshot capture stays in Offline / Android Profiling.
+- **Device Monitor** — **import-first** Lane A native trends: open a
+  `radar_native_host:sample` (or `radar_ci --native-package`) session and read
+  its columns as charts with checkpoint marks, per-column verdict chips, a
+  batch-slope readout, and session-vs-session compare. (Live polling from the
+  pane is a planned same-seam stretch.)
 - **Android Profiling** — capture native-heap data from an Android device via
   `adb` + heapprofd + Perfetto, then work with it entirely on desktop:
   per-module still-live analysis, checkpoint compare/diff, an FFI-allocations
