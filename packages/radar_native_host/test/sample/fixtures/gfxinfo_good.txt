@@ -1,0 +1,31 @@
+Applications Graphics Acceleration Info:
+Uptime: 884451233 Realtime: 884451233
+
+** Graphics info for pid 12345 [com.example.app] **
+
+Font Cache (CPU):
+  Size: 0.34 MB
+  Glyph Count: 412
+  Glyph Cache Misses: 12
+
+Total ImageDecoder mrf memory usage: 0 bytes
+
+Recent DisplayList operations (most recent first):
+
+Caches:
+  Current memory usage / total memory usage (bytes):
+  TextureCache          6291456 / 25165824
+
+Pipeline=SkiaGL
+
+Total GPU memory usage:
+  8912896 bytes, 8.50 MB (9437184 bytes allocated)
+
+GraphicBufferAllocator buffers:
+    Handle |              Size |  W (Stride) x   H | Layer |  Format |    Usage | Requestor
+0x7b1c0000 |   8100.00 KiB (8294400) | 1080 (1088) x 1920 |     1 |       1 | 0xb00 | com.example.app#0
+0x7b1d0000 |   8100.00 KiB (8294400) | 1080 (1088) x 1920 |     1 |       1 | 0xb00 | com.example.app#1
+0x7b1e0000 |    512.00 KiB ( 524288) |  256 ( 256) x  512 |     1 |       1 | 0x900 | com.example.app#2
+Total allocated by GraphicBufferAllocator (estimated): 16712.00 KB
+
+Pipeline=SkiaGL

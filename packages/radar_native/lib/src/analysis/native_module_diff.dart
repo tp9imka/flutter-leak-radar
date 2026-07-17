@@ -38,6 +38,31 @@ final class NativeModuleDiff {
   /// Classifies this row via [nativeDiffStatus].
   NativeDiffStatus get status =>
       nativeDiffStatus(beforeStillLiveBytes, afterStillLiveBytes);
+
+  /// Serialises to a JSON-encodable map. [deltaBytes]/[status] are derived
+  /// from the byte counts, so they are not stored.
+  Map<String, Object?> toJson() => {
+    'module': module,
+    'kind': kind.name,
+    'beforeStillLiveBytes': beforeStillLiveBytes,
+    'afterStillLiveBytes': afterStillLiveBytes,
+  };
+
+  /// Restores from [toJson] output. Throws [FormatException] on an unknown
+  /// [NativeModuleKind] name.
+  factory NativeModuleDiff.fromJson(Map<String, Object?> json) {
+    final kindName = json['kind'] as String;
+    final kind = NativeModuleKind.values.asNameMap()[kindName];
+    if (kind == null) {
+      throw FormatException('unknown NativeModuleKind name: $kindName');
+    }
+    return NativeModuleDiff(
+      module: json['module'] as String,
+      kind: kind,
+      beforeStillLiveBytes: (json['beforeStillLiveBytes'] as num).toInt(),
+      afterStillLiveBytes: (json['afterStillLiveBytes'] as num).toInt(),
+    );
+  }
 }
 
 /// Joins two checkpoints' per-module rollups ([summarizeByModule]) by module

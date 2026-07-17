@@ -10,8 +10,16 @@ environment:
 
 resolution: workspace
 
+executables:
+  radar_sample: sample
+  radar_mark: mark
+  radar_capture: capture
+  radar_diff: diff
+  radar_triage: triage
+
 dependencies:
   radar_native: ^0.1.0
+  radar_trace: ^0.2.0
   meta: ^1.15.0
 
 dev_dependencies:
