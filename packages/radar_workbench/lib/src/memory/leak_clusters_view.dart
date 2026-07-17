@@ -4,10 +4,13 @@ import 'package:radar_ui/radar_ui.dart';
 
 import '../core/project_context.dart';
 import '../presentation/retaining_path_tile.dart';
+import '../session/triage_store.dart';
 import 'mem_format.dart';
 import 'memory_controller.dart';
 import 'package_group_scaffold.dart';
 import 'root_kind_ui.dart';
+
+part 'cluster_triage_ui.dart';
 
 /// The in-range anchor hop index for [cluster], or null when there is no
 /// anchor (or the recorded index falls outside the representative path —
@@ -89,10 +92,25 @@ class LeakClustersView extends StatelessWidget {
     super.key,
     required this.controller,
     this.projectContext = const NoProjectContext(),
+    this.initialTriage = TriageStore.empty,
+    this.onTriageChanged,
+    this.clock,
   });
 
   final MemoryController controller;
   final ProjectContext projectContext;
+
+  /// The cross-session triage baseline to compare the current clusters against
+  /// (the store loaded from disk plus prior ACKs). Defaults to empty, in which
+  /// case every cluster reads as NEW and ACKs live only for the session.
+  final TriageStore initialTriage;
+
+  /// Called with the updated store after an ACK so the host can persist it.
+  final ValueChanged<TriageStore>? onTriageChanged;
+
+  /// Clock for `firstSeen` stamps on ACK. Injected for tests; defaults to
+  /// [DateTime.now].
+  final DateTime Function()? clock;
 
   @override
   Widget build(BuildContext context) {
@@ -109,6 +127,9 @@ class LeakClustersView extends StatelessWidget {
           key: ValueKey(snapshot.id),
           analysis: snapshot.analysisResult,
           projectContext: projectContext,
+          initialTriage: initialTriage,
+          onTriageChanged: onTriageChanged,
+          clock: clock ?? DateTime.now,
         );
       },
     );
@@ -120,10 +141,16 @@ class _LeakClustersBody extends StatefulWidget {
     super.key,
     required this.analysis,
     required this.projectContext,
+    required this.initialTriage,
+    required this.onTriageChanged,
+    required this.clock,
   });
 
   final GraphAnalysisResult analysis;
   final ProjectContext projectContext;
+  final TriageStore initialTriage;
+  final ValueChanged<TriageStore>? onTriageChanged;
+  final DateTime Function() clock;
 
   @override
   State<_LeakClustersBody> createState() => _LeakClustersBodyState();
@@ -137,6 +164,13 @@ class _LeakClustersBodyState extends State<_LeakClustersBody> {
   /// refined once the host [ProjectContext] resolves.
   late Set<String> _effective;
 
+  /// In-session triage store (loaded baseline + ACKs made this session).
+  late TriageStore _triage;
+
+  /// When true, the cluster list is narrowed to signatures new since the last
+  /// session; the GONE section stays visible regardless.
+  bool _sinceLastSession = false;
+
   Set<String> get _analysisPackages =>
       widget.analysis.resolvedAppPackages.toSet();
 
@@ -144,6 +178,7 @@ class _LeakClustersBodyState extends State<_LeakClustersBody> {
   void initState() {
     super.initState();
     _effective = _analysisPackages;
+    _triage = widget.initialTriage;
     _resolveProjectPackages();
   }
 
@@ -152,6 +187,12 @@ class _LeakClustersBodyState extends State<_LeakClustersBody> {
     super.didUpdateWidget(old);
     if (!identical(widget.projectContext, old.projectContext)) {
       _resolveProjectPackages();
+    }
+    // A new baseline pushed by the host (e.g. an async session restore)
+    // replaces the in-session store. Keyed on identity so it doesn't clobber
+    // an ACK the view just reported back.
+    if (!identical(widget.initialTriage, old.initialTriage)) {
+      _triage = widget.initialTriage;
     }
   }
 
@@ -163,6 +204,19 @@ class _LeakClustersBodyState extends State<_LeakClustersBody> {
     });
   }
 
+  Future<void> _acknowledge(GraphLeakCluster cluster) async {
+    final result = await _promptForNote(context, cluster);
+    if (!mounted || !result.confirmed) return;
+    setState(() {
+      _triage = _triage.acknowledge(
+        cluster.signature,
+        note: result.note,
+        now: widget.clock(),
+      );
+    });
+    widget.onTriageChanged?.call(_triage);
+  }
+
   @override
   Widget build(BuildContext context) {
     final warnings = widget.analysis.stats.warnings;
@@ -170,29 +224,54 @@ class _LeakClustersBodyState extends State<_LeakClustersBody> {
       widget.analysis.clusters,
       projectPackages: _effective,
     );
+    // GONE must be computed against the UNFILTERED current signature set: the
+    // "since last session" toggle hides rows but must never make a still-present
+    // cluster read as GONE. Feed displayFor every cluster's signature.
+    final currentSignatures = clusters.map((c) => c.signature);
+    final displays = _triage.displayFor(currentSignatures);
+    final gone = [
+      for (final entry in _triage.entries)
+        if (displays[entry.signature] == TriageDisplay.gone) entry,
+    ]..sort((a, b) => a.signature.compareTo(b.signature));
+    final visible = _sinceLastSession
+        ? [
+            for (final c in clusters)
+              if (displays[c.signature] == TriageDisplay.fresh) c,
+          ]
+        : clusters;
     final canOpen = widget.projectContext.canOpenSource;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (warnings.isNotEmpty) _WarningsStrip(warnings: warnings),
+        _TriageToolbar(
+          sinceLastSession: _sinceLastSession,
+          onSinceLastSession: (on) => setState(() => _sinceLastSession = on),
+        ),
+        if (gone.isNotEmpty) _GoneSection(entries: gone),
         Expanded(
           child: clusters.isEmpty
               ? _EmptyState(stats: widget.analysis.stats)
+              : visible.isEmpty
+              ? const _CenteredHint('No new leak clusters since last session.')
               : ListView.builder(
-                  itemCount: clusters.length,
+                  itemCount: visible.length,
                   itemBuilder: (context, i) {
-                    final cluster = clusters[i];
+                    final cluster = visible[i];
                     return _ClusterRow(
                       cluster: cluster,
                       origin: clusterEffectiveOrigin(
                         cluster,
                         projectPackages: _effective,
                       ),
+                      display:
+                          displays[cluster.signature] ?? TriageDisplay.fresh,
                       expanded: cluster.signature == _expanded,
                       projectPackages: _effective,
                       onOpenSource: canOpen
                           ? widget.projectContext.openSource
                           : null,
+                      onAcknowledge: () => _acknowledge(cluster),
                       onTap: () => setState(
                         () => _expanded = cluster.signature == _expanded
                             ? null
@@ -306,18 +385,22 @@ class _ClusterRow extends StatelessWidget {
   const _ClusterRow({
     required this.cluster,
     required this.origin,
+    required this.display,
     required this.expanded,
     required this.projectPackages,
     required this.onTap,
     required this.onOpenSource,
+    required this.onAcknowledge,
   });
 
   final GraphLeakCluster cluster;
   final RadarOrigin origin;
+  final TriageDisplay display;
   final bool expanded;
   final Set<String> projectPackages;
   final VoidCallback onTap;
   final Future<bool> Function(Uri libraryUri)? onOpenSource;
+  final VoidCallback onAcknowledge;
 
   @override
   Widget build(BuildContext context) {
@@ -360,10 +443,15 @@ class _ClusterRow extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
+                      TriageChip(display: display),
+                      const SizedBox(width: 6),
                       OriginChip(origin: origin),
                       const SizedBox(width: 6),
                       _ConfidenceBadge(confidence: cluster.confidence),
-                      const SizedBox(width: 4),
+                      _AckMenuButton(
+                        display: display,
+                        onAcknowledge: onAcknowledge,
+                      ),
                       Icon(
                         expanded ? Icons.expand_less : Icons.expand_more,
                         size: 16,

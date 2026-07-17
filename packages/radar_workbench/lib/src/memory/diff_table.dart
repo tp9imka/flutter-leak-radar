@@ -32,9 +32,17 @@ class DiffTable extends StatefulWidget {
     this.absolute = false,
     this.classAnchors = const {},
     this.projectPackages = const {},
+    this.triage = const {},
   });
 
   final List<ClassCountDiff> diffs;
+
+  /// Cross-session status per class name. A row renders a [TriageChip] only for
+  /// classes present here; empty (the default) means no chips, so the row
+  /// layout is unchanged. Supplied by the host from the current clusters —
+  /// never derived inside the table, to avoid inventing an identity a diff row
+  /// cannot own.
+  final Map<String, TriageDisplay> triage;
 
   /// When true the diff is a single snapshot against an empty baseline, so the
   /// numeric columns are rendered as absolute totals (neutral, no sign/colour)
@@ -206,6 +214,7 @@ class _DiffTableState extends State<DiffTable> {
                         absolute: widget.absolute,
                         selected: widget.selected,
                         onSelected: widget.onSelected,
+                        triage: widget.triage,
                         isExpanded: _isExpanded,
                         onToggle: (g, expanded) =>
                             setState(() => _expanded[g.package] = !expanded),
@@ -237,6 +246,7 @@ class _DiffTableState extends State<DiffTable> {
       diff: rows[i],
       absolute: widget.absolute,
       selected: rows[i].after.className == widget.selected,
+      display: widget.triage[rows[i].after.className],
       onTap: () => widget.onSelected(
         rows[i].after.className == widget.selected
             ? null
@@ -386,6 +396,7 @@ class _GroupedList extends StatelessWidget {
     required this.absolute,
     required this.selected,
     required this.onSelected,
+    required this.triage,
     required this.isExpanded,
     required this.onToggle,
   });
@@ -395,6 +406,7 @@ class _GroupedList extends StatelessWidget {
   final bool absolute;
   final String? selected;
   final ValueChanged<String?> onSelected;
+  final Map<String, TriageDisplay> triage;
   final bool Function(PackageGroup<ClassCountDiff>, {required bool hasProject})
   isExpanded;
   final void Function(PackageGroup<ClassCountDiff>, bool expanded) onToggle;
@@ -429,6 +441,7 @@ class _GroupedList extends StatelessWidget {
             diff: diff,
             absolute: absolute,
             selected: diff.after.className == selected,
+            display: triage[diff.after.className],
             onTap: () => onSelected(
               diff.after.className == selected ? null : diff.after.className,
             ),
@@ -487,12 +500,17 @@ class _DiffRow extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.absolute = false,
+    this.display,
   });
 
   final ClassCountDiff diff;
   final bool selected;
   final bool absolute;
   final VoidCallback onTap;
+
+  /// Cross-session status chip for this class, or null to render none (and add
+  /// no width) — the default for callers that do not supply triage.
+  final TriageDisplay? display;
 
   Color _deltaColor(int v) {
     if (v > 0) return RadarColors.critical;
@@ -588,6 +606,10 @@ class _DiffRow extends StatelessWidget {
                 textAlign: TextAlign.right,
               ),
             ),
+            if (display != null) ...[
+              const SizedBox(width: 8),
+              TriageChip(display: display!),
+            ],
             const SizedBox(width: 8),
           ],
         ),

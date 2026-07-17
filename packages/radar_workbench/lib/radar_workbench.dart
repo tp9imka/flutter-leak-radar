@@ -33,6 +33,7 @@ export 'src/presentation/retaining_path_tile.dart';
 export 'src/session/radar_session.dart';
 export 'src/session/session_persistence.dart';
 export 'src/session/snapshot_store.dart';
+export 'src/session/triage_store.dart';
 export 'src/shell/connection_bar.dart';
 export 'src/shell/left_rail.dart';
 export 'src/shell/radar_view.dart';

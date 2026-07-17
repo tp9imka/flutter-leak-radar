@@ -75,6 +75,8 @@ class _LeakRadarMainScaffoldState extends State<LeakRadarMainScaffold> {
       RadarView.leakClusters => LeakClustersView(
         controller: _session.memory,
         projectContext: _session.projectContext,
+        initialTriage: _session.triage,
+        onTriageChanged: _session.updateTriage,
       ),
       // Performance
       RadarView.traces => TracesView(controller: _session.perf),

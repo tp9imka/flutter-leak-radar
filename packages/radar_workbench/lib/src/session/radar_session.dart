@@ -8,6 +8,7 @@ import '../perf/perf_data_controller.dart';
 import '../shell/radar_view.dart';
 import 'session_persistence.dart';
 import 'snapshot_store.dart';
+import 'triage_store.dart';
 
 /// Process-wide holder for the workbench's controllers and view selection.
 ///
@@ -58,6 +59,14 @@ class RadarSession {
   /// Currently selected left-rail destination; persisted across rebuilds.
   RadarView currentView = RadarView.snapshotDiff;
 
+  /// Cross-session leak-triage baseline for this session: the store loaded from
+  /// disk plus any explicit ACKs made during the session. The clusters view
+  /// compares the current cluster set against this to derive NEW/KNOWN/ACK/GONE.
+  /// The disk copy additionally folds current signatures in as KNOWN on save
+  /// (see [SessionPersistence]); this in-session field is left un-promoted so
+  /// signatures stay NEW for the whole current session.
+  TriageStore triage = TriageStore.empty;
+
   SessionPersistence? _persistence;
   bool _initialized = false;
   bool _storeAttached = false;
@@ -81,13 +90,19 @@ class RadarSession {
       store: store,
       memory: memory,
       readView: () => currentView,
+      readTriage: () => triage,
     );
     _persistence = persistence;
     final session = await persistence.load();
-    if (session != null && session.bundles.isNotEmpty) {
-      currentView = session.view;
-      memory.rehydrate(session);
-      onRestored?.call();
+    if (session != null) {
+      // Seed the triage baseline even when there are no bundles to rehydrate —
+      // cross-session identity is independent of whether snapshots restored.
+      triage = session.triage;
+      if (session.bundles.isNotEmpty) {
+        currentView = session.view;
+        memory.rehydrate(session);
+        onRestored?.call();
+      }
     }
     persistence.start();
   }
@@ -95,6 +110,13 @@ class RadarSession {
   /// Updates the active view and schedules a debounced persist.
   void selectView(RadarView view) {
     currentView = view;
+    _persistence?.schedule();
+  }
+
+  /// Applies an explicit triage change (an ACK from the clusters view) to the
+  /// in-session baseline and schedules a debounced persist so it survives.
+  void updateTriage(TriageStore next) {
+    triage = next;
     _persistence?.schedule();
   }
 }
