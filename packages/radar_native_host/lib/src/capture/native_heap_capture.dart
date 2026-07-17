@@ -47,17 +47,28 @@ Future<void> _realSleep(Duration duration) => Future<void>.delayed(duration);
 /// command sequences).
 final class AdbHeapprofdCapture implements NativeHeapCapture {
   AdbHeapprofdCapture(this._runner, {Future<void> Function(Duration)? sleep})
-    : _sleep = sleep ?? _realSleep;
+    : _sleep = sleep ?? _realSleep,
+      _pollInterval = const Duration(seconds: 2);
+
+  AdbHeapprofdCapture.withPollInterval(
+    this._runner, {
+    required Future<void> Function(Duration) sleep,
+    required Duration pollInterval,
+  }) : _sleep = sleep,
+       _pollInterval = pollInterval;
 
   final AdbRunner _runner;
   final Future<void> Function(Duration) _sleep;
+  final Duration _pollInterval;
 
   static const _traceDir = '/data/misc/perfetto-traces';
 
-  /// Extra time given to flush the trace to disk after
-  /// [CaptureRequest.durationMs] elapses in startup mode, where the host
-  /// can't block on the backgrounded `perfetto` process directly.
-  static const _startupFlushSlackMs = 3000;
+  /// Extra time, beyond [CaptureRequest.durationMs], allowed for the
+  /// backgrounded `perfetto` process to self-terminate and flush its trace to
+  /// disk before startup-mode polling gives up. The config's `duration_ms`
+  /// bounds the capture; this only bounds how long we *wait* for a
+  /// backgrounded process the host cannot block on directly.
+  static const _startupFlushSlackMs = 15000;
 
   @override
   Future<String> capture(
@@ -104,7 +115,15 @@ final class AdbHeapprofdCapture implements NativeHeapCapture {
   ], request.serial);
 
   /// Starts a backgrounded trace, force-stops then relaunches the app so
-  /// early-lifetime allocations are captured, then waits out the trace.
+  /// early-lifetime allocations are captured, then waits for the trace to
+  /// finish.
+  ///
+  /// `perfetto --background` prints the tracing session's pid to stdout, so we
+  /// poll `/proc/<pid>` and return the moment that process exits — real
+  /// completion, not a blind duration. If the pid can't be parsed (an older
+  /// `perfetto`, or unexpected output) we fall back to the original fixed wait
+  /// of `duration_ms + slack`: the one remaining time-based path, taken only
+  /// when the completion signal is unavailable.
   Future<void> _captureStartup(
     CaptureRequest request,
     String cfgPath,
@@ -116,7 +135,7 @@ final class AdbHeapprofdCapture implements NativeHeapCapture {
       'force-stop',
       request.packageId,
     ], request.serial);
-    await _run([
+    final background = await _run([
       'shell',
       'perfetto',
       '--background',
@@ -135,9 +154,50 @@ final class AdbHeapprofdCapture implements NativeHeapCapture {
       'android.intent.category.LAUNCHER',
       '1',
     ], request.serial);
-    await _sleep(
-      Duration(milliseconds: request.durationMs + _startupFlushSlackMs),
+
+    final perfettoPid = _firstInt(background.stdout);
+    final maxWait = Duration(
+      milliseconds: request.durationMs + _startupFlushSlackMs,
     );
+    if (perfettoPid == null) {
+      await _sleep(maxWait);
+      return;
+    }
+    await _awaitProcessExit(perfettoPid, request.serial, maxWait);
+  }
+
+  /// Polls `/proc/<pid>` until the perfetto process exits or [maxWait] elapses,
+  /// whichever comes first. Elapsed time is accumulated from [_pollInterval]
+  /// (not a wall clock) so an injected fake sleep drives the loop
+  /// deterministically. The `test -d` probe is read-only — a non-zero exit is
+  /// the expected "process gone" signal, so it bypasses [_run]'s throw.
+  Future<void> _awaitProcessExit(
+    int pid,
+    String? serial,
+    Duration maxWait,
+  ) async {
+    var elapsed = Duration.zero;
+    while (elapsed < maxWait) {
+      final alive = await _runner.run([
+        'shell',
+        'test',
+        '-d',
+        '/proc/$pid',
+      ], serial: serial);
+      if (!alive.ok) return;
+      await _sleep(_pollInterval);
+      elapsed += _pollInterval;
+    }
+  }
+
+  /// The first non-negative integer token in [text] (perfetto prints its
+  /// backgrounded pid on its own line), or null when none is present.
+  int? _firstInt(String text) {
+    for (final token in text.trim().split(RegExp(r'\s+'))) {
+      final value = int.tryParse(token);
+      if (value != null && value >= 0) return value;
+    }
+    return null;
   }
 
   Future<AdbResult> _run(
