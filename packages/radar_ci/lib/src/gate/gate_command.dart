@@ -154,8 +154,10 @@ Future<int> runGate(
       baselinePath != null || byteGateRequested || writeBaselinePath != null;
 
   GraphAnalysisResult? analysis;
+  String? analysisStaleNote;
   if (needsAnalysis) {
-    final checkpoint = _lastAnalyzedCheckpoint(run);
+    final selection = selectAnalysisCheckpoint(run);
+    final checkpoint = selection.checkpoint;
     if (checkpoint == null) {
       err.writeln(
         'A baseline/threshold/--write-baseline gate was requested but no '
@@ -167,6 +169,7 @@ Future<int> runGate(
       );
       return GateExit.toolFailure;
     }
+    analysisStaleNote = selection.staleNote;
     analysis = await _readAnalysis(
       checkpoint.analysisPath!,
       readText,
@@ -229,6 +232,12 @@ Future<int> runGate(
       'Wrote baseline (${analysis.clusters.length} clusters) to '
       '$writeBaselinePath',
     );
+    if (!gate.passed) {
+      err.writeln(
+        'warning: this baseline includes clusters from a FAILING run — later '
+        'runs will treat them as known and stop flagging them.',
+      );
+    }
   }
 
   _printVerdict(
@@ -236,6 +245,7 @@ Future<int> runGate(
     gate,
     minConfidence: minConfidence,
     baselineProvided: baselinePath != null,
+    analysisStaleNote: analysisStaleNote,
   );
   return gate.passed ? GateExit.ok : GateExit.gateFailed;
 }
@@ -369,22 +379,18 @@ Future<BaselineComparison?> _buildComparison(
   return compareToBaseline(analysis, baseline);
 }
 
-/// The last checkpoint (freshest by list order) that carries an analysis path.
-RunCheckpoint? _lastAnalyzedCheckpoint(RadarRunDocument run) {
-  for (final checkpoint in run.checkpoints.reversed) {
-    if (checkpoint.analysisPath != null) return checkpoint;
-  }
-  return null;
-}
-
 void _printVerdict(
   StringSink out,
   VerdictGateResult gate, {
   required LeakConfidence minConfidence,
   required bool baselineProvided,
+  String? analysisStaleNote,
 }) {
   for (final signal in gate.series) {
     out.writeln(_seriesVerdictLine(signal));
+  }
+  if (analysisStaleNote != null) {
+    out.writeln('cluster gate: $analysisStaleNote');
   }
   if (!baselineProvided) {
     out.writeln('baseline: not compared (no --baseline provided)');

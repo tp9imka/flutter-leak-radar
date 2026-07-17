@@ -97,6 +97,80 @@ void main() {
       expect(out.toString(), contains('process.rss'));
     });
 
+    test(
+      'a FAIL run never embeds the renderer "(no gate)" sub-verdict',
+      () async {
+        final current = analysis(
+          clusters: [
+            cluster(signature: 'a>b', className: 'Leaky', package: 'my_app'),
+          ],
+        );
+        final files = InMemoryFiles({
+          'run.json': jsonEncode(
+            runDoc(
+              series: gatedSeries(),
+              analysisPath: 'end.analysis.json',
+            ).toJson(),
+          ),
+          'end.analysis.json': jsonEncode(current.toJson()),
+        });
+        final out = StringBuffer();
+        await runReport(
+          ['run.json'],
+          out: out,
+          err: StringBuffer(),
+          readText: files.read,
+          assess: assessAs({'dart.heap.used': SeriesVerdict.monotonicGrowth}),
+        );
+        final text = out.toString();
+        // The composed line 1 is the single verdict authority.
+        expect(text.split('\n').first, contains('FAIL'));
+        expect(text, isNot(contains('no gate')));
+        expect(text, isNot(contains('⚠')));
+        // ...yet the renderer's cluster body is still embedded.
+        expect(text, contains('Leaky'));
+      },
+    );
+
+    test('notes stale analysis when the final capture failed', () async {
+      final current = analysis(
+        clusters: [
+          cluster(signature: 'a>b', className: 'Leaky', package: 'my_app'),
+        ],
+      );
+      final run = runDocWith(
+        series: gatedSeries(),
+        checkpoints: [
+          checkpoint(
+            label: 'cp1',
+            analysisPath: 'cp1.analysis.json',
+            tMicros: 1000000000000,
+          ),
+          checkpoint(
+            label: 'end',
+            captureStatus: 'partial',
+            captureError: 'heap snapshot failed: reset',
+            tMicros: 1000000060000,
+          ),
+        ],
+      );
+      final files = InMemoryFiles({
+        'run.json': jsonEncode(run.toJson()),
+        'cp1.analysis.json': jsonEncode(current.toJson()),
+      });
+      final out = StringBuffer();
+      final code = await runReport(
+        ['run.json'],
+        out: out,
+        err: StringBuffer(),
+        readText: files.read,
+        assess: assessAs(const {}),
+      );
+      expect(code, ReportExit.ok);
+      expect(out.toString(), contains("'cp1'"));
+      expect(out.toString(), contains('heap snapshot failed'));
+    });
+
     test('degrades honestly when the run has no heap analysis', () async {
       final files = InMemoryFiles({
         'run.json': jsonEncode(runDoc(series: gatedSeries()).toJson()),

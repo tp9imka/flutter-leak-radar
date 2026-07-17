@@ -458,6 +458,112 @@ void main() {
     });
   });
 
+  group('runGate — captureStatus-aware analysis selection', () {
+    test('a failed final capture with an earlier analysis notes staleness but '
+        'still evaluates the cluster gate', () async {
+      final current = analysis(
+        clusters: [
+          cluster(signature: 'a>b', className: 'Leaky', package: 'my_app'),
+        ],
+      );
+      final run = runDocWith(
+        series: gatedSeries(),
+        checkpoints: [
+          checkpoint(
+            label: 'cp1',
+            analysisPath: 'cp1.analysis.json',
+            tMicros: 1000000000000,
+          ),
+          checkpoint(
+            label: 'end',
+            captureStatus: 'partial',
+            captureError: 'heap snapshot failed: reset',
+            tMicros: 1000000060000,
+          ),
+        ],
+      );
+      final files = InMemoryFiles({
+        'run.json': jsonEncode(run.toJson()),
+        'cp1.analysis.json': encodeAnalysis(current),
+        'base.json': encodeBaseline(analysis(clusters: const [])),
+      });
+      final out = StringBuffer();
+      final code = await runGate(
+        ['run.json', '--baseline', 'base.json'],
+        out: out,
+        err: StringBuffer(),
+        readText: files.read,
+        assess: assessAs(const {}),
+      );
+      // Gate still evaluates condition (b) against the earlier analysis.
+      expect(code, GateExit.gateFailed);
+      expect(out.toString(), contains('baseline: FAIL'));
+      // ...but honestly names the stale checkpoint and the final failure.
+      expect(out.toString(), contains('cluster gate'));
+      expect(out.toString(), contains("'cp1'"));
+      expect(out.toString(), contains('heap snapshot failed'));
+    });
+
+    test('all captures failed (no analysis anywhere) refuses exit 2', () async {
+      final run = runDocWith(
+        series: gatedSeries(),
+        checkpoints: [
+          checkpoint(
+            label: 'end',
+            captureStatus: 'failed',
+            captureError: 'allocation profile failed',
+          ),
+        ],
+      );
+      final files = InMemoryFiles({
+        'run.json': jsonEncode(run.toJson()),
+        'base.json': encodeBaseline(analysis(clusters: const [])),
+      });
+      final out = StringBuffer();
+      final code = await runGate(
+        ['run.json', '--baseline', 'base.json'],
+        out: out,
+        err: StringBuffer(),
+        readText: files.read,
+        assess: assessAs(const {}),
+      );
+      expect(code, GateExit.toolFailure);
+      expect(out.toString(), contains('no heap analysis'));
+    });
+
+    test(
+      '--write-baseline on a failing gate warns about known clusters',
+      () async {
+        final current = analysis(
+          clusters: [
+            cluster(signature: 'a>b', className: 'Leaky', package: 'my_app'),
+          ],
+        );
+        final files = InMemoryFiles({
+          'run.json': jsonEncode(
+            runDoc(
+              series: gatedSeries(),
+              analysisPath: 'end.analysis.json',
+            ).toJson(),
+          ),
+          'end.analysis.json': encodeAnalysis(current),
+        });
+        final err = StringBuffer();
+        final code = await runGate(
+          ['run.json', '--write-baseline', 'out.baseline.json'],
+          out: StringBuffer(),
+          err: err,
+          readText: files.read,
+          writeText: files.write,
+          assess: assessAs({'dart.heap.used': SeriesVerdict.monotonicGrowth}),
+        );
+        expect(code, GateExit.gateFailed);
+        expect(files.store.containsKey('out.baseline.json'), isTrue);
+        expect(err.toString(), contains('FAILING run'));
+      },
+    );
+  });
+
   group('evaluateVerdictGate (pure)', () {
     test('growth alone fails; no baseline needed', () {
       final result = evaluateVerdictGate(

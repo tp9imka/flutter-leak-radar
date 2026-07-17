@@ -66,6 +66,10 @@ ArgParser buildReportArgParser() => ArgParser()
 /// line 1 is the overall verdict (worst of series + gate), then the featured
 /// clusters (reusing [renderMarkdownReport] — the single cluster-rendering
 /// path), then the series table, then the folded details. All I/O is injectable.
+///
+/// The report's cluster verdict always uses the default `heuristic`
+/// min-confidence, so it can read FAIL where `gate --min-confidence confirmed`
+/// passes — the report never suppresses a lower-confidence leak from view.
 Future<int> runReport(
   List<String> argv, {
   required StringSink out,
@@ -160,21 +164,19 @@ Future<int> runReport(
   return ReportExit.ok;
 }
 
-/// Best-effort load of the last checkpoint's analysis. A missing or unreadable
-/// analysis degrades to a null result with a human [note] — the report still
-/// renders the series dimension rather than failing.
+/// Best-effort load of the freshest checkpoint's analysis. A missing or
+/// unreadable analysis degrades to a null result with a human [note] — the
+/// report still renders the series dimension rather than failing. When the
+/// loaded analysis is not the run's final capture, [note] carries the same
+/// staleness caveat the gate emits, so the cluster view never reads as a
+/// verdict on the run's tail.
 Future<({GraphAnalysisResult? analysis, String? note})> _loadAnalysis(
   RadarRunDocument run,
   TextReader readText,
   StringSink err,
 ) async {
-  RunCheckpoint? checkpoint;
-  for (final candidate in run.checkpoints.reversed) {
-    if (candidate.analysisPath != null) {
-      checkpoint = candidate;
-      break;
-    }
-  }
+  final selection = selectAnalysisCheckpoint(run);
+  final checkpoint = selection.checkpoint;
   if (checkpoint == null) {
     return (analysis: null, note: 'no heap analysis was captured in this run');
   }
@@ -183,7 +185,7 @@ Future<({GraphAnalysisResult? analysis, String? note})> _loadAnalysis(
       (jsonDecode(await readText(checkpoint.analysisPath!)) as Map)
           .cast<String, Object?>(),
     );
-    return (analysis: analysis, note: null);
+    return (analysis: analysis, note: selection.staleNote);
   } catch (e) {
     final note =
         'heap analysis at ${checkpoint.analysisPath} '
@@ -256,20 +258,31 @@ String _composeMarkdown({
       ..writeln();
   }
 
+  if (analysisNote != null) buf.writeln('_$analysisNote._\n');
+
   final seriesSection = _seriesSection(series);
   if (analysis != null) {
-    final leakReport = renderMarkdownReport(
-      analysis,
-      comparison: comparison,
-      github: github,
+    // Drop the renderer's own line-1 verdict: the composed overall line above
+    // is the single verdict authority, so its `⚠ N clusters (no gate)` /
+    // `✅ no leak clusters` sub-headline must never sit under a real ❌ FAIL.
+    final leakReport = _stripLeadingVerdict(
+      renderMarkdownReport(analysis, comparison: comparison, github: github),
     );
     buf.writeln(_insertBeforeDetails(leakReport, seriesSection));
   } else {
-    if (analysisNote != null) buf.writeln('_$analysisNote._\n');
     buf.writeln(seriesSection);
   }
   if (baselineNote != null) buf.writeln('\n_$baselineNote._');
   return buf.toString().trimRight();
+}
+
+/// Strips [renderMarkdownReport]'s own line-1 verdict and the blank line that
+/// follows it, so the composed overall verdict is the report's single headline.
+String _stripLeadingVerdict(String leakReport) {
+  final lines = leakReport.split('\n');
+  var start = lines.isEmpty ? 0 : 1;
+  if (start < lines.length && lines[start].trim().isEmpty) start++;
+  return lines.sublist(start).join('\n');
 }
 
 /// Splits [leakReport] at its first folded `<details>` block and threads

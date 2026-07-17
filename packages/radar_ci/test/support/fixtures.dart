@@ -152,6 +152,42 @@ RadarRunDocument runDoc({
   String? analysisPath,
   bool completed = true,
   String? abortReason,
+}) => runDocWith(
+  series: series,
+  completed: completed,
+  abortReason: abortReason,
+  checkpoints: [
+    checkpoint(
+      label: 'end',
+      analysisPath: analysisPath,
+      tMicros: 1000000000000,
+    ),
+  ],
+);
+
+/// A checkpoint fixture; [analysisPath] non-null references an analysis file.
+RunCheckpoint checkpoint({
+  required String label,
+  String? analysisPath,
+  String captureStatus = 'ok',
+  String? captureError,
+  int tMicros = 1000000000000,
+}) => RunCheckpoint(
+  tMicros: tMicros,
+  label: label,
+  allocationTopN: const {'String': 3},
+  analysisPath: analysisPath,
+  snapshotPath: analysisPath == null ? null : '$label.data',
+  captureStatus: captureStatus,
+  captureError: captureError,
+);
+
+/// A run document with explicit [checkpoints] (for stale-analysis cases).
+RadarRunDocument runDocWith({
+  List<MetricSeries> series = const [],
+  required List<RunCheckpoint> checkpoints,
+  bool completed = true,
+  String? abortReason,
 }) => RadarRunDocument(
   metadata: RunMetadata(
     startedAt: DateTime.utc(2026),
@@ -159,13 +195,5 @@ RadarRunDocument runDoc({
     abortReason: abortReason,
   ),
   series: series,
-  checkpoints: [
-    RunCheckpoint(
-      tMicros: 1000000000000,
-      label: 'end',
-      allocationTopN: const {'String': 3},
-      analysisPath: analysisPath,
-      snapshotPath: analysisPath == null ? null : 'end.data',
-    ),
-  ],
+  checkpoints: checkpoints,
 );

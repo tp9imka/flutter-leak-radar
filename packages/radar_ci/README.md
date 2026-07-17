@@ -64,10 +64,47 @@ A run is resilient: a checkpoint RPC blip degrades that checkpoint to a
 reaps the spawned child and still flushes a partial `run.json`
 (`completed: false`, `abortReason: interrupted`).
 
+## The `gate` verb
+
+```shell
+dart run radar_ci gate run.json --baseline base.json
+```
+
+A verdict-based CI gate. It **fails (exit 3)** when either a tracked memory
+signal (`dart.heap.used` / `dart.external` / `process.rss`) is certified as
+monotonic growth, or the baseline comparison over the freshest checkpoint
+analysis surfaces a NEW cluster anchored in your own code. `insufficientData` /
+`noisy` / `plateau` never fail. Byte-absolute thresholds
+(`--max-new-clusters` / `--max-total-clusters` / `--max-class-growth` /
+`--max-heap-growth`, gated at `--min-confidence`) are opt-in. A gate that
+cannot be evaluated (partial run without `--allow-partial`, unreadable or
+incomparable baseline, no analysis to compare) refuses with **exit 2** and a
+distinct `⛔` line — never a silent pass, never all-NEW.
+
+`--write-baseline <file>` records a baseline from the freshest analysis.
+Writing one on a **failing** run is allowed but prints a warning: later runs
+will treat those clusters as known and stop flagging them, so prefer writing
+baselines from a green run.
+
+## The `report` verb
+
+```shell
+dart run radar_ci report run.json --format md   # or github | json
+```
+
+A unified memory + leak report: line 1 is the overall verdict (worst of the
+series and cluster gates), then the featured clusters (reusing `leak_graph`'s
+renderer), the per-signal series table, and folded details. `report` is
+informational — it renders the verdict but is never the enforcer (exit `0`
+unless the run itself is unreadable). Its cluster view always uses the default
+`heuristic` min-confidence, so it may read FAIL where `gate --min-confidence
+confirmed` passes.
+
 ## Exit codes
 
-`0` ok · `1` usage error · `2` tool failure (spawn/attach/connection, or a
-partial/aborted run).
+`0` ok · `1` usage error · `2` tool failure (spawn/attach/connection, a
+partial/aborted run, or a `gate` that could not be evaluated) · `3` `gate`
+failed.
 
 ## Follow-ups (planned)
 

@@ -113,6 +113,44 @@ List<SeriesGateOutcome> assessGatedSeries(
   ];
 }
 
+/// The freshest checkpoint carrying a heap analysis, plus an honest
+/// [staleNote] when that analysis is NOT the run's final capture.
+typedef AnalysisSelection = ({RunCheckpoint? checkpoint, String? staleNote});
+
+/// Picks the analysis a cluster gate/report should read from [run].
+///
+/// Returns the last checkpoint that carries an `analysisPath`. When that
+/// analysis is not the run's final capture — the last checkpoint failed to
+/// analyze, or carries no analysis — [staleNote] explains that the cluster
+/// picture reflects an earlier checkpoint, so certifying against it never
+/// masquerades as a verdict on the run's tail. A run whose final capture is
+/// clean returns a null note; a run with no analysis anywhere returns a null
+/// checkpoint (the caller refuses).
+AnalysisSelection selectAnalysisCheckpoint(RadarRunDocument run) {
+  if (run.checkpoints.isEmpty) return (checkpoint: null, staleNote: null);
+  RunCheckpoint? analyzed;
+  for (final checkpoint in run.checkpoints.reversed) {
+    if (checkpoint.analysisPath != null) {
+      analyzed = checkpoint;
+      break;
+    }
+  }
+  if (analyzed == null) return (checkpoint: null, staleNote: null);
+
+  final last = run.checkpoints.last;
+  final finalIsClean = identical(analyzed, last) && last.captureStatus == 'ok';
+  if (finalIsClean) return (checkpoint: analyzed, staleNote: null);
+
+  final reason = last.captureStatus == 'ok'
+      ? 'the final checkpoint carries no heap analysis'
+      : 'the final capture failed '
+            '(${last.captureError ?? 'status "${last.captureStatus}"'})';
+  return (
+    checkpoint: analyzed,
+    staleNote: "evaluated against checkpoint '${analyzed.label}' — $reason",
+  );
+}
+
 /// The origin of [cluster] under [analysis]'s resolved app-package set.
 ///
 /// Classifies the cluster's own declaring package the same way the leak_graph
