@@ -1,3 +1,9 @@
+## 0.1.2
+
+- Dependency uplift: `radar_trace ^0.2.0` (adds the `MetricSeries`/`assessSeries`
+  growth-verdict module used by `radar_ci`) and `radar_ui ^0.3.1` (origin/triage
+  tokens, multi-series time chart). No behavior changes in this package.
+
 ## 0.1.1
 
 - Optional `dedupKey` on `PerfRadar.trace` / `traceAsync` / `start`, surfaced as

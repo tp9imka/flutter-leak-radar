@@ -57,6 +57,9 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+      # Mints the pub.dev OIDC token (flutter-action alone does not) — without
+      # this, `pub publish` waits forever for interactive auth on the runner.
+      - uses: dart-lang/setup-dart@v1
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -89,6 +92,9 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+      # Mints the pub.dev OIDC token (flutter-action alone does not) — without
+      # this, `pub publish` waits forever for interactive auth on the runner.
+      - uses: dart-lang/setup-dart@v1
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -101,6 +107,9 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+      # Mints the pub.dev OIDC token (flutter-action alone does not) — without
+      # this, `pub publish` waits forever for interactive auth on the runner.
+      - uses: dart-lang/setup-dart@v1
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -113,6 +122,9 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+      # Mints the pub.dev OIDC token (flutter-action alone does not) — without
+      # this, `pub publish` waits forever for interactive auth on the runner.
+      - uses: dart-lang/setup-dart@v1
       - uses: subosito/flutter-action@v2
         with:
           channel: stable

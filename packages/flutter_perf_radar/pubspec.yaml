@@ -1,6 +1,6 @@
 name: flutter_perf_radar
 description: On-device performance and stability tracer for Flutter. Frame timing, startup, error capture, and main-thread stall detection in debug/profile; complete no-op in release.
-version: 0.1.1
+version: 0.1.2
 repository: https://github.com/tp9imka/flutter-leak-radar
 issue_tracker: https://github.com/tp9imka/flutter-leak-radar/issues
 homepage: https://tp9imka.github.io/flutter-leak-radar/

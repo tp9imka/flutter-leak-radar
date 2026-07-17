@@ -27,12 +27,12 @@ pub.dev (see "Internal, never published" below).
 
 | Package | Version | Tier |
 |---|---|---|
-| `radar_ui` | 0.2.0 | 0 |
-| `radar_trace` | 0.1.2 | 0 |
-| `leak_graph` | 0.2.2 | 0 |
-| `flutter_leak_radar` | 0.2.1 | 1 |
-| `flutter_perf_radar` | 0.1.1 | 1 |
-| `radarscope` | 0.1.3 | 2 |
+| `radar_ui` | 0.3.1 | 0 |
+| `radar_trace` | 0.2.0 | 0 |
+| `leak_graph` | 0.3.0 | 0 |
+| `flutter_leak_radar` | 0.3.0 | 1 |
+| `flutter_perf_radar` | 0.1.2 | 1 |
+| `radarscope` | 0.1.4 | 2 |
 | `flutter_leak_radar_lint` | 0.1.2 | independent |
 
 This table is a snapshot — before a release, re-read the pubspecs rather than
