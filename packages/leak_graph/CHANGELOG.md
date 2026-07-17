@@ -1,15 +1,29 @@
 ## 0.3.0
 
+- **Owner attribution (behavior change).** Each leak candidate is now
+  attributed to the DEEPEST app-owned object on its retaining path (walk
+  leaf→root, first app hop = the anchor). A cluster HEADLINES and DEDUPES by
+  that owner, so N internal SDK leaves retained by one app object fold into a
+  single `_LeakyScreenState ×N` finding instead of several SDK-named clusters
+  (`className` is now the owner's; `instanceCount` counts distinct owners).
+  The cluster **signature is anchored at the owner (root→anchor)**, so
+  same-owner records group regardless of which leaf BFS reached first.
+  **Cluster identity therefore changes for every app-anchored cluster versus
+  0.2.2** — a baseline or export written by an older version is NOT
+  signature-comparable, and will read every app-anchored cluster as
+  NEW/GONE churn. Re-baseline against 0.3.0. The internal leaf + root stay on
+  `representativePath` for drill-down. (The live-tree pass also now suppresses
+  only candidates whose root is not leak-prone, so a leak-prone-rooted object
+  reached from a live anchor via a stale edge is no longer wrongly hidden.)
 - `ClassOrigin` — classifies a class's declaring library as `project`,
   `dependency`, `flutterFramework`, `dartSdk`, or `unknown`. New
   `OriginClassifier` does the classification given a resolved project-package
   set; `kFlutterFrameworkPackages` lists the recognised framework packages.
 - `GraphHop.libraryUri` — the `package:`/`dart:` library that declared a hop's
   class, carried through JSON for attribution rendering. Deliberately
-  excluded from `==`/`hashCode`, and `GraphLeakCluster.anchorHopIndex` /
-  `leafClassName` are additive fields — **`pathSignature` and
-  `GraphHop`/`GraphRetainingPath` equality are unchanged, so cluster identity
-  is unaffected.**
+  excluded from `==`/`hashCode` — **that field alone** does not affect
+  `GraphHop`/`GraphRetainingPath` equality. (Signature identity still changes
+  in 0.3.0, but via the owner-anchored `pathSignature` above, not this field.)
 - `GraphLeakCluster.anchorHopIndex` / `leafClassName` — names the path hop
   and internal leaf class an app-code anchor attributes a leak to, when one
   exists.
@@ -19,8 +33,17 @@
   class. `AppPackageSource` labels which detection path (explicit config,
   auto-detected, or disabled) produced the app-package set an analysis used,
   so a rollup is never presented as more precise than it is.
-  `GraphAnalysisResult.schemaVersion` bumped to 2; an export without the key
-  is still read as version 1.
+  `GraphAnalysisResult.resolvedAppPackages` reports that resolved set.
+  `appPackages` takes BARE package names (`my_app`), not library URIs; an
+  entry containing `:`/`/` matches nothing and now surfaces a `stats.warnings`
+  entry. `GraphAnalysisResult.schemaVersion` bumped to 2; an export without
+  the key is still read as version 1.
+- CLI baseline/gate: `analyze` and `diff` grew a baseline in/out module,
+  byte-absolute threshold flags, and a verdict gate over the initiative-wide
+  exit contract (0 ok / 1 usage / 2 tool failure / 3 gate failed), with
+  `--format md|github|json` renderers and NEW-vs-KNOWN classification by
+  signature. `diff` is exposed as the `leak_diff` executable (namespaced off
+  the system `diff(1)`).
 - `package:leak_graph/io.dart` — a new, additive `dart:io`-backed entrypoint
   (the main `leak_graph.dart` barrel stays pure Dart). `projectPackagesFromDir`
   detects the app's own workspace/melos member package names from a project

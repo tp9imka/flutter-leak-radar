@@ -16,7 +16,7 @@ alike.
 
 ```yaml
 dependencies:
-  leak_graph: ^0.2.0
+  leak_graph: ^0.3.0
 ```
 
 ---
@@ -68,7 +68,11 @@ Future<void> main() async {
 
   final result = GraphLeakAnalyzer().analyze(
     graph,
-    const GraphAnalysisOptions(appPackages: ['package:my_app/']),
+    // appPackages takes BARE package names, not library URIs: 'my_app',
+    // never 'package:my_app/'. A URI-form entry matches no class (every
+    // candidate is suppressed, so the run falsely reads "no leaks") and is
+    // reported in result.stats.warnings.
+    const GraphAnalysisOptions(appPackages: ['my_app']),
   );
 
   for (final cluster in result.clusters) {
@@ -128,7 +132,7 @@ suite.
 | Package | Purpose |
 |---|---|
 | [`flutter_leak_radar`](https://pub.dev/packages/flutter_leak_radar) | On-device memory leak detector — heap growth, precise retention, overlay. Uses `leak_graph` for retaining-path analysis. |
-| [`radar`](https://pub.dev/packages/radar) | Umbrella: one import for both `flutter_leak_radar` + `flutter_perf_radar`. |
+| [`radarscope`](https://pub.dev/packages/radarscope) | Umbrella: one import across the Memory, Performance, and Stability radars. |
 | [`radar_trace`](https://pub.dev/packages/radar_trace) | Pure-Dart tracer framework — spans, latency histograms, outlier ring. |
 
 ---

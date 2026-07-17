@@ -16,13 +16,16 @@ Pure Dart — no Flutter dependency. Runs anywhere the Dart VM does.
 dart run radar_ci run --vm-uri ws://127.0.0.1:8181/TOKEN=/ws -o run.json
 
 # Or spawn the app and attach automatically:
-dart run radar_ci run --cmd "flutter run --profile -d <device>" -o run.json
+dart run radar_ci run --cmd "flutter run --machine --profile -d <device>" -o run.json
 ```
 
-`radar_ci` discovers the VM-service URI from `flutter run --machine`
-`app.debugPort` events, falling back to the `The Dart VM service is listening
-on …` line (the same wording `adb logcat` and plain `dart --enable-vm-service`
-emit — parsed by `radar_native_host`'s `parseLogcatVmServiceUris`).
+The examples pass `--machine` so `radar_ci` reads the VM-service URI straight
+from `flutter run`'s `app.debugPort` daemon events — the most reliable source.
+It also falls back to plain stdout wording — `The Dart VM service is listening
+on …`, the modern `A Dart VM Service on <device> is available at: …`, and the
+legacy `Observatory listening on …` — the same lines `adb logcat` and plain
+`dart --enable-vm-service` emit, parsed by `radar_native_host`'s
+`parseLogcatVmServiceUris`. So a `--cmd` without `--machine` still works.
 
 ### Key options
 
@@ -52,7 +55,7 @@ the run's host wall-clock, and marks each Dart checkpoint on the shared
 timeline:
 
 ```shell
-dart run radar_ci run --cmd "flutter run --profile -d <device>" \
+dart run radar_ci run --cmd "flutter run --machine --profile -d <device>" \
   --native-package com.example.app --native-interval 10s -o run.json
 ```
 

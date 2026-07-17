@@ -90,7 +90,12 @@ GraphRetainingPath? retainingPathForClass(
 
 /// Configuration for a single [GraphLeakAnalyzer.analyze] run.
 final class GraphAnalysisOptions {
-  /// Explicit package names that belong to the app under analysis.
+  /// Explicit BARE package names that belong to the app under analysis
+  /// (e.g. `'my_app'`), NOT library URIs (`'package:my_app/'`).
+  ///
+  /// An entry containing `:` or `/` matches no class — every candidate is
+  /// suppressed, so the run falsely reads "no leaks" — and is reported in
+  /// [GraphAnalysisResult.stats]'s `warnings`.
   ///
   /// When empty, [AppPackageSet.autoDetect] derives the set from the graph's
   /// library URIs, excluding SDK and framework packages.
