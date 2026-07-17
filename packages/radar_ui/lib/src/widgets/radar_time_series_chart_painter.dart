@@ -94,6 +94,14 @@ final class TimeSeriesChartPlan {
 /// Samples need not be pre-sorted; a time-ordered copy is used. The returned
 /// runs are exactly the segments the chart connects with a line — a gap is a
 /// break, never a bridge. Returns an empty list for no samples.
+///
+/// Gap-boundary convention (half-open, strict inequalities): a gap breaks the
+/// line between the earlier sample `p` and the later sample `q` iff
+/// `g.startMicros < q.tMicros && g.endMicros > p.tMicros`, and only when the
+/// gap has positive width (`g.endMicros > g.startMicros`). Because both
+/// inequalities are strict, a sample lying exactly on a gap boundary belongs
+/// to the adjacent run rather than being swallowed by the gap, and a
+/// zero-width gap (`startMicros == endMicros`) is an intentional no-op.
 @visibleForTesting
 List<List<({int tMicros, double value})>> segmentSeriesPoints(
   List<({int tMicros, double value})> points,
@@ -107,7 +115,10 @@ List<List<({int tMicros, double value})>> segmentSeriesPoints(
     final prev = sorted[i - 1];
     final cur = sorted[i];
     final broken = gaps.any(
-      (g) => g.startMicros < cur.tMicros && g.endMicros > prev.tMicros,
+      (g) =>
+          g.endMicros > g.startMicros &&
+          g.startMicros < cur.tMicros &&
+          g.endMicros > prev.tMicros,
     );
     if (broken) {
       runs.add(current);

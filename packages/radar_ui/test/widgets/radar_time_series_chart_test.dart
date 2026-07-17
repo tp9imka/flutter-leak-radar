@@ -204,6 +204,27 @@ void main() {
       expect(runs, hasLength(1));
       expect(runs.first.map((p) => p.tMicros), [1000000, 2000000, 3000000]);
     });
+
+    test('a zero-width gap is an intentional no-op (no break)', () {
+      // A gap whose start == end covers no time; it must never split the line
+      // even when it lands exactly between two samples.
+      final runs = segmentSeriesPoints(_line([1, 2, 3, 4]), const [
+        (startMicros: 1500000, endMicros: 1500000),
+      ]);
+      expect(runs, hasLength(1));
+      expect(runs.first, hasLength(4));
+    });
+
+    test('a sample on a gap boundary belongs to the adjacent run', () {
+      // Sample at t=1_000_000 sits exactly on the gap start; strict
+      // inequalities keep it out of the gap, so the break falls after it.
+      final runs = segmentSeriesPoints(_line([1, 2, 3]), const [
+        (startMicros: 1000000, endMicros: 1800000),
+      ]);
+      expect(runs, hasLength(2));
+      expect(runs[0].last.tMicros, 1000000);
+      expect(runs[1].first.tMicros, 2000000);
+    });
   });
 
   group('buildTimeSeriesChartPlan', () {
@@ -279,6 +300,29 @@ void main() {
         topmost(shared.series[0]),
         greaterThan(shared.plot.top + shared.plot.height * 0.5),
       );
+    });
+
+    test('normalize with a single-point series is centered and finite', () {
+      final plan = planFor([
+        ChartSeries(label: 's', color: _blue, points: _line([42])),
+      ], normalize: true);
+      final marker = plan.series.single.markers.single;
+      // A lone sample has no range, so it maps to the plot's vertical center
+      // (never NaN from a divide-by-zero range).
+      expect(marker.dy.isFinite, isTrue);
+      expect(marker.dy, closeTo(plan.plot.center.dy, 0.5));
+    });
+
+    test('normalize with a constant-value series maps all to center', () {
+      final plan = planFor([
+        ChartSeries(label: 's', color: _blue, points: _line([7, 7, 7, 7])),
+      ], normalize: true);
+      final markers = plan.series.single.markers;
+      expect(markers, hasLength(4));
+      for (final m in markers) {
+        expect(m.dy.isFinite, isTrue);
+        expect(m.dy, closeTo(plan.plot.center.dy, 0.5));
+      }
     });
 
     test('threshold line is placed when shared, omitted when normalized', () {

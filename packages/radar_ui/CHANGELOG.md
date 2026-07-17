@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0
+## 0.3.1
 
 - `RadarTimeSeriesChart`: a dark-only multi-series time chart. Plots several
   `ChartSeries` on a shared time axis with adaptive (s/m/h) tick labels, a

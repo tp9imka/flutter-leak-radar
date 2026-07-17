@@ -31,6 +31,14 @@ final class ChartSeries {
   final List<({int tMicros, double value})> points;
 
   /// Unmeasured intervals, each rendered as a line break (never bridged).
+  ///
+  /// Boundary convention (half-open, strict inequalities): a gap breaks the
+  /// line between two consecutive samples when
+  /// `startMicros < laterSample.tMicros && endMicros > earlierSample.tMicros`.
+  /// Because both comparisons are strict, a sample lying exactly on a gap
+  /// boundary belongs to the adjacent run rather than being swallowed by the
+  /// gap, and a zero-width gap (`startMicros == endMicros`) is an intentional
+  /// no-op.
   final List<({int startMicros, int endMicros})> gaps;
 }
 
@@ -76,6 +84,10 @@ final class ChartWindow {
 ///
 /// This is a separate component from [RadarTrendChart], which is a
 /// single-series Y-values-only sparkline painter.
+///
+/// Repaint is keyed on reference equality of the input lists — replace
+/// [series]/[marks]/[shaded] with new lists rather than mutating them in
+/// place, or the chart may not repaint.
 class RadarTimeSeriesChart extends StatelessWidget {
   const RadarTimeSeriesChart({
     super.key,
@@ -86,7 +98,11 @@ class RadarTimeSeriesChart extends StatelessWidget {
     this.yUnit,
     this.normalizePerSeries = false,
     this.height = 240,
-  });
+  }) : assert(
+         threshold == null || !normalizePerSeries,
+         'threshold is ignored when normalizePerSeries is true: a per-series '
+         'normalized overlay has no shared value for the line to sit at.',
+       );
 
   /// The series to plot. May be empty (renders a "no data" placeholder).
   final List<ChartSeries> series;
