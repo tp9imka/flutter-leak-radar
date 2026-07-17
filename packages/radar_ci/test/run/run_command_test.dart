@@ -295,8 +295,11 @@ void main() {
       expect(pss.samples, hasLength(12));
       expect(pss.gaps, hasLength(1));
       expect(pss.gaps.single.reason, contains('process not running'));
-      // The gap sits at the native tick's instant (20s), on the native clock.
-      expect(pss.gaps.single.startMicros, 20 * _second);
+      // The gap spans from the last measured native sample (10s) to the next
+      // (30s) — the nonzero-width encoding series_assessment won't drop, so a
+      // native outage is never silently bridged.
+      expect(pss.gaps.single.startMicros, 10 * _second);
+      expect(pss.gaps.single.endMicros, 30 * _second);
       // The native series carries the canonical KiB unit, so triage never
       // degrades it on a unit mismatch.
       expect(pss.unit, 'kb');

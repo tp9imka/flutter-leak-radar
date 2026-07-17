@@ -86,15 +86,18 @@ MetricSeries shortSeries(String name) {
 }
 
 /// A native (Lane A) timeline for the gate/report tests: [growing] columns read
-/// monotonicGrowth, [flat] columns plateau, [short] columns insufficientData.
+/// monotonicGrowth, [flat] columns plateau, [short] columns insufficientData,
+/// [empty] columns carry zero measured samples (all gap — a co-drive whose
+/// device was unreachable throughout).
 ///
 /// Each column carries its canonical unit (`expectedUnit`) so the triage router
-/// never degrades it on a unit mismatch, and a column absent from all three
-/// sets is simply never measured (honest by omission).
+/// never degrades it on a unit mismatch, and a column absent from all four sets
+/// is simply never measured (honest by omission).
 TriageTimeline nativeTimeline({
   Set<TriageColumn> growing = const {},
   Set<TriageColumn> flat = const {},
   Set<TriageColumn> short = const {},
+  Set<TriageColumn> empty = const {},
 }) {
   MetricSeries shaped(
     TriageColumn column,
@@ -109,11 +112,25 @@ TriageTimeline nativeTimeline({
     );
   }
 
+  MetricSeries gapOnly(TriageColumn column) => MetricSeries(
+    name: column.name,
+    unit: expectedUnit(column),
+    samples: const [],
+    gaps: const [
+      SeriesGap(
+        startMicros: 1000000000000,
+        endMicros: 1000000360000000,
+        reason: 'device unreachable',
+      ),
+    ],
+  );
+
   return TriageTimeline(
     columns: {
       for (final c in growing) c: shaped(c, growthSeries),
       for (final c in flat) c: shaped(c, flatSeries),
       for (final c in short) c: shaped(c, shortSeries),
+      for (final c in empty) c: gapOnly(c),
     },
   );
 }

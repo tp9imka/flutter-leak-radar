@@ -54,6 +54,13 @@ String renderMarkdownReport(
     ..writeln(_verdictLine(result, gate, gateUnavailableReason))
     ..writeln();
 
+  final source = result.appPackageSource;
+  if (source != null) {
+    buf
+      ..writeln('App packages: ${appPackageSourceLabel(source)}')
+      ..writeln();
+  }
+
   final selection = _selectHighlights(result, comparison);
   final highlights = selection.highlights;
   if (highlights.isNotEmpty) {
@@ -68,7 +75,7 @@ String renderMarkdownReport(
       )
       ..writeln();
     for (var i = 0; i < highlights.length; i++) {
-      _writeHighlight(buf, i + 1, highlights[i], result.anchorRollups);
+      _writeHighlight(buf, i + 1, highlights[i], result);
     }
     _writeLargestOverallLine(buf, result, highlights);
   }
@@ -148,7 +155,7 @@ _HighlightSelection _selectHighlights(
   ];
 
   final projectCandidates = candidatesWhere(
-    (c) => _originOf(c, result.anchorRollups) == ClassOrigin.project,
+    (c) => _originOf(c, result) == ClassOrigin.project,
   );
   if (projectCandidates.isNotEmpty) {
     return (highlights: _topByNewOrWorst(projectCandidates), isFallback: false);
@@ -202,7 +209,7 @@ void _writeLargestOverallLine(
   final featured = {for (final h in highlights) h.cluster.signature};
   if (featured.contains(worst.signature)) return;
 
-  final origin = _originOf(worst, result.anchorRollups);
+  final origin = _originOf(worst, result);
   buf.writeln(
     'largest overall: `${_escapeCode(worst.className)}` '
     '${_originLabel(origin)} — ${worst.instanceCount} instances, '
@@ -233,11 +240,11 @@ void _writeHighlight(
   StringBuffer buf,
   int rank,
   _Highlight highlight,
-  List<PackageRollup> anchorRollups,
+  GraphAnalysisResult result,
 ) {
   final cluster = highlight.cluster;
   final package = _packageOf(cluster.libraryUri) ?? '(unknown)';
-  final origin = _originOf(cluster, anchorRollups);
+  final origin = _originOf(cluster, result);
   buf
     ..writeln(
       '**$rank. ${_escapePlain(cluster.className)}** — '
@@ -336,20 +343,26 @@ String _escapePlain(String text) =>
 /// terminate the span early and corrupt everything that follows it.
 String _escapeCode(String text) => text.replaceAll('`', "'");
 
+/// True when app filtering was disabled for [result] — no package was treated
+/// as project-owned, so ownership (yours vs dependency) is genuinely unknown
+/// and every origin must read [ClassOrigin.unknown] rather than a false
+/// `[dependency]` on the caller's own class.
+bool _originsSuppressed(GraphAnalysisResult result) =>
+    result.appPackageSource == AppPackageSource.disabled;
+
 /// The origin the analyzer already computed for [cluster]'s anchor package.
 ///
-/// Looked up from [anchorRollups] rather than re-classified here: rollups are
-/// built from the SAME resolved project-package set as [cluster], so this
-/// never has to guess. A package absent from the rollups (only possible for
-/// a cluster built outside a real analysis run) is reported as
-/// [ClassOrigin.unknown] rather than assumed.
-ClassOrigin _originOf(
-  GraphLeakCluster cluster,
-  List<PackageRollup> anchorRollups,
-) {
+/// Looked up from [result]'s anchor rollups rather than re-classified here:
+/// rollups are built from the SAME resolved project-package set as [cluster],
+/// so this never has to guess. A package absent from the rollups (only
+/// possible for a cluster built outside a real analysis run) is reported as
+/// [ClassOrigin.unknown] rather than assumed. When app filtering was disabled
+/// (`--all`), ownership was never classified, so every origin reads unknown.
+ClassOrigin _originOf(GraphLeakCluster cluster, GraphAnalysisResult result) {
+  if (_originsSuppressed(result)) return ClassOrigin.unknown;
   final package = _packageOf(cluster.libraryUri);
   if (package == null) return ClassOrigin.unknown;
-  for (final rollup in anchorRollups) {
+  for (final rollup in result.anchorRollups) {
     if (rollup.package == package) return rollup.origin;
   }
   return ClassOrigin.unknown;
@@ -397,7 +410,7 @@ void _writeClusterTableDetails(StringBuffer buf, GraphAnalysisResult result) {
     buf.writeln('|---|---|---|---|---|---|---|');
     for (final cluster in result.clusters) {
       final package = _packageOf(cluster.libraryUri) ?? '(unknown)';
-      final origin = _originOf(cluster, result.anchorRollups);
+      final origin = _originOf(cluster, result);
       buf.writeln(
         '| ${_escapePlain(cluster.className)} | ${_escapePlain(package)} | '
         '${_originLabel(origin)} | ${cluster.instanceCount} | '
@@ -415,19 +428,24 @@ void _writeRollupDetails(StringBuffer buf, GraphAnalysisResult result) {
   buf.writeln('<details>');
   buf.writeln('<summary>Package rollups</summary>');
   buf.writeln();
+  final suppressed = _originsSuppressed(result);
   buf.writeln('**retained via (anchor rollup)**');
   buf.writeln();
-  _writeRollupTable(buf, result.anchorRollups);
+  _writeRollupTable(buf, result.anchorRollups, suppressed: suppressed);
   buf.writeln();
   buf.writeln('**declared by (declared rollup)**');
   buf.writeln();
-  _writeRollupTable(buf, result.declaredRollups);
+  _writeRollupTable(buf, result.declaredRollups, suppressed: suppressed);
   buf.writeln();
   buf.writeln('</details>');
   buf.writeln();
 }
 
-void _writeRollupTable(StringBuffer buf, List<PackageRollup> rollups) {
+void _writeRollupTable(
+  StringBuffer buf,
+  List<PackageRollup> rollups, {
+  required bool suppressed,
+}) {
   if (rollups.isEmpty) {
     buf.writeln('None.');
     return;
@@ -438,8 +456,9 @@ void _writeRollupTable(StringBuffer buf, List<PackageRollup> rollups) {
   );
   buf.writeln('|---|---|---|---|---|---|');
   for (final rollup in rollups) {
+    final origin = suppressed ? ClassOrigin.unknown : rollup.origin;
     buf.writeln(
-      '| ${_escapePlain(rollup.package)} | ${_originLabel(rollup.origin)} | '
+      '| ${_escapePlain(rollup.package)} | ${_originLabel(origin)} | '
       '${rollup.classCount} | ${rollup.instanceCount} | '
       '${rollup.shallowBytes} B shallow | ${rollup.clusterCount} |',
     );

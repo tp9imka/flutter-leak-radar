@@ -15,6 +15,16 @@ enum AppPackageSource {
   disabled,
 }
 
+/// A short human label for [source], for the "app packages" detection-source
+/// line reports print so a reader never mistakes an auto-detected guess (or a
+/// disabled filter that classified no ownership) for an explicit configuration.
+String appPackageSourceLabel(AppPackageSource source) => switch (source) {
+  AppPackageSource.explicitConfig => 'explicit config',
+  AppPackageSource.autoDetected => 'auto-detected',
+  AppPackageSource.disabled =>
+    'disabled (--all: every class reported; ownership not classified)',
+};
+
 /// Per-package aggregation of leaked classes for one analysis run.
 ///
 /// Produced twice per run, keyed two different ways (see

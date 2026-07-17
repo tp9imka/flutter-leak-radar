@@ -90,6 +90,7 @@ GraphAnalysisResult _result(
   List<PackageRollup> anchorRollups = const [],
   List<PackageRollup> declaredRollups = const [],
   List<String> warnings = const [],
+  AppPackageSource? appPackageSource,
 }) => GraphAnalysisResult(
   clusters: clusters,
   stats: GraphAnalysisStats(
@@ -102,6 +103,7 @@ GraphAnalysisResult _result(
   ),
   anchorRollups: anchorRollups,
   declaredRollups: declaredRollups,
+  appPackageSource: appPackageSource,
 );
 
 void main() {
@@ -408,6 +410,38 @@ void main() {
       expect(report, contains('[framework]'));
       expect(report, contains('[sdk]'));
       expect(report, contains('[?]'));
+    });
+
+    test('under --all (disabled) ownership is not classified — the '
+        "caller's own class reads [?], never a false [dependency]", () {
+      // With app filtering disabled, empty project packages classify the
+      // user's own package as `dependency`; the report must not present that
+      // as fact. It reads [?] and names the detection source.
+      final cluster = _anchoredCluster(
+        className: 'GroupCallBloc',
+        signature: 'r>GroupCallBloc',
+        anchorLibrary: 'package:my_app/call.dart',
+      );
+      final report = renderMarkdownReport(
+        _result(
+          [cluster],
+          anchorRollups: [_rollup('my_app', ClassOrigin.dependency)],
+          appPackageSource: AppPackageSource.disabled,
+        ),
+        github: false,
+      );
+
+      expect(report, contains('App packages: disabled'));
+      expect(report, contains('[?]'));
+      expect(report, isNot(contains('[dependency]')));
+    });
+
+    test('names the detection source for an explicit-config run', () {
+      final report = renderMarkdownReport(
+        _result(const [], appPackageSource: AppPackageSource.explicitConfig),
+        github: false,
+      );
+      expect(report, contains('App packages: explicit config'));
     });
   });
 

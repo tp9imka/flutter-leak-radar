@@ -154,6 +154,20 @@ final class GraphLeakAnalyzer {
       }
     }
 
+    // appPackages takes BARE names ('my_app'), not library URIs. An entry with
+    // ':' or '/' (e.g. 'package:my_app/') can never match a class's package,
+    // so every candidate would be suppressed and the run would falsely read
+    // "no leaks". Warn rather than silently produce a false negative.
+    for (final entry in options.appPackages) {
+      if (entry.contains(':') || entry.contains('/')) {
+        warnings.add(
+          'appPackages entry "$entry" looks like a library URI, but '
+          'appPackages wants bare package names (e.g. "my_app", not '
+          '"package:my_app/"); this entry matches no class and is ignored.',
+        );
+      }
+    }
+
     final appSet = options.disableAppFilter
         ? null
         : (options.appPackages.isEmpty

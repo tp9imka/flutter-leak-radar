@@ -147,9 +147,11 @@ Future<int> runGate(
   // Native (Lane A) gate — opt-in. A --gate-native on a run that never
   // co-drove the native lane is a requested-but-unevaluable gate: refuse
   // rather than pass silently (a CI expecting native coverage must not read
-  // green off a run with no native data). A present-but-all-unmeasured lane is
-  // a different, honest case — triage reads insufficientData, which never
-  // fails.
+  // green off a run with no native data). Likewise a co-driven run whose
+  // native lane measured ZERO samples (every column empty — the device was
+  // unreachable throughout) is green-off-no-data: refuse it too. Only PARTIAL
+  // coverage (at least one column has a measured sample) is an honest
+  // insufficientData-pass — triage reads insufficientData there, never a fail.
   final gateNative = args['gate-native'] as bool;
   final nativeTimeline = run.nativeTimeline;
   if (gateNative && nativeTimeline == null) {
@@ -160,6 +162,20 @@ Future<int> runGate(
     out.writeln(
       '⛔ gate not evaluated: --gate-native requested but this run has no '
       'native lane to gate',
+    );
+    return GateExit.toolFailure;
+  }
+  if (gateNative &&
+      nativeTimeline != null &&
+      !nativeTimeline.columns.values.any((s) => s.samples.isNotEmpty)) {
+    err.writeln(
+      "--gate-native was requested but this run's native lane measured no "
+      'samples (every native column is empty) — refusing rather than passing '
+      'green off no native data.',
+    );
+    out.writeln(
+      '⛔ gate not evaluated: --gate-native requested but the native lane '
+      'measured zero samples',
     );
     return GateExit.toolFailure;
   }

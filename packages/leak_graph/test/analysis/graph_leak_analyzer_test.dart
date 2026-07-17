@@ -507,4 +507,35 @@ void main() {
       );
     });
   });
+
+  group('appPackages validation', () {
+    test('warns when an appPackages entry is a URI, not a bare name', () {
+      final result = analyzer.analyze(
+        _timerGraph(),
+        const GraphAnalysisOptions(appPackages: ['package:my_app/']),
+      );
+
+      expect(
+        result.stats.warnings.any(
+          (w) => w.contains('package:my_app/') && w.contains('bare'),
+        ),
+        isTrue,
+        reason:
+            'a URI-form appPackages entry must warn, not silently match '
+            'nothing',
+      );
+    });
+
+    test('a bare-name appPackages entry produces no such warning', () {
+      final result = analyzer.analyze(
+        _timerGraph(),
+        const GraphAnalysisOptions(appPackages: ['my_app']),
+      );
+
+      expect(
+        result.stats.warnings.any((w) => w.contains('bare package name')),
+        isFalse,
+      );
+    });
+  });
 }
