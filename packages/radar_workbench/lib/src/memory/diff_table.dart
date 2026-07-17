@@ -334,26 +334,48 @@ class _SubHeader extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Row(
-          children: [
-            summary,
-            const SizedBox(width: 12),
-            PackageGroupControls(
-              grouped: grouped,
-              onGroupedChanged: onGrouped,
-              hideFramework: hideFramework,
-              onHideFrameworkChanged: onHideFramework,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilterBar(expression: filter, onChanged: onFilter),
-            ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Drop the A→B summary when the row can't fit summary + controls +
+            // a usable filter, so the sub-header never overflows.
+            final showSummary = constraints.maxWidth >= _summaryMinWidth;
+            return Row(
+              children: [
+                if (showSummary) ...[
+                  // The summary is an arbitrary caller widget (a Row of Texts
+                  // with no ellipsis); scaleDown lets it shrink to its share
+                  // instead of overflowing when the row gets tight.
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: summary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                PackageGroupControls(
+                  grouped: grouped,
+                  onGroupedChanged: onGrouped,
+                  hideFramework: hideFramework,
+                  onHideFrameworkChanged: onHideFramework,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilterBar(expression: filter, onChanged: onFilter),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 }
+
+// Below this sub-header width the A→B summary is dropped so the controls +
+// filter always fit.
+const double _summaryMinWidth = 620;
 
 /// Flattened grouped rows (header + optional child rows) over a virtualized
 /// list so grouping keeps the flat table's 34px itemExtent.

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/project_context.dart';
 import '../core/radar_connection.dart';
 import '../core/snapshot_exporter.dart';
 import '../memory/memory_controller.dart';
@@ -24,6 +25,7 @@ class RadarSession {
     required this.memory,
     required this.perf,
     required this.exporter,
+    this.projectContext = const NoProjectContext(),
     VoidCallback? onInit,
   }) : _onInit = onInit;
 
@@ -31,6 +33,11 @@ class RadarSession {
   final MemoryController memory;
   final PerfDataController perf;
   final SnapshotExporter exporter;
+
+  /// Host project identity for the retaining-paths "yours" attribution and
+  /// (desktop) source opening. Defaults to [NoProjectContext].
+  final ProjectContext projectContext;
+
   final VoidCallback? _onInit;
 
   static RadarSession? _instance;

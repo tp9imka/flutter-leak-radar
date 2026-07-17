@@ -69,6 +69,7 @@ class _LeakRadarMainScaffoldState extends State<LeakRadarMainScaffold> {
       ),
       RadarView.retainingPaths => RetainingPathsView(
         controller: _session.memory,
+        projectContext: _session.projectContext,
       ),
       // Performance
       RadarView.traces => TracesView(controller: _session.perf),

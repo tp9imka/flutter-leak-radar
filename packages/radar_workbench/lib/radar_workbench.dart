@@ -4,6 +4,7 @@ library;
 
 export 'src/capture/snapshot_analyzer.dart';
 export 'src/capture/snapshot_bundle.dart';
+export 'src/core/project_context.dart';
 export 'src/core/radar_connection.dart';
 export 'src/core/snapshot_source.dart';
 export 'src/core/snapshot_exporter.dart';

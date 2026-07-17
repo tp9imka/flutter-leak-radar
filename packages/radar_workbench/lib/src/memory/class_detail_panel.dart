@@ -21,6 +21,9 @@ class ClassDetailPanel extends StatelessWidget {
     required this.profile,
     this.distribution,
     this.headerTrailing,
+    this.representativeAnchorHopIndex,
+    this.projectPackages = const {},
+    this.onOpenSource,
   });
 
   final String? className;
@@ -33,6 +36,17 @@ class ClassDetailPanel extends StatelessWidget {
 
   /// Optional widgets shown on the header row (e.g. diff delta tags).
   final List<Widget>? headerTrailing;
+
+  /// Anchor hop index for [profile]'s representative path — supplied by the
+  /// parent only when it structurally matches that path (never guessed). The
+  /// per-path-distribution buckets carry no anchor (honest degradation).
+  final int? representativeAnchorHopIndex;
+
+  /// Resolved project package names, classifying each hop's origin.
+  final Set<String> projectPackages;
+
+  /// Opens a hop's declaring library in an editor; null disables it.
+  final Future<bool> Function(Uri libraryUri)? onOpenSource;
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +85,13 @@ class ClassDetailPanel extends StatelessWidget {
                       ),
                     ),
                   )
-                : _ProfileBody(profile: profile!, distribution: distribution),
+                : _ProfileBody(
+                    profile: profile!,
+                    distribution: distribution,
+                    representativeAnchorHopIndex: representativeAnchorHopIndex,
+                    projectPackages: projectPackages,
+                    onOpenSource: onOpenSource,
+                  ),
           ),
         ],
       ),
@@ -119,10 +139,19 @@ class _Header extends StatelessWidget {
 }
 
 class _ProfileBody extends StatelessWidget {
-  const _ProfileBody({required this.profile, this.distribution});
+  const _ProfileBody({
+    required this.profile,
+    this.distribution,
+    this.representativeAnchorHopIndex,
+    this.projectPackages = const {},
+    this.onOpenSource,
+  });
 
   final ClassRootProfile profile;
   final ClassPathDistribution? distribution;
+  final int? representativeAnchorHopIndex;
+  final Set<String> projectPackages;
+  final Future<bool> Function(Uri libraryUri)? onOpenSource;
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +184,11 @@ class _ProfileBody extends StatelessWidget {
         ),
         const Divider(height: 24, color: RadarColors.hairline08),
         if (dist != null && dist.paths.isNotEmpty)
-          _PathDistributionSection(distribution: dist)
+          _PathDistributionSection(
+            distribution: dist,
+            projectPackages: projectPackages,
+            onOpenSource: onOpenSource,
+          )
         else ...[
           Text(
             'Representative retaining path',
@@ -163,7 +196,12 @@ class _ProfileBody extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           if (profile.representativePath != null)
-            RetainingPathTile(path: profile.representativePath!)
+            RetainingPathTile(
+              path: profile.representativePath!,
+              anchorHopIndex: representativeAnchorHopIndex,
+              projectPackages: projectPackages,
+              onOpenSource: onOpenSource,
+            )
           else
             Text(
               'Not captured for this class — only the busiest classes keep a '
@@ -180,9 +218,15 @@ class _ProfileBody extends StatelessWidget {
 /// paths (the "144 instances → 24 via path A, 20 via path B…" breakdown). Each
 /// row expands on tap to the full hop-by-hop path.
 class _PathDistributionSection extends StatelessWidget {
-  const _PathDistributionSection({required this.distribution});
+  const _PathDistributionSection({
+    required this.distribution,
+    this.projectPackages = const {},
+    this.onOpenSource,
+  });
 
   final ClassPathDistribution distribution;
+  final Set<String> projectPackages;
+  final Future<bool> Function(Uri libraryUri)? onOpenSource;
 
   @override
   Widget build(BuildContext context) {
@@ -201,7 +245,12 @@ class _PathDistributionSection extends StatelessWidget {
         Text(subtitle, style: RadarTypography.caption),
         const SizedBox(height: 8),
         for (final bucket in d.paths)
-          _PathBucketTile(bucket: bucket, maxCount: maxCount),
+          _PathBucketTile(
+            bucket: bucket,
+            maxCount: maxCount,
+            projectPackages: projectPackages,
+            onOpenSource: onOpenSource,
+          ),
         if (d.otherPathCount > 0) ...[
           const SizedBox(height: 2),
           Text(
@@ -216,10 +265,17 @@ class _PathDistributionSection extends StatelessWidget {
 }
 
 class _PathBucketTile extends StatefulWidget {
-  const _PathBucketTile({required this.bucket, required this.maxCount});
+  const _PathBucketTile({
+    required this.bucket,
+    required this.maxCount,
+    this.projectPackages = const {},
+    this.onOpenSource,
+  });
 
   final PathBucket bucket;
   final int maxCount;
+  final Set<String> projectPackages;
+  final Future<bool> Function(Uri libraryUri)? onOpenSource;
 
   @override
   State<_PathBucketTile> createState() => _PathBucketTileState();
@@ -305,7 +361,11 @@ class _PathBucketTileState extends State<_PathBucketTile> {
           if (_expanded)
             Padding(
               padding: const EdgeInsets.all(8),
-              child: RetainingPathTile(path: b.path),
+              child: RetainingPathTile(
+                path: b.path,
+                projectPackages: widget.projectPackages,
+                onOpenSource: widget.onOpenSource,
+              ),
             ),
         ],
       ),

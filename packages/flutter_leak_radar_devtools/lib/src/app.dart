@@ -9,6 +9,7 @@ import 'adapters/devtools_radar_connection.dart';
 import 'adapters/devtools_snapshot_exporter.dart';
 import 'adapters/devtools_snapshot_source.dart';
 import 'connection/connection_state_notifier.dart';
+import 'session/dtd_project_context.dart';
 import 'session/dtd_snapshot_store.dart';
 
 /// Root widget of the Leak Radar DevTools extension.
@@ -51,6 +52,7 @@ class _LeakRadarDevToolsExtensionState
         ),
         perf: PerfDataController(callExtension: devtoolsPerfCallExtension),
         exporter: const DevToolsSnapshotExporter(),
+        projectContext: DtdProjectContext(),
         onInit: notifier.init,
       ),
     );
