@@ -53,6 +53,9 @@ enum TriageColumn {
 
 /// A labeled checkpoint on a [TriageTimeline] — e.g. an app-event marker
 /// (`'reconnect'`, `'navigate'`) the router surface aligns trends against.
+///
+/// Versioned under [TriageTimeline.schemaVersion]; it carries no independent
+/// schema field of its own.
 @immutable
 final class TriageMark {
   /// Host wall-clock microseconds since epoch.

@@ -84,7 +84,28 @@ TriageBucket columnBucket(TriageColumn column) => switch (column) {
 bool isPrimaryColumn(TriageColumn column) =>
     columnBucket(column) != TriageBucket.none;
 
+/// The canonical [MetricSeries] unit each column's family must carry so that
+/// slopes stay comparable within a family — bytes columns in KiB (`'kb'`),
+/// count columns as `'count'`.
+///
+/// [triage] degrades any present column whose unit differs to not-measured: a
+/// bytes column reported in raw `'bytes'` would otherwise carry a slope ~1000x
+/// inflated, out-rank genuine `'kb'` columns, and name the wrong bucket with
+/// full confidence — the exact failure this router exists to prevent.
+String expectedUnit(TriageColumn column) => switch (columnFamily(column)) {
+  TriageColumnFamily.bytes => 'kb',
+  TriageColumnFamily.count => 'count',
+};
+
+/// Case-insensitive match of a column's reported unit against its family's
+/// [expectedUnit].
+bool _unitMatches(String expected, String actual) =>
+    actual.trim().toLowerCase() == expected;
+
 /// One column's [SeriesAssessment], tagged with the column it came from.
+///
+/// Versioned under [TriageVerdict.schemaVersion]; it carries no independent
+/// schema field of its own.
 @immutable
 final class TriageColumnAssessment {
   /// The assessed column.
@@ -147,10 +168,15 @@ final class TriageVerdict {
   final TriageBucket bucket;
 
   /// Every measured column's assessment, in [TriageColumn] declaration order.
+  ///
+  /// A column whose unit fails validation appears here as
+  /// [SeriesVerdict.insufficientData] with a `'unit mismatch'` detail —
+  /// degraded from ranking but never dropped from the record.
   final List<TriageColumnAssessment> assessments;
 
   /// One honest sentence: the named bucket + rate, `'no monotonic growth
-  /// detected'`, or an `'insufficient data: …'` listing.
+  /// detected'`, or an `'insufficient data: …'` / `'unit mismatch: …'`
+  /// listing.
   final String summary;
 
   /// Creates a verdict.
@@ -182,6 +208,11 @@ final class TriageVerdict {
 /// the summary, so no growing signal is dropped.
 ///
 /// Honesty contract:
+/// - A column whose `series.unit` does not match its family's [expectedUnit]
+///   is degraded to not-measured (a synthesized
+///   [SeriesVerdict.insufficientData] carrying a `'unit mismatch'` detail) and
+///   named in the summary — never ranked. A single bad column must not poison
+///   the whole verdict.
 /// - A bucket is named only when a primary-eligible column in it shows
 ///   monotonic growth — never inferred from a plateau, noisy, or
 ///   insufficient-data column.
@@ -196,9 +227,32 @@ TriageVerdict triage(
   AssessOptions options = const AssessOptions(),
 ]) {
   final assessments = <TriageColumnAssessment>[];
+  final unitMismatches = <TriageColumn, ({String expected, String actual})>{};
+  var validMeasuredCount = 0;
   for (final column in TriageColumn.values) {
     final series = timeline.columns[column];
     if (series == null) continue;
+    final expected = expectedUnit(column);
+    if (!_unitMatches(expected, series.unit)) {
+      // Degrade to not-measured: excluded from ranking, but recorded with an
+      // honest reason so it is neither trusted nor silently dropped.
+      unitMismatches[column] = (expected: expected, actual: series.unit);
+      assessments.add(
+        TriageColumnAssessment(
+          column: column,
+          assessment: SeriesAssessment(
+            verdict: SeriesVerdict.insufficientData,
+            slopePerHour: null,
+            batchDeltaPerHour: null,
+            samplesAssessed: 0,
+            samplesTotal: series.samples.length,
+            detail: 'unit mismatch: expected $expected, got ${series.unit}',
+          ),
+        ),
+      );
+      continue;
+    }
+    validMeasuredCount++;
     assessments.add(
       TriageColumnAssessment(
         column: column,
@@ -217,7 +271,9 @@ TriageVerdict triage(
   ];
 
   // Rank within family; bytes and count rates are never compared to each
-  // other, so bytes always takes primary when any bytes bucket grows.
+  // other, so bytes always takes primary when any bytes bucket grows. The
+  // isPrimaryColumn filter is applied symmetrically to both families, so a
+  // future corroborating count column could never be reported as primary.
   final bytesGrowers = [
     for (final a in growing)
       if (columnFamily(a.column) == TriageColumnFamily.bytes &&
@@ -226,7 +282,9 @@ TriageVerdict triage(
   ]..sort((x, y) => slopeOf(y).compareTo(slopeOf(x)));
   final countGrowers = [
     for (final a in growing)
-      if (columnFamily(a.column) == TriageColumnFamily.count) a,
+      if (columnFamily(a.column) == TriageColumnFamily.count &&
+          isPrimaryColumn(a.column))
+        a,
   ]..sort((x, y) => slopeOf(y).compareTo(slopeOf(x)));
 
   final TriageColumnAssessment? primary = bytesGrowers.isNotEmpty
@@ -244,13 +302,27 @@ TriageVerdict triage(
     return '~${_fmtRate(slopeOf(a))} $unit/h';
   }
 
+  // Generic insufficient columns exclude unit mismatches — those carry their
+  // own, more specific reason clause.
   final insufficient = [
     for (final a in assessments)
-      if (a.assessment.verdict == SeriesVerdict.insufficientData) a.column,
+      if (a.assessment.verdict == SeriesVerdict.insufficientData &&
+          !unitMismatches.containsKey(a.column))
+        a.column,
   ];
   final insufficientClause = insufficient.isEmpty
       ? null
       : 'insufficient data: ${insufficient.map((c) => c.name).join(', ')}';
+
+  final unitMismatchClause = unitMismatches.isEmpty
+      ? null
+      : unitMismatches.entries
+            .map(
+              (e) =>
+                  '${e.key.name} not measured (unit mismatch: expected '
+                  '${e.value.expected}, got ${e.value.actual})',
+            )
+            .join('; ');
 
   final corroborating = [
     for (final a in growing)
@@ -265,7 +337,8 @@ TriageVerdict triage(
     corroborating: corroborating,
     rate: rate,
     insufficientClause: insufficientClause,
-    measuredCount: assessments.length,
+    unitMismatchClause: unitMismatchClause,
+    measuredCount: validMeasuredCount,
     insufficientCount: insufficient.length,
   );
 
@@ -284,13 +357,16 @@ String _summarize({
   required List<TriageColumnAssessment> corroborating,
   required String Function(TriageColumnAssessment) rate,
   required String? insufficientClause,
+  required String? unitMismatchClause,
   required int measuredCount,
   required int insufficientCount,
 }) {
+  final parts = <String>[];
+
   if (primary != null) {
-    final parts = <String>[
+    parts.add(
       '${bucket.name} growing ${rate(primary)} (${primary.column.name})',
-    ];
+    );
     // Name every *other* distinct (bucket, family) growth signal once, by its
     // strongest column — bytes buckets first, then counts.
     final seen = <String>{
@@ -310,28 +386,29 @@ String _summarize({
       parts.add('corroborated by ${a.column.name} (${rate(a)})');
     }
     if (insufficientClause != null) parts.add(insufficientClause);
-    return parts.join('; ');
-  }
-
-  // No primary-eligible column grew.
-  if (corroborating.isNotEmpty) {
+  } else if (corroborating.isNotEmpty) {
     final names = corroborating.map((a) => '${a.column.name} ${rate(a)}');
-    final parts = <String>[
+    parts.add(
       'aggregate growth (${names.join(', ')}) — no deterministic column '
-          'isolates a bucket',
-    ];
+      'isolates a bucket',
+    );
     if (insufficientClause != null) parts.add(insufficientClause);
-    return parts.join('; ');
+  } else if (measuredCount == 0) {
+    // No validly-measured column. If everything present was a unit mismatch,
+    // the mismatch clause below carries the story; otherwise nothing measured.
+    if (unitMismatchClause == null) {
+      parts.add('insufficient data: no columns measured');
+    }
+  } else if (insufficientCount == measuredCount) {
+    // Every validly-measured column assessed as insufficient — say so, rather
+    // than implying they were flat.
+    if (insufficientClause != null) parts.add(insufficientClause);
+  } else {
+    parts.add('no monotonic growth detected');
+    if (insufficientClause != null) parts.add(insufficientClause);
   }
 
-  if (measuredCount == 0) return 'insufficient data: no columns measured';
-
-  // Every measured column assessed as insufficient — say so, rather than
-  // implying they were flat.
-  if (insufficientCount == measuredCount) return insufficientClause!;
-
-  final parts = <String>['no monotonic growth detected'];
-  if (insufficientClause != null) parts.add(insufficientClause);
+  if (unitMismatchClause != null) parts.add(unitMismatchClause);
   return parts.join('; ');
 }
 

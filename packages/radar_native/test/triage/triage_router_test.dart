@@ -218,4 +218,82 @@ void main() {
       expect(back, assessment);
     });
   });
+
+  group('unit-mismatch guard', () {
+    test("reviewer's probe: a bytes column in raw 'bytes' cannot hijack the "
+        "verdict — it is degraded, and the real 'kb' column stays primary", () {
+      // graphicsKb in raw bytes: its bytes/h slope (~2.16M) dwarfs
+      // javaHeapKb's 1440 kb/h and WOULD win primary if ranked as-is.
+      final verdict = triageOf({
+        TriageColumn.javaHeapKb: ramp('kb', perStep: 2),
+        TriageColumn.graphicsKb: ramp('bytes', perStep: 3000, start: 1000000),
+      });
+      expect(verdict.bucket, TriageBucket.javaHeap);
+      expect(
+        verdict.summary,
+        contains('unit mismatch: expected kb, got bytes'),
+      );
+      expect(verdict.summary, contains('graphicsKb'));
+      // The degraded column is not ranked, but is not silent either.
+      final graphics = verdict.assessments.firstWhere(
+        (a) => a.column == TriageColumn.graphicsKb,
+      );
+      expect(graphics.assessment.verdict, SeriesVerdict.insufficientData);
+      expect(graphics.assessment.detail, contains('unit mismatch'));
+      expect(graphics.assessment.slopePerHour, isNull);
+    });
+
+    test('a count column in the wrong unit is degraded, not ranked', () {
+      final verdict = triageOf({
+        TriageColumn.javaHeapKb: ramp('kb', perStep: 2),
+        TriageColumn.threads: ramp('threads', perStep: 5),
+      });
+      expect(verdict.bucket, TriageBucket.javaHeap);
+      expect(
+        verdict.summary,
+        contains(
+          'unit mismatch: expected count, got '
+          'threads',
+        ),
+      );
+    });
+
+    test('a lone unit-mismatched column -> none, summary is the mismatch '
+        'reason (not "no growth" and not "no columns measured")', () {
+      final verdict = triageOf({
+        TriageColumn.graphicsKb: ramp('bytes', perStep: 3000),
+      });
+      expect(verdict.bucket, TriageBucket.none);
+      expect(verdict.summary, contains('unit mismatch'));
+      expect(verdict.summary, isNot(contains('no monotonic growth')));
+      expect(verdict.summary, isNot(contains('no columns measured')));
+    });
+
+    test(
+      'matching kb units across the bytes family are never false-degraded',
+      () {
+        final verdict = triageOf({
+          TriageColumn.nativePssKb: ramp('kb', perStep: 4),
+          TriageColumn.graphicsKb: ramp('kb', perStep: 1),
+        });
+        expect(verdict.bucket, TriageBucket.nativeMalloc);
+        expect(verdict.summary, isNot(contains('unit mismatch')));
+      },
+    );
+
+    test('unit matching is case-insensitive (kB accepted for a kb column)', () {
+      final verdict = triageOf({
+        TriageColumn.nativePssKb: ramp('kB', perStep: 3),
+      });
+      expect(verdict.bucket, TriageBucket.nativeMalloc);
+      expect(verdict.summary, isNot(contains('unit mismatch')));
+    });
+
+    test('expectedUnit documents the per-family contract', () {
+      expect(expectedUnit(TriageColumn.nativePssKb), 'kb');
+      expect(expectedUnit(TriageColumn.gfxBufferKb), 'kb');
+      expect(expectedUnit(TriageColumn.threads), 'count');
+      expect(expectedUnit(TriageColumn.gfxBufferCount), 'count');
+    });
+  });
 }
