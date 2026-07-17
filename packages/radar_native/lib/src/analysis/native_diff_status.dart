@@ -16,7 +16,20 @@ enum NativeDiffStatus {
   gone,
 
   /// No change in still-live bytes.
-  flat,
+  flat;
+
+  /// Serialises to its stable enum name.
+  String toJson() => name;
+
+  /// Restores from a [toJson] name. Throws [FormatException] on an unknown
+  /// name — a corrupt status must not silently read as `flat`.
+  static NativeDiffStatus fromJson(String name) {
+    final status = NativeDiffStatus.values.asNameMap()[name];
+    if (status == null) {
+      throw FormatException('unknown NativeDiffStatus name: $name');
+    }
+    return status;
+  }
 }
 
 /// Classifies a before/after still-live byte pair. Shared by

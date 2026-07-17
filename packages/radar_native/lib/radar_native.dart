@@ -19,3 +19,5 @@ export 'src/model/native_frame.dart';
 export 'src/model/native_heap_profile.dart';
 export 'src/parse/ffi_allocation_log_parser.dart';
 export 'src/parse/native_profile_parser.dart';
+export 'src/triage/triage_router.dart';
+export 'src/triage/triage_timeline.dart';
