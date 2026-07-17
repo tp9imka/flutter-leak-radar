@@ -1,5 +1,6 @@
 import 'package:devtools_extensions/devtools_extensions.dart';
 import 'package:dtd/dtd.dart';
+import 'package:flutter/foundation.dart';
 import 'package:leak_graph/leak_graph.dart';
 import 'package:radar_workbench/radar_workbench.dart';
 
@@ -11,9 +12,17 @@ import 'package:radar_workbench/radar_workbench.dart';
 /// extension cannot launch an editor, so this is copy-only: [canOpenSource] is
 /// `false` and [openSource] never launches.
 ///
-/// Detection is resolved once and cached; [sourceLabel] reads `'workspace'`
-/// only after a successful read, never claiming a detection that didn't happen.
+/// Only a NON-EMPTY detection is cached; [sourceLabel] reads `'workspace'` only
+/// after a successful read. An empty result (DTD not ready yet, no roots) is
+/// left uncached so a later call retries — the daemon commonly connects after
+/// first paint, and caching the early empty would strand attribution at
+/// `'none'` for the whole session.
 final class DtdProjectContext implements ProjectContext {
+  /// Test seam: overrides the DTD-backed detection. Production leaves it null.
+  DtdProjectContext({@visibleForTesting Future<Set<String>> Function()? detect})
+    : _detectOverride = detect;
+
+  final Future<Set<String>> Function()? _detectOverride;
   Set<String>? _cached;
   String _label = 'none';
 
@@ -26,10 +35,14 @@ final class DtdProjectContext implements ProjectContext {
   @override
   Future<Set<String>> projectPackages() async {
     final cached = _cached;
-    if (cached != null) return cached;
-    final packages = await _detect();
-    _cached = packages;
-    _label = packages.isEmpty ? 'none' : 'workspace';
+    if (cached != null && cached.isNotEmpty) return cached;
+    final packages = await (_detectOverride ?? _detect)();
+    if (packages.isNotEmpty) {
+      _cached = packages;
+      _label = 'workspace';
+    } else {
+      _label = 'none';
+    }
     return packages;
   }
 

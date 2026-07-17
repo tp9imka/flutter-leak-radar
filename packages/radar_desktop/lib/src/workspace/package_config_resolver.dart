@@ -34,12 +34,13 @@ final class PackageConfigResolver {
         ? entry['packageUri'] as String
         : 'lib/';
 
-    // rootUri is relative to the directory holding package_config.json.
-    final base = Uri.directory(p.join(projectRoot, '.dart_tool'));
-    final packageRoot = base.resolve(_asDir(rootUri));
-    final libRoot = packageRoot.resolve(_asDir(packageUri));
-    final fileUri = relative.isEmpty ? libRoot : libRoot.resolve(relative);
     try {
+      // rootUri is relative to the directory holding package_config.json; a
+      // malformed rootUri/packageUri can throw on resolve or toFilePath.
+      final base = Uri.directory(p.join(projectRoot, '.dart_tool'));
+      final packageRoot = base.resolve(_asDir(rootUri));
+      final libRoot = packageRoot.resolve(_asDir(packageUri));
+      final fileUri = relative.isEmpty ? libRoot : libRoot.resolve(relative);
       return fileUri.toFilePath();
     } on Object {
       return null;

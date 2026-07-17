@@ -16,6 +16,10 @@ abstract interface class ProjectContext {
 
   /// How [projectPackages] was resolved, shown verbatim in the UI:
   /// `'workspace'` | `'pubspec.lock'` | `'manual'` | `'none'`.
+  ///
+  /// A host/view MAY additionally fall back to the analysis result's own
+  /// `resolvedAppPackages` when this context resolves nothing, surfaced as the
+  /// label `'analysis'` — a fifth, equally honest source outside this contract.
   String get sourceLabel;
 
   /// Whether [openSource] can actually launch an editor on this host. Drives

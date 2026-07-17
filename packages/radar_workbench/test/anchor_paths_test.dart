@@ -42,6 +42,20 @@ GraphRetainingPath _path({Uri? ownerLib, Uri? leafLib}) => GraphRetainingPath(
   rootKind: RootKind.stream,
 );
 
+/// A structurally different path (different classNames/fields) than [_path],
+/// for the mismatch branch of the anchor match gate.
+GraphRetainingPath _differentPath() => GraphRetainingPath(
+  hops: [
+    GraphHop(
+      className: 'SomeOtherOwner',
+      field: '_field',
+      libraryUri: Uri.parse('package:my_app/other.dart'),
+    ),
+    GraphHop(className: 'StreamSubscription'),
+  ],
+  rootKind: RootKind.stream,
+);
+
 GraphLeakCluster _cluster(GraphRetainingPath path, {int? anchorHopIndex}) =>
     GraphLeakCluster(
       className: 'StreamSubscription',
@@ -307,6 +321,64 @@ void main() {
       await tester.pump();
 
       expect(find.text('Representative retaining path'), findsOneWidget);
+      expect(find.text('yours'), findsOneWidget);
+    });
+
+    testWidgets('anchor stays dark when the cluster path structurally differs '
+        'from the profile path', (tester) async {
+      _setDesktopSize(tester);
+      // Profile's representative path and the cluster's anchor path have
+      // DIFFERENT hop structure, so the anchor index must NOT be applied.
+      final profilePath = _path(
+        ownerLib: Uri.parse('package:my_app/screen.dart'),
+        leafLib: Uri.parse('dart:async'),
+      );
+      final clusterPath = _differentPath();
+      final c = _controller()
+        ..debugAdd(
+          _snap(
+            path: profilePath,
+            clusters: [_cluster(clusterPath, anchorHopIndex: 0)],
+            appPackages: const ['my_app'],
+          ),
+        );
+      await tester.pumpWidget(_wrap(RetainingPathsView(controller: c)));
+      await tester.pump();
+
+      await tester.tap(find.text('StreamSubscription').first);
+      await tester.pump();
+
+      expect(find.text('Representative retaining path'), findsOneWidget);
+      expect(find.text('yours'), findsNothing);
+    });
+
+    testWidgets('anchor lights on a URI-differing but structurally equal path '
+        '(pins GraphRetainingPath.== library leniency)', (tester) async {
+      _setDesktopSize(tester);
+      // Same className/field/index hops, but the profile path carries NO
+      // library uris while the cluster path carries real ones. Structural
+      // equality ignores libraryUri, so the anchor must still light — if
+      // equality ever started comparing uris, this path would go dark.
+      final profilePath = _path();
+      final clusterPath = _path(
+        ownerLib: Uri.parse('package:my_app/screen.dart'),
+        leafLib: Uri.parse('dart:async'),
+      );
+      expect(clusterPath, profilePath); // guard: structurally equal today
+      final c = _controller()
+        ..debugAdd(
+          _snap(
+            path: profilePath,
+            clusters: [_cluster(clusterPath, anchorHopIndex: 0)],
+            appPackages: const ['my_app'],
+          ),
+        );
+      await tester.pumpWidget(_wrap(RetainingPathsView(controller: c)));
+      await tester.pump();
+
+      await tester.tap(find.text('StreamSubscription').first);
+      await tester.pump();
+
       expect(find.text('yours'), findsOneWidget);
     });
 

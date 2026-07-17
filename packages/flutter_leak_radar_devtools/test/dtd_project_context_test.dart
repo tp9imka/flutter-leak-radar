@@ -24,5 +24,30 @@ void main() {
         expect(ctx.sourceLabel, 'none');
       },
     );
+
+    test(
+      'does not cache an empty result — retries until packages resolve',
+      () async {
+        var calls = 0;
+        // DTD is not ready on the first call (empty), then connects.
+        final ctx = DtdProjectContext(
+          detect: () async {
+            calls++;
+            return calls == 1 ? const <String>{} : {'my_app'};
+          },
+        );
+
+        expect(await ctx.projectPackages(), isEmpty);
+        expect(ctx.sourceLabel, 'none');
+
+        // Second call re-detects (empty was not cached) and now resolves.
+        expect(await ctx.projectPackages(), {'my_app'});
+        expect(ctx.sourceLabel, 'workspace');
+
+        // Third call is served from the cache — detection is not re-run.
+        expect(await ctx.projectPackages(), {'my_app'});
+        expect(calls, 2);
+      },
+    );
   });
 }
