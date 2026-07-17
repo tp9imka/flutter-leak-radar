@@ -18,3 +18,4 @@ export 'src/run/native_codrive.dart';
 export 'src/run/run_clock.dart';
 export 'src/run/run_command.dart';
 export 'src/run/sampler.dart';
+export 'src/run/vm_connect.dart';

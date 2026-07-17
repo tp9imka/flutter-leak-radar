@@ -15,6 +15,7 @@ import 'native_codrive.dart';
 import 'native_codrive_io.dart';
 import 'run_clock.dart';
 import 'run_command.dart';
+import 'vm_connect.dart';
 
 /// Exit codes per the initiative-wide contract.
 const int _exitOk = 0;
@@ -93,9 +94,19 @@ Future<int> runVerb(List<String> argv) async {
     return _exitToolFailure;
   }
 
+  const clock = SystemRunClock();
   final VmService service;
   try {
-    service = await vmServiceConnectUri(wsUri);
+    // A just-spawned VM service announces its URI before it is reliably ready
+    // to accept and hold a client on a slow/loaded host, so attach with retry
+    // and a stability probe rather than a single eager connect (see
+    // connectStableVmService).
+    service = await connectStableVmService(
+      wsUri,
+      connect: vmServiceConnectUri,
+      clock: clock,
+      onRetry: (message) => stderr.writeln('warning: $message'),
+    );
   } catch (error) {
     stderr.writeln('Could not connect to $wsUri: $error');
     spawned?.kill();
@@ -113,7 +124,6 @@ Future<int> runVerb(List<String> argv) async {
     projectPackagesSource: config.projectPackagesSource,
   );
   final stem = _outStem(config.outPath);
-  const clock = SystemRunClock();
   final progress = RunProgress(
     nativeCoDrive: _buildNativeCoDrive(config, clock),
   );
