@@ -67,13 +67,15 @@ void main() {
         // concurrently, so the whole e2e costs ~one 3 min window, not two.
         final leaky = await _launchFixture('leaky_app.dart');
         if (leaky == null) return; // spawning unavailable — marked skipped
-        final healthy = await _launchFixture('healthy_app.dart');
-        if (healthy == null) {
-          leaky.kill();
-          return;
-        }
 
+        // Once leaky is spawned, the finally must kill it on ANY failure path —
+        // including a throw from the healthy launch (e.g. a URI timeout), which
+        // would otherwise orphan leaky until its 6 min self-destruct.
+        _Fixture? healthy;
         try {
+          healthy = await _launchFixture('healthy_app.dart');
+          if (healthy == null) return; // spawning unavailable — marked skipped
+
           final results = await Future.wait([
             _runAndGate(leaky.uri, 'leaky', workDir),
             _runAndGate(healthy.uri, 'healthy', workDir),
@@ -112,8 +114,9 @@ void main() {
           expect(healthyResult.gateOut, contains('GATE PASSED'));
         } finally {
           leaky.kill();
-          healthy.kill();
-          await Future.wait([leaky.exited, healthy.exited]);
+          healthy?.kill();
+          await leaky.exited;
+          if (healthy != null) await healthy.exited;
         }
       },
       timeout: const Timeout(Duration(minutes: 5)),

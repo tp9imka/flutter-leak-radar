@@ -1,7 +1,7 @@
 # Declares the `e2e` tag so `@Tags(['e2e'])` does not warn as unknown.
 #
 # The hermetic planted-leak e2e (test/e2e_gate_test.dart) spawns a real
-# subprocess and samples it for ~20 s, so it is opt-in: it skips under a bare
+# subprocess and samples it for ~3 min, so it is opt-in: it skips under a bare
 # `dart test` and runs only when RADAR_E2E=1 is set (the CI memory-selftest job
 # sets it, and can also select `-t e2e`).
 tags:

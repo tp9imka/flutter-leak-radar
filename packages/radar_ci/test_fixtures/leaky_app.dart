@@ -3,7 +3,7 @@
 // Retains one 64 KB chunk in a top-level list every 50 ms and never releases
 // it — a deliberately strong, monotonic Dart-heap leak. Run this under
 // `dart --enable-vm-service=0` so the VM prints its service URI; the e2e test
-// attaches, samples for ~20 s, and asserts the gate certifies growth (exit 3).
+// attaches, samples for ~3 min, and asserts the gate certifies growth (exit 3).
 //
 // Not a `package:test` test — a plain script spawned as a subprocess. It keeps
 // itself alive with a periodic timer and self-destructs after [_maxLifetime]
