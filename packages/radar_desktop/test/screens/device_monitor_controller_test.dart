@@ -192,6 +192,102 @@ void main() {
       },
     );
 
+    test(
+      'a session ended interrupted/error is flagged thin evidence',
+      () async {
+        final files = _FakeFiles({
+          '/s/aborted/timeline.json': _timelineJson(growing: false),
+          '/s/aborted/meta.json': jsonEncode({'endReason': 'interrupted'}),
+        });
+        final controller = DeviceMonitorController(readFile: files.read);
+        addTearDown(controller.dispose);
+
+        await controller.importPrimary('/s/aborted/timeline.json');
+
+        // A flat (no-growth) session that did not complete is thinner
+        // evidence — surfaced like an aborted run, never a clean green.
+        expect(controller.primary!.aborted, isTrue);
+      },
+    );
+
+    test('a completed session is not flagged as thin evidence', () async {
+      final files = _FakeFiles({
+        '/s/done/timeline.json': _timelineJson(growing: false),
+        '/s/done/meta.json': jsonEncode({'endReason': 'completed'}),
+      });
+      final controller = DeviceMonitorController(readFile: files.read);
+      addTearDown(controller.dispose);
+
+      await controller.importPrimary('/s/done/timeline.json');
+
+      expect(controller.primary!.aborted, isFalse);
+    });
+
+    test('a session with unknown endReason is not flagged aborted', () async {
+      // No meta.json → provenance null → endReason unknown, never guessed.
+      final files = _FakeFiles({
+        '/s/run3/timeline.json': _timelineJson(growing: false),
+      });
+      final controller = DeviceMonitorController(readFile: files.read);
+      addTearDown(controller.dispose);
+
+      await controller.importPrimary('/s/run3/timeline.json');
+
+      expect(controller.primary!.aborted, isFalse);
+    });
+
+    test(
+      'a co-driven run.json surfaces the native lane, never Dart-only',
+      () async {
+        final doc = RadarRunDocument(
+          metadata: RunMetadata(startedAt: DateTime.utc(2026, 7, 1)),
+          series: [_ramp('bytes')],
+          checkpoints: const [
+            RunCheckpoint(tMicros: 0, label: 'start', allocationTopN: {}),
+          ],
+          nativeTimeline: TriageTimeline(
+            columns: {
+              TriageColumn.javaHeapKb: _ramp('kb'),
+              TriageColumn.threads: _flat('count', value: 12),
+            },
+            marks: const [],
+          ),
+        );
+        final files = _FakeFiles({
+          '/runs/codrive.json': jsonEncode(doc.toJson()),
+        });
+        final controller = DeviceMonitorController(readFile: files.read);
+        addTearDown(controller.dispose);
+
+        await controller.importPrimary('/runs/codrive.json');
+
+        final analysis = controller.primary!;
+        // The native columns are surfaced as plotted, assessed series.
+        expect(
+          analysis.series.map((s) => s.column),
+          containsAll(<TriageColumn?>[
+            TriageColumn.javaHeapKb,
+            TriageColumn.threads,
+          ]),
+        );
+        // The summary must not claim a Dart-only run.
+        expect(analysis.summary, isNot(contains('(Dart VM memory)')));
+        expect(analysis.summary, contains('native'));
+      },
+    );
+
+    test('a plain run.json (no native lane) still reads Dart-only', () async {
+      final files = _FakeFiles({'/runs/run.json': _runJson()});
+      final controller = DeviceMonitorController(readFile: files.read);
+      addTearDown(controller.dispose);
+
+      await controller.importPrimary('/runs/run.json');
+
+      final analysis = controller.primary!;
+      expect(analysis.series.every((s) => s.column == null), isTrue);
+      expect(analysis.summary, contains('Dart VM memory'));
+    });
+
     test('a malformed (non-JSON) file → error state, no crash', () async {
       final files = _FakeFiles({'/bad/timeline.json': 'not json at all {{{'});
       final controller = DeviceMonitorController(readFile: files.read);

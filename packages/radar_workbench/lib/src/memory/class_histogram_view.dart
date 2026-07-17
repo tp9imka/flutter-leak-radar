@@ -66,6 +66,7 @@ class ClassHistogramView extends StatelessWidget {
         final analysis = snapshot.analysisResult;
         return _HistogramBody(
           key: ValueKey(snapshot.id),
+          analysis: analysis,
           entries: snapshot.histogram,
           profiles: {
             for (final p in analysis.classRootProfiles) p.className: p,
@@ -99,6 +100,7 @@ enum _HistSortKey { className, instances, bytes, pctHeap }
 class _HistogramBody extends StatefulWidget {
   const _HistogramBody({
     super.key,
+    required this.analysis,
     required this.entries,
     required this.profiles,
     required this.distributions,
@@ -106,6 +108,7 @@ class _HistogramBody extends StatefulWidget {
     required this.projectPackages,
   });
 
+  final GraphAnalysisResult analysis;
   final List<ClassCount> entries;
   final Map<String, ClassRootProfile> profiles;
   final Map<String, ClassPathDistribution> distributions;
@@ -351,6 +354,11 @@ class _HistogramBodyState extends State<_HistogramBody> {
             distribution: _selected == null
                 ? null
                 : widget.distributions[_selected],
+            projectPackages: widget.projectPackages,
+            representativeAnchorHopIndex: representativeAnchorHopIndexFor(
+              widget.analysis,
+              _selected == null ? null : widget.profiles[_selected],
+            ),
           ),
         ),
       ],

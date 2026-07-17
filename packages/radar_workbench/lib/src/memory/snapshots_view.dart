@@ -161,6 +161,12 @@ class _SnapshotsViewState extends State<SnapshotsView> {
             className: _selectedClass,
             profile: _profileFor(_selectedClass, comparison),
             distribution: _distributionFor(_selectedClass, comparison),
+            projectPackages: comparison.analysisResult.resolvedAppPackages
+                .toSet(),
+            representativeAnchorHopIndex: representativeAnchorHopIndexFor(
+              comparison.analysisResult,
+              _profileFor(_selectedClass, comparison),
+            ),
             headerTrailing: selectedDiff == null
                 ? null
                 : againstEmpty

@@ -76,13 +76,6 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
     );
   }
 
-  int get _growth {
-    final s = widget.finding.series;
-    if (s.length > 1) return s.last - s.first;
-    if (s.isNotEmpty) return s.last;
-    return 0;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -150,7 +143,7 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
               Text(
                 widget.finding.series.isEmpty
                     ? 'still live after disposal'
-                    : 'grew +$_growth over '
+                    : 'grew +${widget.finding.growth} over '
                           '${widget.finding.series.length} captures',
                 style: monoFont(fontSize: 11, color: LeakRadarColors.text40),
                 overflow: TextOverflow.ellipsis,
@@ -186,7 +179,9 @@ class _FindingDetailScreenState extends State<FindingDetailScreen> {
           Expanded(
             child: RadarMetricTile(
               label: 'GROWTH',
-              value: widget.finding.series.isEmpty ? '—' : '+$_growth',
+              value: widget.finding.series.isEmpty
+                  ? '—'
+                  : '+${widget.finding.growth}',
             ),
           ),
           const SizedBox(width: 8),

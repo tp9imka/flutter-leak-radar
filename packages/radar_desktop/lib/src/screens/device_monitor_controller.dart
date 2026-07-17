@@ -106,8 +106,10 @@ final class MonitorAnalysis {
   /// input. Null for a run.json.
   final TriageSession? session;
 
-  /// Whether the source artifact ended early (a run.json with
-  /// `completed: false`) — thinner evidence, surfaced with emphasis.
+  /// Whether the source artifact ended early — a run.json with
+  /// `completed: false`, or a native session whose `endReason` is a known
+  /// non-completed value (`interrupted`/`error`). Thinner evidence, surfaced
+  /// with emphasis rather than reading a clean green off an early exit.
   final bool aborted;
 }
 
@@ -288,10 +290,20 @@ class DeviceMonitorController extends ChangeNotifier {
       bucket: verdict.bucket,
       provenance: provenance,
       session: session,
+      aborted: _sessionEndedEarly(provenance),
     );
   }
 
+  /// A session ended early when its recorded `endReason` is a known
+  /// non-completed value. An absent/unknown reason is never guessed to be an
+  /// abort (best-effort provenance), so only `interrupted`/`error` escalate.
+  bool _sessionEndedEarly(SessionProvenance? provenance) {
+    final reason = provenance?.endReason;
+    return reason != null && reason != 'completed';
+  }
+
   MonitorAnalysis _analyzeRun(RadarRunDocument doc, String path) {
+    final native = doc.nativeTimeline;
     final series = [
       for (final s in doc.series)
         MonitorSeries(
@@ -300,6 +312,18 @@ class DeviceMonitorController extends ChangeNotifier {
           assessment: assessSeries(s, _options),
           column: null,
         ),
+      // A `--native-package` co-drive carries a native timeline alongside the
+      // Dart series — surface its columns as plotted, assessed series rather
+      // than dropping them and mislabelling the run "Dart VM memory". Full
+      // native-lane router analysis / compare is a follow-up.
+      if (native != null)
+        for (final entry in native.columns.entries)
+          MonitorSeries(
+            label: entry.key.name,
+            series: entry.value,
+            assessment: assessSeries(entry.value, _options),
+            column: entry.key,
+          ),
     ];
     return MonitorAnalysis(
       label: _fileLabel(path),
@@ -355,7 +379,13 @@ class DeviceMonitorController extends ChangeNotifier {
     final ended = meta.completed
         ? 'completed'
         : 'ended early${meta.abortReason != null ? ': ${meta.abortReason}' : ''}';
-    return 'radar_ci run — $n metric series (Dart VM memory), $ended';
+    final native = doc.nativeTimeline;
+    final lane = native == null
+        ? '$n metric series (Dart VM memory)'
+        : '$n Dart VM series + native lane '
+              '(${native.columns.length} column'
+              '${native.columns.length == 1 ? '' : 's'})';
+    return 'radar_ci run — $lane, $ended';
   }
 
   SessionProvenance _runProvenance(RunMetadata m) => SessionProvenance(

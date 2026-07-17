@@ -90,6 +90,28 @@ void main() {
       expect(find.text('+3'), findsWidgets);
     });
 
+    testWidgets(
+      'GROWTH tile and header render finding.growth, not last-first',
+      (tester) async {
+        await LeakRadar.debugInstall(
+          LeakEngine(
+            probe: const NoopHeapProbe(),
+            analyzer: LeakAnalyzer(SuspectSet.empty()),
+          ),
+        );
+        // finding.growth (last - min-baseline) = 6, but last - first = 3. The
+        // detail screen must show the same number as the list row (+6).
+        final finding = testFinding(series: [3, 4, 6], growth: 6);
+        await tester.pumpWidget(_wrap(FindingDetailScreen(finding: finding)));
+        await tester.pumpAndSettle();
+
+        expect(find.text('+6'), findsOneWidget); // GROWTH tile
+        expect(find.textContaining('grew +6'), findsOneWidget); // header
+        expect(find.text('+3'), findsNothing);
+        expect(find.textContaining('grew +3'), findsNothing);
+      },
+    );
+
     testWidgets('shows Tracked status when tag set', (tester) async {
       await LeakRadar.debugInstall(
         LeakEngine(

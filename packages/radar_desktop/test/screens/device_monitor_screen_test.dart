@@ -148,6 +148,60 @@ void main() {
     expect(banner.message, contains('ended early'));
   });
 
+  testWidgets(
+    'an interrupted session with no growth still warns (thin evidence)',
+    (tester) async {
+      final files = _FakeFiles({
+        '/s/aborted/timeline.json': _timelineJson(growing: false),
+        '/s/aborted/meta.json': jsonEncode({'endReason': 'interrupted'}),
+      });
+      final controller = DeviceMonitorController(readFile: files.read);
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        _host(DeviceMonitorScreen(controller: controller)),
+      );
+      await controller.importPrimary('/s/aborted/timeline.json');
+      await tester.pump();
+
+      // The router summary banner is the first (and only) RadarBanner here.
+      final banner = tester.widget<RadarBanner>(find.byType(RadarBanner).first);
+      expect(banner.severity, RadarSeverity.warning);
+    },
+  );
+
+  testWidgets('a co-driven run.json renders the native columns', (
+    tester,
+  ) async {
+    final doc = RadarRunDocument(
+      metadata: RunMetadata(startedAt: DateTime.utc(2026, 7, 1)),
+      series: [_ramp('bytes')],
+      checkpoints: const [
+        RunCheckpoint(tMicros: 0, label: 'start', allocationTopN: {}),
+      ],
+      nativeTimeline: TriageTimeline(
+        columns: {TriageColumn.javaHeapKb: _ramp('kb')},
+        marks: const [],
+      ),
+    );
+    final files = _FakeFiles({'/runs/codrive.json': jsonEncode(doc.toJson())});
+    final controller = DeviceMonitorController(readFile: files.read);
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(_host(DeviceMonitorScreen(controller: controller)));
+    await controller.importPrimary('/runs/codrive.json');
+    await tester.pump();
+
+    // The native column is legended as its own series (not dropped).
+    expect(find.text('javaHeapKb'), findsWidgets);
+    final banner = tester.widget<RadarBanner>(
+      find.byWidgetPredicate(
+        (w) => w is RadarBanner && w.message.contains('radar_ci run'),
+      ),
+    );
+    expect(banner.message, contains('native'));
+  });
+
   testWidgets('a malformed file shows an error panel and never a chart', (
     tester,
   ) async {
