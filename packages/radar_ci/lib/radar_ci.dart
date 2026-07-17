@@ -10,6 +10,7 @@
 /// `bin/radar_ci.dart`.
 library;
 
+export 'src/gate/verdict_gate.dart';
 export 'src/model/run_document.dart';
 export 'src/run/attach.dart';
 export 'src/run/checkpoint.dart';

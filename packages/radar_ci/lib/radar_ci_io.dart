@@ -4,4 +4,6 @@
 /// and parsing surface stays importable from non-io contexts (tests, tools).
 library;
 
+export 'src/gate/gate_command.dart';
+export 'src/report/report_command.dart';
 export 'src/run/run_io.dart';
