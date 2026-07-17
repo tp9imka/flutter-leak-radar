@@ -136,8 +136,14 @@ enum FixTransition {
   /// Grew before and still grows after — not fixed.
   persists,
 
-  /// Did not grow before but grows after — a regression.
+  /// Bounded (plateau) before but grows after — a genuine regression against a
+  /// clean baseline.
   regressed,
+
+  /// Grows after, but the before side was noisy/insufficient (not a bounded
+  /// plateau) — real growth, but can't be called a regression against an
+  /// unassessable baseline.
+  newlyGrowing,
 
   /// Measured on both sides, growing on neither — stable.
   stable,
@@ -186,8 +192,17 @@ final class ColumnComparison {
     final grewBefore = _grows(b);
     final growsAfter = _grows(a);
     if (grewBefore && growsAfter) return FixTransition.persists;
-    if (!grewBefore && growsAfter) return FixTransition.regressed;
-    if (grewBefore && !growsAfter) {
+    if (growsAfter) {
+      // After grows and before did not. Calling it a regression asserts the
+      // before side was a clean baseline, so it needs a *bounded* (plateau)
+      // before — the mirror of the resolved guard below. A noisy/insufficient
+      // before could not vouch for "was clean", so it routes to the honest
+      // newly-growing outcome instead of a false regression.
+      return b.verdict == SeriesVerdict.plateau
+          ? FixTransition.regressed
+          : FixTransition.newlyGrowing;
+    }
+    if (grewBefore) {
       // A noisy/insufficient after cannot certify a fix — only a bounded
       // (plateau) after does.
       return a.verdict == SeriesVerdict.plateau
@@ -313,6 +328,10 @@ String _headline(
       .where((c) => c.transition == FixTransition.persists)
       .map((c) => c.column.name)
       .toList();
+  final newlyGrowing = comparisons
+      .where((c) => c.transition == FixTransition.newlyGrowing)
+      .map((c) => c.column.name)
+      .toList();
 
   if (persists.isNotEmpty) {
     return 'Still leaking: ${persists.join(', ')} '
@@ -321,6 +340,12 @@ String _headline(
   if (regressed.isNotEmpty) {
     return 'Regression: ${regressed.join(', ')} '
         'now grow(s) where the before session was clean.${_caveat(comparisons)}';
+  }
+  if (newlyGrowing.isNotEmpty) {
+    return 'New growth: ${newlyGrowing.join(', ')} grow(s) in the after '
+        'session, but the before side was inconclusive there — can\'t tell a '
+        'regression from a pre-existing leak the before run could not '
+        'assess.${_caveat(comparisons)}';
   }
   if (before.verdict.bucket != TriageBucket.none &&
       after.verdict.bucket == TriageBucket.none) {
@@ -360,6 +385,7 @@ bool _isNoteworthy(FixTransition t) =>
     t == FixTransition.resolved ||
     t == FixTransition.persists ||
     t == FixTransition.regressed ||
+    t == FixTransition.newlyGrowing ||
     t == FixTransition.inconclusive ||
     t == FixTransition.measuredBeforeOnly ||
     t == FixTransition.measuredAfterOnly;
@@ -378,6 +404,10 @@ String _outcomeLine(ColumnComparison c) {
     case FixTransition.regressed:
       return '$name: not growing → ${_slopeText(c.column, c.after)} — '
           'regression';
+    case FixTransition.newlyGrowing:
+      return '$name: ${c.before!.verdict.name} before → '
+          '${_slopeText(c.column, c.after)} — newly growing '
+          '(before not a clean baseline)';
     case FixTransition.inconclusive:
       return '$name: ${_slopeText(c.column, c.before)} → '
           '${c.after!.verdict.name} — inconclusive (after not bounded)';

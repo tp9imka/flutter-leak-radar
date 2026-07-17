@@ -33,10 +33,10 @@ const int _exitUsage = 2;
 /// - the capture itself runs via [NativeHeapCapture]; an `adb`-level failure
 ///   ([AdbException]) exits 1;
 /// - post-capture VALIDATION — the trace is parsed through the real
-///   `trace_processor` seam and must contain at least one still-live
-///   heap_profile allocation ([PreflightCheck.capturedHeapData]); an empty
-///   trace exits 2 (a byte-size guard would not have caught it), a
-///   `trace_processor` process failure exits 1.
+///   `trace_processor` seam and must contain at least one heap_profile
+///   allocation ([PreflightCheck.capturedHeapData]); an empty trace exits 2 (a
+///   byte-size guard would not have caught it), a `trace_processor` process
+///   failure exits 1.
 ///
 /// [adb], [capture], and [validator] are injectable seams; when omitted, real
 /// process-backed implementations are constructed, with `trace_processor`
@@ -134,10 +134,10 @@ Future<int> runCapture(
     _reportCheck(
       errSink,
       PreflightCheck.capturedHeapData,
-      'captured trace $tracePath contains no still-live heap_profile '
-      'allocations — heapprofd produced no data (wrong process, the app never '
-      'allocated under sampling, or profiling was silently denied). A byte '
-      'count alone would not have caught this',
+      'captured trace $tracePath contains no heap_profile allocations — '
+      'heapprofd produced no data (wrong process, the app never allocated '
+      'under sampling, or profiling was silently denied). A byte count alone '
+      'would not have caught this',
     );
     return _exitUsage;
   }

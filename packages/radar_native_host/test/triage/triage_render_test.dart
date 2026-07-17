@@ -1,5 +1,6 @@
 import 'package:radar_native/radar_native.dart';
 import 'package:radar_native_host/radar_native_host.dart';
+import 'package:radar_trace/radar_trace.dart';
 import 'package:test/test.dart';
 
 import 'triage_test_support.dart';
@@ -175,6 +176,37 @@ void main() {
 
       final md = renderCompareMarkdown(before, after);
       expect(md, contains('Regression'));
+    });
+
+    test('growing after an UNASSESSABLE before is newly-growing, never a '
+        'false regression', () {
+      // Insufficient-data before + growing after. Claiming "regression" would
+      // assert a clean before baseline that was actually unmeasurable — the
+      // mirror of over-claiming "resolved" on an unbounded after.
+      final before = _session(
+        'before',
+        TriageTimeline(
+          columns: {TriageColumn.codeKb: shortSeries('code', 'kb')},
+        ),
+      );
+      final after = _session(
+        'after',
+        TriageTimeline(
+          columns: {TriageColumn.codeKb: growingSeries('code', 'kb')},
+        ),
+      );
+
+      final comparisons = compareColumns(before, after);
+      final code = comparisons.firstWhere(
+        (c) => c.column == TriageColumn.codeKb,
+      );
+      expect(code.before!.verdict, SeriesVerdict.insufficientData);
+      expect(code.transition, FixTransition.newlyGrowing);
+
+      final md = renderCompareMarkdown(before, after);
+      expect(md, contains('New growth'));
+      expect(md, contains('newly growing'));
+      expect(md, isNot(contains('Regression')));
     });
   });
 
