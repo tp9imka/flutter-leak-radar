@@ -62,6 +62,11 @@ class DesktopRail extends StatelessWidget {
             ])
               _item(v, enabled: true),
             const SizedBox(height: 14),
+            // Import-first, so always active even offline; its live tab gates
+            // itself on the connection internally.
+            _group('DEVICE'),
+            _item(DesktopView.deviceMonitor, enabled: true),
+            const SizedBox(height: 14),
             _group('SETUP'),
             // Always enabled, even offline: the Tools screen is how a
             // user fixes a missing external tool in the first place, so

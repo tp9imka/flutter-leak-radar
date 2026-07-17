@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:radar_desktop/src/app/desktop_view.dart';
+import 'package:radar_desktop/src/screens/device_monitor_screen.dart';
 import 'package:radar_desktop/src/screens/dumps_screen.dart';
 import 'package:radar_desktop/src/screens/tools_screen.dart';
 import 'package:radar_desktop/src/screens/trends_screen.dart';
@@ -152,6 +153,25 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(TrendsScreen), findsOneWidget);
   });
+
+  testWidgets(
+    'the Device Monitor destination routes to DeviceMonitorScreen offline '
+    '(import-first is not connection-gated)',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: DesktopShell(tools: _fakeTools())),
+      );
+
+      // DEVICE sits below the memory/perf/stability/android groups — scroll
+      // it into view before tapping.
+      await tester.ensureVisible(find.text('Device Monitor'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Device Monitor'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DeviceMonitorScreen), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'the Tools destination routes to ToolsScreen even while offline',
