@@ -1,0 +1,4 @@
+Applications Memory Usage (in Kilobytes):
+Uptime: 884451233 Realtime: 884451233
+
+No process found for: com.example.app

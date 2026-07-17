@@ -12,6 +12,7 @@ resolution: workspace
 
 dependencies:
   radar_native: ^0.1.0
+  radar_trace: ^0.2.0
   meta: ^1.15.0
 
 dev_dependencies:

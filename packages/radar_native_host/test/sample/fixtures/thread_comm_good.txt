@@ -1,0 +1,16 @@
+main
+Jit thread pool
+Signal Catcher
+HeapTaskDaemon
+ReferenceQueueD
+FinalizerDaemon
+FinalizerWatchd
+Binder:12345_1
+Binder:12345_2
+Binder:12345_3
+RenderThread
+hwuiTask0
+hwuiTask1
+pool-1-thread-1
+pool-1-thread-2
+pool-1-thread-3

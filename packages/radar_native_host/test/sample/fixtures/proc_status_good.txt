@@ -1,0 +1,33 @@
+Name:	com.example.app
+Umask:	0077
+State:	S (sleeping)
+Tgid:	12345
+Ngid:	0
+Pid:	12345
+PPid:	1180
+TracerPid:	0
+Uid:	10234	10234	10234	10234
+Gid:	10234	10234	10234	10234
+FDSize:	512
+Groups:	3003 9997 20234 50234
+VmPeak:	 15987654 kB
+VmSize:	 15012340 kB
+VmLck:	       0 kB
+VmPin:	       0 kB
+VmHWM:	  345678 kB
+VmRSS:	  312044 kB
+RssAnon:	  128360 kB
+RssFile:	  172684 kB
+RssShmem:	   11000 kB
+VmData:	 2456780 kB
+VmStk:	     132 kB
+VmExe:	      20 kB
+VmLib:	  246800 kB
+VmPTE:	    2400 kB
+VmSwap:	    1234 kB
+Threads:	87
+SigQ:	0/12800
+SigPnd:	0000000000000000
+ShdPnd:	0000000000000000
+voluntary_ctxt_switches:	1204553
+nonvoluntary_ctxt_switches:	88123
