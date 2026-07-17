@@ -9,12 +9,13 @@ on:
   pull_request:
     types: [opened, reopened, ready_for_review]
 
-engine: claude
+engine: copilot
 
 permissions:
   contents: read
   pull-requests: read
   actions: read
+  copilot-requests: write
 
 network: defaults
 

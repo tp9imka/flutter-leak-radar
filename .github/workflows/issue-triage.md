@@ -11,7 +11,11 @@ on:
     types: [opened, reopened]
   reaction: eyes
 
-permissions: read-all
+permissions:
+  contents: read
+  issues: read
+  actions: read
+  copilot-requests: write
 
 network: defaults
 
@@ -37,7 +41,7 @@ tools:
     min-integrity: none # This workflow is allowed to examine and comment on any issues
 
 timeout-minutes: 10
-engine: claude
+engine: copilot
 
 source: githubnext/agentics/workflows/issue-triage.md@1c6668b751c51af8571f01204ceffb19362e0f66
 ---
