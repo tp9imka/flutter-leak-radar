@@ -1,0 +1,175 @@
+# radar_ci — memory gate for your CI (copy + adapt)
+# ---------------------------------------------------------------------------
+# A verdict-based memory gate around a real profile-mode run of YOUR app. It
+# fails a PR (exit 3) when a tracked memory signal grows monotonically, or when
+# a NEW leak cluster anchored in your own code appears versus a baseline.
+#
+# This file documents TWO lanes — pick ONE, delete the other:
+#
+#   Lane A  main-branch baseline artifact + PR fetch-and-compare
+#           Strongest signal: PRs are compared against a baseline captured from
+#           a known-good `main`. Needs cross-workflow artifact download.
+#
+#   Lane B  two-run-compare (no persisted baseline)
+#           Self-contained: one job checks out base AND head, captures a
+#           baseline from base, and gates head against it. No artifact plumbing.
+#
+# CADENCE — READ THIS. `radar_ci gate`/`report` certify growth with
+# radar_trace's field-proven defaults: a 30 s settle plus a 2 min minimum
+# assessed span, over >= 12 post-settle samples. So the run must be > ~2.5 min
+# of wall time (e.g. `--duration 5m --sample-interval 5s`). A shorter run reads
+# `insufficientData` and NEVER fails — honest, but it certifies nothing.
+#
+# RUNNER VARIANCE — READ THIS TOO. Absolute RSS/heap numbers differ run-to-run
+# and runner-to-runner. The DEFAULT gate is variance-tolerant: it keys on the
+# growth *shape* (monotonic trend) and on NEW clusters, not on absolute bytes.
+# The opt-in byte-absolute thresholds (`--max-heap-growth` etc.) are NOT
+# variance-tolerant — only add them with generous headroom, if at all.
+# ---------------------------------------------------------------------------
+
+name: Memory
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# =========================================================================
+# Lane A — main-branch baseline artifact + PR fetch-and-compare
+# =========================================================================
+jobs:
+  # ---- A1: on every push to main, publish a fresh baseline artifact --------
+  baseline:
+    name: publish main baseline
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+
+      # Capture a real run of your app. Supply a target that actually runs in
+      # CI — a profile-mode app on a CI-available device/desktop, or attach via
+      # `--vm-uri` to one you launch in a previous step.
+      - name: Capture main run
+        run: |
+          dart run radar_ci run \
+            --cmd "flutter run --profile -d linux" \
+            --duration 5m --sample-interval 5s \
+            -o run.json                                   # <-- adjust the --cmd
+
+      # Write a baseline from the freshest heap analysis in that run. (A gate
+      # with --write-baseline both gates and emits the baseline; here main is
+      # assumed green.)
+      - name: Write baseline
+        run: dart run radar_ci gate run.json --write-baseline baseline.json
+
+      - name: Publish baseline artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: radar-memory-baseline
+          path: baseline.json
+          retention-days: 90
+
+  # ---- A2: on every PR, fetch the main baseline and gate against it --------
+  gate-pr:
+    name: gate PR vs main baseline
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+
+      # Fetch the newest baseline published by the A1 job on main. The built-in
+      # download-artifact only sees artifacts from the SAME run, so use a
+      # cross-run downloader (dawidd6/action-download-artifact is common) keyed
+      # to the CI workflow on the main branch.
+      - name: Fetch main baseline
+        uses: dawidd6/action-download-artifact@v6              # <-- or equivalent
+        with:
+          workflow: memory.yaml
+          branch: main
+          name: radar-memory-baseline
+          path: .
+        continue-on-error: true   # first-ever PR has no baseline yet
+
+      - name: Capture PR run
+        run: |
+          dart run radar_ci run \
+            --cmd "flutter run --profile -d linux" \
+            --duration 5m --sample-interval 5s \
+            -o run.json                                   # <-- adjust the --cmd
+
+      # Gate. With a baseline it fails on NEW project-anchor clusters too; the
+      # growth verdict fires with or without one. Absent baseline (first PR),
+      # the growth-only gate still runs.
+      - name: Gate
+        run: |
+          if [ -f baseline.json ]; then
+            dart run radar_ci gate run.json --baseline baseline.json
+          else
+            echo "No baseline yet — growth-only gate."
+            dart run radar_ci gate run.json
+          fi
+
+      # Human-readable report into the PR's job summary (GitHub-flavored md).
+      - name: Report to job summary
+        if: always()
+        run: |
+          dart run radar_ci report run.json \
+            ${{ hashFiles('baseline.json') != '' && '--baseline baseline.json' || '' }} \
+            --format github >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload run.json
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: radar-memory-pr-run
+          path: run.json
+
+# =========================================================================
+# Lane B — two-run-compare (no persisted baseline)
+# -------------------------------------------------------------------------
+# Delete Lane A above and uncomment this job to compare head against base
+# inside a single PR run — no cross-workflow artifact plumbing.
+# =========================================================================
+#
+#  compare:
+#    name: gate head vs base (same job)
+#    if: github.event_name == 'pull_request'
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: subosito/flutter-action@v2
+#        with:
+#          channel: stable
+#
+#      # 1. Baseline from the PR's BASE commit.
+#      - name: Capture base
+#        run: |
+#          git checkout ${{ github.event.pull_request.base.sha }}
+#          flutter pub get
+#          dart run radar_ci run --cmd "flutter run --profile -d linux" \
+#            --duration 5m --sample-interval 5s -o base.json    # <-- adjust
+#          dart run radar_ci gate base.json --write-baseline baseline.json
+#
+#      # 2. Candidate from the PR HEAD, gated against that baseline.
+#      - name: Capture head + gate
+#        run: |
+#          git checkout ${{ github.event.pull_request.head.sha }}
+#          flutter pub get
+#          dart run radar_ci run --cmd "flutter run --profile -d linux" \
+#            --duration 5m --sample-interval 5s -o head.json    # <-- adjust
+#          dart run radar_ci gate head.json --baseline baseline.json
+#
+#      - name: Report to job summary
+#        if: always()
+#        run: |
+#          dart run radar_ci report head.json --baseline baseline.json \
+#            --format github >> "$GITHUB_STEP_SUMMARY"
