@@ -75,6 +75,30 @@ reachable only from non-live roots are reported as `LeakKind.retainedByNonLiveRo
 findings in the dashboard. You can also call `LeakRadar.graphScanNow()` from the
 dashboard's manual-scan button to trigger it on demand.
 
+## Driving the self-test headlessly (`ext.radarscope.selftest`)
+
+`main.dart` registers a VM service extension, `ext.radarscope.selftest`, that
+runs the same open/pop/scan cycle as the on-screen **Run leak self-test**
+button (`leak_self_test.dart`) — but on demand, over the VM service. That gives
+the headless CI front door, [`radar_ci`](../packages/radar_ci/), a real target
+to fire between sampling checkpoints:
+
+```bash
+# Spawn this app in profile mode, sample memory, and trigger the leak scenario
+# between checkpoints so the growth is captured in run.json:
+dart run radar_ci run \
+  --cmd "flutter run --profile -d macos" \
+  --call-extension ext.radarscope.selftest \
+  -o run.json
+dart run radar_ci gate run.json      # exit 3 once the leak grows monotonically
+```
+
+The extension resolves the live `NavigatorState` at call time, responds
+`{"ran": true}` after one full cycle, and is a no-op in release builds (VM
+service extensions are unavailable there). It follows the repo's
+`ext.<package>.<action>` naming, matching `flutter_perf_radar`'s
+`ext.perf_radar.snapshot`.
+
 ## Runtime detector setup
 
 `main.dart` wires the detector with:

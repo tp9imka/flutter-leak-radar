@@ -17,7 +17,11 @@ import 'package:radarscope/radarscope.dart';
 import 'leak_self_test.dart';
 import 'leaky_bloc_screen.dart';
 import 'leaky_screen.dart';
+import 'self_test_extension.dart';
 import 'showcase/showcase_home.dart';
+
+/// Resolves the live navigator for the `ext.radarscope.selftest` extension.
+final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,6 +53,8 @@ Future<void> main() async {
       ),
     ),
   );
+  // Give `radar_ci run --call-extension ext.radarscope.selftest` a real target.
+  registerSelfTestExtension(_navigatorKey);
   runApp(const _App());
 }
 
@@ -60,6 +66,7 @@ class _App extends StatelessWidget {
     return Radar.overlay(
       child: MaterialApp(
         title: 'Radar Showcase',
+        navigatorKey: _navigatorKey,
         debugShowCheckedModeBanner: false,
         theme: ThemeData.dark(useMaterial3: true).copyWith(
           colorScheme: ColorScheme.fromSeed(

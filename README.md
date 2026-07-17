@@ -79,6 +79,42 @@ companion](packages/flutter_leak_radar_devtools/) alongside your running app,
 or launch [Radar Desktop](packages/radar_desktop/) for offline heap-dump /
 trace analysis, live connected-mode inspection, and Android native profiling.
 
+## Radar in CI
+
+[`radar_ci`](packages/radar_ci/) is the headless front door — no Flutter
+dependency, runs anywhere the Dart VM does. It attaches to (or spawns) a real
+profile-mode run of your app, samples memory into gap-aware series, and gates
+the result.
+
+```shell
+# 1. Capture a run (spawn the app and attach automatically):
+dart run radar_ci run --cmd "flutter run --profile -d <device>" -o run.json
+
+# 2. Gate it — exit 3 fails the build on a real leak:
+dart run radar_ci gate run.json
+
+# 3. (optional) Render a report into a PR / step summary:
+dart run radar_ci report run.json --format github
+```
+
+**Exit-code contract:** `0` ok · `1` usage error · `2` tool failure
+(spawn/attach, a partial run, or a gate that could not be evaluated) · `3`
+**gate failed** — a tracked signal (`dart.heap.used` / `dart.external` /
+`process.rss`) grew monotonically, or a NEW cluster anchored in your own code
+appeared versus a `--baseline`. `insufficientData` / `noisy` / `plateau` never
+fail.
+
+**Cadence matters.** Growth is certified with radar_trace's field-proven
+defaults — a 30 s settle plus a 2 min minimum assessed span over ≥ 12
+post-settle samples — so give it a run longer than ~2.5 min (e.g. `--duration
+5m --sample-interval 5s`). A shorter run reads `insufficientData` and certifies
+nothing, honestly, rather than guessing.
+
+This repo dogfoods its own gate: the **memory-selftest** CI job runs a hermetic
+planted leak through the full pipeline on every push. Copy-and-adapt workflow
+templates (main-branch baseline artifact, or two-run compare) live in
+[`examples/ci/memory.yaml`](examples/ci/memory.yaml).
+
 ## Documentation
 
 See [`docs/`](docs/) for architecture notes, the design handoff, and platform
