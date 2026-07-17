@@ -146,11 +146,79 @@ jobs:
 
       # radar_ci is pure Dart (headless CI front door: attach/spawn, sampled
       # memory series, checkpoints, run.json). Its VM-service tests use
-      # hand-rolled fakes; the real-attach smoke is manual.
+      # hand-rolled fakes; the real-attach e2e is the memory-selftest job below.
       - name: Analyze radar_ci
         run: dart analyze
         working-directory: packages/radar_ci
 
+      # The e2e (tag `e2e`) is opt-in and skips here — it needs RADAR_E2E=1 and
+      # spawns real subprocesses (see the memory-selftest job).
       - name: Test radar_ci
         run: dart test
         working-directory: packages/radar_ci
+
+  # radar_ci dogfooding: prove the whole pipeline (attach → sample → verdict →
+  # exit code) on this repo's OWN CI, against a hermetic planted leak. Runs in
+  # parallel with the gate job; a red gate here means the tool stopped catching
+  # a leak it is supposed to catch.
+  memory-selftest:
+    name: memory selftest (radar_ci e2e dogfood)
+    runs-on: ubuntu-latest
+    env:
+      RADAR_E2E_OUT: ${{ github.workspace }}/e2e-artifacts
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - run: flutter --version
+
+      # One root `pub get` resolves the whole pub workspace.
+      - name: Resolve workspace
+        run: flutter pub get
+
+      # Spawns leaky_app + healthy_app under their own VM service, samples each
+      # for ~3 min, and asserts the gate FAILS the planted leak (exit 3) and
+      # PASSES the bounded-churn control (exit 0). Writes both run.json files to
+      # RADAR_E2E_OUT for the report + artifact steps.
+      - name: Run hermetic planted-leak e2e gate
+        working-directory: packages/radar_ci
+        env:
+          RADAR_E2E: "1"
+        run: dart test -t e2e
+
+      # Render the SHIPPED `report` verb over the produced run.json files into
+      # the job summary — the leak the gate caught, shown in GitHub-flavored md.
+      - name: Report the selftest runs to the step summary
+        if: always()
+        working-directory: packages/radar_ci
+        run: |
+          if [ ! -f "$RADAR_E2E_OUT/leaky.run.json" ]; then
+            echo '_No run.json produced — the e2e was skipped (subprocess' \
+              'spawning unavailable on this runner)._' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          {
+            echo '## radar_ci memory selftest'
+            echo
+            echo '### Planted leak — the gate must FAIL this (exit 3)'
+            echo
+            dart run radar_ci report "$RADAR_E2E_OUT/leaky.run.json" \
+              --format github
+            echo
+            echo '### Healthy control — the gate must PASS this (exit 0)'
+            echo
+            dart run radar_ci report "$RADAR_E2E_OUT/healthy.run.json" \
+              --format github
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Keep the raw run.json around for anyone debugging a selftest regression.
+      - name: Upload run.json artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: radar-ci-memory-selftest
+          path: e2e-artifacts/*.run.json
+          if-no-files-found: warn
